@@ -1,0 +1,18 @@
+[build-system]
+requires = [
+    "setuptools>=49.6.0",
+    "wheel>=0.36.2",
+    'sage-setup ~= 10.0',
+    "setuptools_scm[toml]>=6.2",
+    "cython>=0.29.21, <1.0",
+    'cypari2 >=2.1.1',
+    'cysignals >=1.10.2',
+    'gmpy2 >=2.1.0',
+]
+build-backend = "setuptools.build_meta"
+dependencies = [
+    "hilbert-modular-group=>0.1.0"
+    ]
+[tool.setuptools_scm]
+write_to = "src/hilbert_maass/version.py"
+git_describe_command = "git describe --tags --long --match *.*"
