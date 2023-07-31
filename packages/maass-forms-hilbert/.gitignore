@@ -81,4 +81,4 @@ __pypackages__/
 
 *.pgf
 # Version
-src/hilbert_modgroup/version.py
+src/hilbert_maass/version.py

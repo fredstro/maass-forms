@@ -1,59 +1,238 @@
+from typing import Iterable
+
 from hilbert_modgroup.pullback import HilbertPullback
+from sage.categories.sets_cat import cartesian_product
 from sage.matrix.constructor import matrix
 from sage.misc.cachefunc import cached_function
+from sage.misc.misc_c import prod
+from sage.modules.free_module_element import vector
 from sage.rings.infinity import Infinity
+from sage.rings.integer import Integer
+from sage.rings.number_field.number_field import NumberField
+from sage.rings.number_field.number_field_element import NumberFieldElement
+from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
+from sage.structure.element import Matrix
+
+# User defined type for either Python int or Sage Integer
+Integer_t = Integer | int
 
 
-def get_Q_from_bounds(P: HilbertPullback, b: tuple) -> tuple:
+def cartesian_product_from_M(M: tuple[tuple[Integer_t]]) -> Iterable[tuple[Integer_t]]:
+    return cartesian_product([range(m0[0], m0[1] + 1) for m0 in M])
+
+
+def length_from_M(M: tuple[tuple[Integer_t]]) -> int:
+    return prod([m0[1] - m0[0] + 1 for m0 in M])
+
+
+def get_Q_from_bounds(P: HilbertPullback, M: tuple[tuple[Integer_t]]) -> tuple:
     """
-    Find the bounds for the box [-C,C]^n for the integrer coordinates correponding to the box [-b,b]^n in the lattice.
+    Find a bounding box for the cube [-M1,M1]x[-M2,M2],... for the integer coordinates correponding to the box [-b,b]^n in the lattice.
     """
     C = 1
     for ida in P.group().ideal_cusp_representatives():
         t = matrix(P.basis_matrix_ideal(ida)).transpose().norm(Infinity)
         if t > C:
             C = t
-    C = C*max(b)
-    return (C,) * len(b)
+    C = C * max(max(abs(b0), abs(b1)) for b0, b1 in M)
+    return (C,) * len(M)
 
 
 @cached_function
-def map_tuple_to_int(index_tuple: tuple, min_tix: tuple, max_tix: int) -> int:
+def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
+                     tuple_len: int = None) -> int:
+    r"""
+    Map a tuple (a0,a1,...,a[n-1]) with min_i < ai < max_i to an integer
+     $\sum_i=0^(n-1) (max_i - min_i + 1)**(n - 1 - i)*(ai - min_i)$
+
+    NOTE: This function together with `map_int_to_tuple` provides an isomorphism between
+            [min_0,...,max_0] x [min_1,...,max_1] x ... x [min_{n-1},...,max_{n-1}]
+             and [0,...,N] where N = prod(max_i - min_i + 1).
+
+    INPUT:
+
+    - ``index_tuple`` -- tuple
+    - ``tuple_limits`` -- tuple of tuples
+    - ``tuple_len`` -- integer: number of tuples (default: None) if positive then the tuple_limits
+                       are duplicated that number of times.
+    EXAMPLES::
+
+        sage: from hilbert_maass.utils import map_tuple_to_int
+        sage: map_tuple_to_int((-1,), ((-1, 1),), 1)
+        0
+        sage: map_tuple_to_int((-1, -1),((-1, 1),), 2)
+        0
+        sage: map_tuple_to_int((-1, -1, -1), ((-1, 1),), 3)
+        0
+        sage: map_tuple_to_int((-1, -1),((-1, 1), (-1, 1)))
+        0
+        sage: map_tuple_to_int((-1, -3),((-1, 1), (-3, 1)))
+        0
+        sage: map_tuple_to_int((0, -3),((-1, 1), (-3, 1)))
+        1
+
+    TESTS::
+
+        sage: map_tuple_to_int((-1, -1), ((-1, 1), (-1, -2)))
+        Traceback (most recent call last):
+        ...
+        ValueError: tuple_limits ((-1, 1), (-1, -2)) do not give positive length intervals
+
+        sage: map_tuple_to_int((-2, -1), ((-1, 1),(-1, 1)))
+        Traceback (most recent call last):
+        ...
+        IndexError: Tuple element (-2, -1) is out of bounds!
+        sage: map_tuple_to_int((-1, 2), ((-1,1),(-1,1)))
+        Traceback (most recent call last):
+        ...
+        IndexError: Tuple element (-1, 2) is out of bounds!
     """
-    Map a tuple (a,b) with min_tix < a, b < max_tix to
-    an integer (max_tix - min_tx +1)*(a - min_tix) + b - min_tx
-    and generalise this to longer tuples.
+    if not isinstance(index_tuple, tuple) or not isinstance(tuple_limits, tuple):
+        raise ValueError("Call with tuples!")
+    if len(tuple_limits) == 1 and isinstance(tuple_len, (Integer, int)) and tuple_len > 1:
+        tuple_limits = tuple_limits * tuple_len
+    if len(index_tuple) != len(tuple_limits):
+        raise ValueError(f"lengths differ: {len(index_tuple)} != {len(tuple_limits)}")
+    if any(x[1] - x[0] + 1 <= 0 for x in tuple_limits):
+        raise ValueError(f"tuple_limits {tuple_limits} do not give positive length intervals")
+    if any(index_tuple[i] < min_tix or index_tuple[i] > max_tix
+           for i, (min_tix, max_tix) in enumerate(tuple_limits)):
+        raise IndexError(f"Tuple element {index_tuple} is out of bounds!")
+    n = len(index_tuple)
+    # Check if any tuple elements are out of bounds.
+    return sum((max_tix - min_tix + 1)**i*(index_tuple[i] - min_tix)
+               for i, (min_tix, max_tix) in enumerate(tuple_limits))
+
+
+@cached_function
+def map_int_to_tuple(index: Integer_t, tuple_limits: tuple[tuple[Integer_t]],
+                     tuple_len: Integer_t = None) -> tuple:
+    r"""
+    Map integer to tuple (the inverse of map_tuple_to_int) by modding recursively
+    modulo the lengths of the integer intervals.
+
+    INPUT:
+
+    - ``index`` -- integer
+    - ``tuple_limits`` -- tuple of tuples of limits
+    - ``tuple_len`` -- integer (number of tuples - duplicates the input tuple_limits)
+
 
     EXAMPLES::
 
-        sage: from
+    sage: from hilbert_maass.utils import map_int_to_tuple
+    sage: map_int_to_tuple(0,((-1,1),), 1)
+    (-1,)
+    sage: map_int_to_tuple(0,((-1,1),), 2)
+    (-1, -1)
+    sage: map_int_to_tuple(0,((-1,1),), 3)
+    (-1, -1, -1)
+    sage: map_int_to_tuple(0,((-1,1),(-1,1)))
+    (-1, -1)
+    sage: map_int_to_tuple(0,((-1,1),(-3,1)))
+    (-1, -3)
+    sage: map_int_to_tuple(1,((-1,1),(-3,1)))
+    (0, -3)
 
+    TESTS::
+
+    sage: map_int_to_tuple(0,((-1,1),(-1,-2)))
+    Traceback (most recent call last):
+    ...
+    ValueError: tuple_limits ((-1, 1), (-1, -2)) do not give positive length intervals
+
+    sage: map_int_to_tuple(9,((-1,1),(-1,1)))
+    Traceback (most recent call last):
+    ...
+    IndexError: Index 9 is out of bounds!
+    sage: map_int_to_tuple(-1,((-1,1),(-1,1)))
+    Traceback (most recent call last):
+    ...
+    IndexError: Index -1 is out of bounds!
     """
-    if not isinstance(index_tuple, tuple):
+    if not isinstance(tuple_limits, tuple):
         raise ValueError("Call with tuple!")
-    n = len(index_tuple)
-    range_tix = (max_tix - min_tix + 1)
-    # Check if any tuple elements are out of bounds.
-    if max(index_tuple) - min_tix > range_tix or min(index_tuple) - min_tix < 0:
-        raise ValueError(f"The out of bounds value(s) in {index_tuple}!")
-    return sum(range_tix**(n-i-1)*(index_tuple[i] - min_tix) for i in range(n))
-
-
-@cached_function
-def map_int_to_tuple(index: int, min_tix: int, max_tix: int, len_tuple: int) -> tuple:
-    r"""
-    Map integer to tuple (the inverse of map_tuple_to_int)
-    :param index:
-    :param min_tix:
-    :param max_tix:
-    :param len_tuple:
-    :return:
-    """
-    range_tix = (max_tix - min_tix + 1)
+    if not isinstance(index, (int, Integer)):
+        raise ValueError("Call with integer!")
+    if len(tuple_limits) == 1 and isinstance(tuple_len, (Integer, int)) and tuple_len > 1:
+        tuple_limits = tuple_limits * tuple_len
+    if any(x[1] - x[0] + 1 <= 0 for x in tuple_limits):
+        raise ValueError(f"tuple_limits {tuple_limits} do not give positive length intervals")
+    if index < 0 or index >= prod(x[1] - x[0] + 1 for x in tuple_limits):
+        raise IndexError(f"Index {index} is out of bounds!")
     ix_t = []
-    for i in range(len_tuple-1, -1, -1):
+    for min_tix, max_tix in tuple_limits:
+        range_tix = max_tix - min_tix + 1
         t = index % range_tix
         ix_t.append(t + min_tix)
-        index = (index - t)/range_tix
-    ix_t.reverse()
+        index = (index - t) / range_tix
     return tuple(ix_t)
+
+@cached_function()
+def number_field_basis_matrix(number_field: NumberField, prec: int = 53) -> Matrix:
+    """
+    :param number_field:
+    :param prec:
+    :return:
+    """
+
+    return matrix([
+                   b.complex_embeddings(prec)
+                   for b in number_field.integral_basis()
+                   ]).transpose()
+
+
+def ideal_basis_matrix(ideal: NumberFieldFractionalIdeal, prec: int = 53) -> Matrix:
+    """
+    :param number_field:
+    :param prec:
+    :return:
+    """
+    return matrix([
+                   b.complex_embeddings(prec)
+                   for b in ideal.integral_basis()
+                   ]).transpose()
+
+@cached_function()
+def dual_ideal_basis_matrix(ideal: NumberFieldFractionalIdeal, prec: int = 53) -> Matrix:
+    """
+    :param number_field:
+    :param prec:
+    :return:
+    """
+    dual = ideal ** -1 * ideal.number_field().different() ** -1
+    return ideal_basis_matrix(dual, prec)
+
+
+def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
+                      element: NumberFieldElement,
+                      check: bool = False):
+    """
+    Find the coordinates of an ideal element with respect to an integral basis of that element.
+
+    :param ideala:
+    :param element:
+    :return:
+    """
+    nf = ideala.number_field()
+    if not isinstance(element, NumberFieldElement):
+        element = nf(element)
+    if element not in ideala:
+        raise ValueError(f"Element {element} not in ideal: {ideala}")
+    basis_change_matrix = ideal_basis_matrix(ideala) ** -1 * number_field_basis_matrix(nf)
+    ideal_coordinates = basis_change_matrix * element.vector()
+    if check:
+        assert sum([c * ideala.integral_basis[i]
+                    for i, c in enumerate(ideal_coordinates)]) == element
+    coordinates = basis_change_matrix * element.vector()
+    coordinates_int = tuple(int(c.real()) for c in coordinates if c.imag() == 0)
+    if len(coordinates_int) != len(coordinates):
+        raise ArithmeticError(f"Can not find lattice coordinates for delta={element}."
+                              f" coordinates={coordinates}"
+                              f" coordinates_int={coordinates_int}")
+    return coordinates_int
+
+@cached_function()
+def dual_ideal_element(coordinates: tuple[Integer_t] or vector,
+                           ideal: NumberFieldFractionalIdeal):
+        return dual_ideal_basis_matrix(ideal)*vector(coordinates)
