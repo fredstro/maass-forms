@@ -1,6 +1,9 @@
+from hilbert_maass.modform.coefficients import HilbertMaassCoefficients
 from hilbert_maass.utils import map_int_to_tuple
 from sage.arith.misc import divisors
+from sage.categories.sets_cat import cartesian_product
 from sage.rings.complex_mpfr import ComplexNumber
+from sage.rings.integer import Integer
 from sage.rings.number_field.number_field import QuadraticField
 from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
@@ -8,6 +11,9 @@ from sage.structure.sage_object import SageObject
 from typing import NoReturn, ParamSpec
 
 from sage.structure.element import ModuleElement
+
+from ..utils import Integer_t
+
 P = ParamSpec('P')
 
 
@@ -106,3 +112,12 @@ class HilbertEisensteinSeries(SageObject):
 
         """
         return sum(ideal_c.norm() ** s for ideal_c in self._ideals_dividing_vD(v))
+
+    def coefficients(self, M: tuple[tuple[Integer_t]]) -> HilbertMaassCoefficients:
+        different = self.number_field().different()
+        dual_ideals = [ideal ** -1 * different ** -1 for ideal in self._dual_ideals]
+        for V in cartesian_product([range(-m0[0], m0[1] + 1) for m0 in M]):
+            for ideala_dual in dual_ideals:
+                v = self.dual_ideal_element(V, self._ideal)
+
+        C = HilbertMaassCoefficients(X, M, self._dual_ideals)

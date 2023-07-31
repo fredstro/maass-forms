@@ -1,13 +1,11 @@
 from sage.misc.cachefunc import cached_function
 from sage.misc.misc_c import prod
 try:
-    from psage.modform.maass.lpkbessel import besselk_dp
+    from .bessel.besselk_dp import besselk_dp
 except ImportError:
     besselk_dp = None
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
-from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
-from sage.rings.real_mpfr import RealField, RealNumber, RR
-from sage.rings.abc import RealField
+from sage.rings.real_mpfr import RealNumber
 from sage.functions.bessel import bessel_K
 
 
@@ -34,7 +32,7 @@ def bessel_prod(v: tuple, y: tuple, s: tuple, sgn: str = '+') -> RealNumber:
             CF(y[i].sqrt() * bessel_K(s_minus_half[i], twopi * abs(v[i]) * y[i])) for i in range(n)
         ]
     else:
-        R = [si*CF(0, -1) for si in s_minus_half]
+        R = [si.imag() for si in s_minus_half]
         bessels = [
             CF(y[i]).sqrt()*besselk_dp(R[i], twopi * abs(v[i]) * y[i], pref=1) for i in range(n)
         ]
