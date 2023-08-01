@@ -3,30 +3,19 @@ Classes For Hilbert-Maass forms
 
 """
 import logging
-from hilbert_maass.coefficients import get_pb_pts
-from hilbert_maass.functions import bessel_prod
+from typing import ParamSpec
+
 # from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-from hilbert_maass.utils import get_Q_from_bounds, map_tuple_to_int, ideal_coordinates
 from hilbert_modgroup.pullback import HilbertPullback
-from sage.all import RR
-from sage.categories.sets_cat import cartesian_product
-from sage.functions.other import ceil
 from sage.matrix.constructor import matrix
-from sage.misc.cachefunc import cached_method
-from sage.misc.misc_c import prod
 from sage.modules.free_module_element import vector
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
-from sage.rings.integer import Integer
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.rings.real_mpfr import RealNumber
-from typing import ParamSpec
 from sage.structure.element import ModuleElement, Matrix
 
-from hilbert_maass.modform.coefficients import matrix_element
-from hilbert_maass.utils import map_int_to_tuple
-
-from .coefficients import HilbertMaassCoefficients, get_pb_pts_set_params, compute_coefficients
-from ..utils import Integer_t, cartesian_product_from_M, length_from_M
+from .coefficients import HilbertMaassCoefficients, compute_coefficients
+from ..utils import Integer_t
 
 P = ParamSpec('P')
 log = logging.getLogger(__name__)
