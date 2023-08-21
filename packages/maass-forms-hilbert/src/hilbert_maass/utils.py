@@ -1,16 +1,21 @@
+import json
 from typing import Iterable
 
 from hilbert_modgroup.pullback import HilbertPullback
+from sage.all import ZZ
 from sage.categories.sets_cat import cartesian_product
 from sage.matrix.constructor import matrix
 from sage.misc.cachefunc import cached_function
 from sage.misc.misc_c import prod
 from sage.modules.free_module_element import vector
+from sage.rings.complex_mpfr import ComplexNumber, ComplexField
 from sage.rings.infinity import Infinity
 from sage.rings.integer import Integer
 from sage.rings.number_field.number_field import NumberField
 from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
+from sage.rings.real_lazy import RLF
+from sage.rings.real_mpfr import RealNumber
 from sage.structure.element import Matrix
 
 # User defined type for either Python int or Sage Integer
@@ -22,6 +27,15 @@ def cartesian_product_from_M(M: tuple[tuple[Integer_t]]) -> Iterable[tuple[Integ
 
 
 def length_from_M(M: tuple[tuple[Integer_t]]) -> int:
+    """
+    
+    INPUT:
+
+    - ``M`` -- tuple of tuples of integers
+
+    Examples::
+
+    """
     return prod([m0[1] - m0[0] + 1 for m0 in M])
 
 
@@ -235,3 +249,65 @@ def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
 def dual_ideal_element(coordinates: tuple[Integer_t] or vector,
                            ideal: NumberFieldFractionalIdeal):
         return dual_ideal_basis_matrix(ideal)*vector(coordinates)
+
+def complex_number_to_json(s: ComplexNumber) -> dict:
+    """
+    Create json data from a ComplexNumber.
+
+    INPUT:
+
+    - ``s`` -- complex number
+    """
+    return {'prec': s.parent().prec(), 'val': str(s)}
+
+
+def complex_number_from_json(json_complex: dict | str) -> ComplexNumber:
+    """
+    Create a ComplexNumber from json data.
+
+    INPUT:
+
+    - ``s`` -- string or dict representing a complex number
+    """
+    if isinstance(json_complex, str):
+        json_complex = json.loads(json_complex)
+    try:
+        return ComplexField(json_complex['prec'])(json_complex['val'])
+    except TypeError:
+        return ComplexField(json_complex)
+
+
+def complex_tuple_to_json(complex_tuple: tuple[ComplexNumber]) -> list[dict]:
+    return [complex_number_to_json(s) for s in complex_tuple]
+
+
+def complex_tuple_from_json(json_list: list[dict] | str) -> tuple[ComplexNumber]:
+    """
+    Tuple of complex numbers from a json list
+
+    :param json_list:
+    :return:
+    """
+    if isinstance(json_list, str):
+        json_list = json.loads(json_list)
+    return tuple(complex_number_from_json(s) for s in json_list)
+
+
+def number_field_to_json(nf: NumberField) -> dict:
+    """
+    Json representation of number field.
+
+    NOTE: Any information about embeddings is ignored.
+
+    """
+    return {'polynomial': str(nf.polynomial()), 'names': nf._names}
+
+
+def number_field_from_json(data: dict | str) -> NumberField:
+    """
+    Create number field from json.
+
+    """
+    if isinstance(data, str):
+        data = json.loads(data)
+    return NumberField(ZZ['x'](data['polynomial']), names=data['names'])
