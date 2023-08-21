@@ -7,11 +7,15 @@ from hilbert_modgroup.pullback import HilbertPullback
 from numpy import linspace
 from sage.modules.module import Module
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
-from sage.rings.number_field.number_field_base import NumberField
+from sage.rings.integer_ring import ZZ
+from sage.rings.number_field.number_field import NumberField
+from sage.rings.number_field.number_field_base import NumberField as NumberFieldBase
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
+from sage.rings.rational_field import QQ
 from sage.rings.real_mpfr import RealNumber
 from typing import ParamSpec
 from .hilbert_maass_element import HilbertMaassForm_Element
+from ..utils import number_field_from_json, number_field_to_json
 
 P = ParamSpec('P')
 
@@ -20,19 +24,104 @@ class HilbertMaassFormSpace(Module):
 
     Element = HilbertMaassForm_Element
 
-    def __init__(self, group: HilbertModularGroup_class | NumberField, **kwargs: P.kwargs) -> None:
+    def __init__(self, group: HilbertModularGroup_class | NumberFieldBase, **kwargs: P.kwargs) -> None:
         if not isinstance(group, HilbertModularGroup_class):
             group = HilbertModularGroup(group)
         self._group = group
+        self._cuspidal = kwargs.pop('cuspidal', False)
         self._numerical_precision = kwargs.pop('numerical_precision', 53)
         self._complex_field = ComplexField(self._numerical_precision)
-        self._cuspidal = kwargs.pop('cuspidal', False)
         self._number_field = group.base_ring().number_field()
         different = self._number_field.different()
         representatives = self.group().ideal_cusp_representatives()
         self._dual_ideals = [ideal**-1*different**-1 for ideal in representatives]
         self._pullback = None
         super(HilbertMaassFormSpace, self).__init__(group.base_ring(), **kwargs)
+
+    def to_json(self):
+        """
+        JSON representation of self.
+
+        EXAMPLES::
+
+            sage: from hilbert_maass.all import HilbertMaassFormSpace
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: H.to_json()
+            {'cuspidal': False,
+             'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'},
+            'numerical_precision': 53}
+
+        """
+        return {
+            'number_field': number_field_to_json(self.number_field()),
+            'cuspidal': self._cuspidal,
+            'numerical_precision': int(self._numerical_precision)
+        }
+
+    @classmethod
+    def from_json(cls, data):
+        """
+        Create an instance of self from JSON data.
+
+        EXAMPLES::
+
+            sage: from hilbert_maass.all import HilbertMaassFormSpace
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: H.from_json(H.to_json()) == H
+            True
+
+        """
+        nf = number_field_from_json(data['number_field'])
+        group = HilbertModularGroup(nf)
+        return cls(group, cuspidal=data['cuspidal'],
+                   numerical_precision=data['numerical_precision'])
+
+    def __repr__(self):
+        return f"HilbertMaassFormSpace({self.group()})"
+
+    def __eq__(self, other):
+        """
+        Is self equal to other.
+
+        Note: Isomorphic number fields (e.g. QuadraticField(2) and NumberField(x^2-2)
+              have equal level so we use the level for comparison of groups.
+
+        INPUT:
+
+        - `other` -- object to compare self with
+
+        EXAMPLES::
+
+            sage: from hilbert_maass.all import HilbertMaassFormSpace
+            sage: H1 = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: H1 == H1
+            True
+            sage: H1 != H1
+            False
+            sage: H2 = HilbertMaassFormSpace(NumberField(x^2-2, names='a'), cuspidal=False)
+            sage: H1 == H2
+            True
+            sage: H1 != H2
+            False
+            sage: H3 = HilbertMaassFormSpace(NumberField(x^2-2, names='a'), cuspidal=True)
+            sage: H1 == H3
+            False
+            sage: H1 != H3
+            True
+
+
+        """
+        if not isinstance(other, HilbertMaassFormSpace):
+            return False
+        if self.is_cuspidal() != other.is_cuspidal():
+            return False
+        # Need to check isomorphic fields
+        if not self.number_field().is_isomorphic(other.number_field()):
+            return False
+        this_level = self.group().level()
+        other_level_gens = other.group().level().gens_reduced()
+        return self.number_field().fractional_ideal(other_level_gens) == this_level
+
 
     def group(self):
         """
@@ -67,6 +156,7 @@ class HilbertMaassFormSpace(Module):
 
     def dual_ideals(self):
         return self._dual_ideals
+
     def is_cuspidal(self):
         """
         Is self cuspidal
@@ -136,7 +226,7 @@ class HilbertMaassFormSpace(Module):
         ideala = ideala or self._number_field.fractional_ideal(1)
         Y1v = Y1 or (0.75, 0.75)
         Y2v = Y2 or (0.73, 0.73)
-        M = M or (4, 4)
+        M = M or ((-4, 4),) * 2
         result = []
         f0 = 0
         f1 = 0
@@ -149,10 +239,11 @@ class HilbertMaassFormSpace(Module):
                 rs = [r0 or r for r0 in fixed_params]
                 s = tuple(CF(0.5, r0) for r0 in rs)
             print(s)
-            G.spectral_parameter = s
+            G._spectral_parameter = s
             C1 = G.compute_coefficients(s, ideala, ideala, M=M, Y=Y1v)
             C2 = G.compute_coefficients(s, ideala, ideala, M=M, Y=Y2v)
             result.append((s, C1, C2))
+            coeff = coeff or (0, 1)
             f0 = self.functional(C1, C2, coeff=coeff)
             if f0 * f1 < 0 and max(abs(f0), abs(f1)) < 1e-2:
                 print(f"Sign change {coeff} in interval: [{r_previous}, {r}]")

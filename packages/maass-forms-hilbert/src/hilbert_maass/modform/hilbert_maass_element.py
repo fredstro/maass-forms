@@ -15,7 +15,7 @@ from sage.rings.real_mpfr import RealNumber
 from sage.structure.element import ModuleElement, Matrix
 
 from .coefficients import HilbertMaassCoefficients, compute_coefficients
-from ..utils import Integer_t
+from ..utils import Integer_t, complex_tuple_to_json
 
 P = ParamSpec('P')
 log = logging.getLogger(__name__)
@@ -25,21 +25,17 @@ class HilbertMaassForm_Element(ModuleElement):
 
     def __init__(self, parent: 'HilbertMaassFormSpace',
                  spectral_parameter: tuple[ComplexNumber | RealNumber],
-                 coefficients: Matrix = None,
+                 coefficients: Matrix | HilbertMaassCoefficients = None,
                  **kwargs: P.kwargs) -> None:
         super(HilbertMaassForm_Element, self).__init__(parent, **kwargs)
         self.cuspidal = parent.is_cuspidal()
         self.spectral_parameter = spectral_parameter
         self._number_field = parent.number_field()
-        if self.spectral_parameter:
-            if not hasattr(self.spectral_parameter[0], 'parent'):
-                prec = 53
-            else:
-                prec = self.spectral_parameter[0].parent().prec()
-        self._complex_field = ComplexField(prec)
+        self._complex_field = self.spectral_parameter[0].parent().prec()
         self.has_coefficients = False
         if coefficients is None:
-            self._coefficients = {c: {} for c in range(self.parent().group().ncusps())}
+            self._coefficients = None
+            # {c: {} for c in range(self.parent().group().ncusps())}
         elif isinstance(coefficients, HilbertMaassCoefficients):
             self._coefficients = coefficients
         else:
@@ -54,13 +50,45 @@ class HilbertMaassForm_Element(ModuleElement):
         }
 
     def __reduce__(self):
-        return self.__class__, self._parent, self._spectral_parameter,
+        return self.__class__, self.parent(), self.spectral_parameter,
+
+    def to_json(self):
+        return {
+            'space': self.parent().to_json(),
+            'spectral_parameter': complex_tuple_to_json(self.spectral_parameter),
+            'coefficients':
+                self.coefficients().to_json()
+        }
+
+    @classmethod
+    def from_json(cls, data):
+        from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
+        space = HilbertMaassFormSpace.from_json(data=data['space'])
+        spectral_parameter = tuple(ComplexField(x['prec'])(x['val'])
+                              for x in data['spectral_parameter'])
+        coefficients = HilbertMaassCoefficients.from_json(data['coefficients'])
+        return cls(space, spectral_parameter, coefficients)
+
     def is_cuspidal(self):
         return self.cuspidal
+
+    def __eq__(self, other):
+        if not isinstance(other, HilbertMaassForm_Element):
+            return False
+        return self.parent() == other.parent() and \
+            self.spectral_parameter() == other.spectral_parameter() and \
+            self.coefficients() == other.coefficients()
+
+    def __repr__(self):
+        return f"Hilbert Maass form for {self.parent()} with spectral parameter" \
+               f" {self.spectral_parameter()}"
 
     def dual_ideal_element(self, coordinates: tuple[Integer_t] or vector,
                            ideal: NumberFieldFractionalIdeal):
         return self._dual_ideal_matrix[ideal]*vector(coordinates)
+
+    def spectral_parameter(self):
+        return self._spectral_parameter
 
     def pullback(self):
         return self._pullback
@@ -114,13 +142,11 @@ class HilbertMaassForm_Element(ModuleElement):
             raise ValueError("Spectral parameter must be set in the HilbertMaassForm or "
                              "passed as parameter")
         C = compute_coefficients(space=self.parent(),
-                                 s=s,
+                                 spectral_parameter=s,
                                  ideala=ideala,
                                  idealb=idealb,
                                  M=M,
                                  Y=Y,
-                                 form=self,
-                                 prec=prec,
                                  sgn=sgn)
         self._coefficients = C
         return C
