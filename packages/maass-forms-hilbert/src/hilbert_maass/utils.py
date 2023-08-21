@@ -245,10 +245,22 @@ def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
                               f" coordinates_int={coordinates_int}")
     return coordinates_int
 
+
 @cached_function()
 def dual_ideal_element(coordinates: tuple[Integer_t] or vector,
-                           ideal: NumberFieldFractionalIdeal):
+                       ideal: NumberFieldFractionalIdeal,
+                       as_nf_element=False):
+    """
+    Element in dual ideal given by coordinates.
+
+    INPUT:
+
+    - `
+    """
+    if not as_nf_element:
         return dual_ideal_basis_matrix(ideal)*vector(coordinates)
+    dual = ideal ** -1 * ideal.number_field().different() ** -1
+    return sum([c * dual.integral_basis[i] for i, c in enumerate(coordinates)])
 
 def complex_number_to_json(s: ComplexNumber) -> dict:
     """
