@@ -1,6 +1,8 @@
 import os
 import shutil
 import subprocess
+import sys
+
 import setuptools
 from sage_setup.extensions import create_extension
 from setuptools.extension import Extension
@@ -45,6 +47,14 @@ ext_modules = [
               library_dirs=LIBRARY_DIRS)
     ]
 
+# There is something weird going on with Pythran / Cython bindings in Ubuntu
+# so if pythran doesn't load we ignore it.
+
+try:
+    import pythran
+except (ImportError, AttributeError):
+    sys.modules['pythran'] = None
+
 extensions = cythonize(
     ext_modules,
     include_path=['src', 'src/hilbert_maass/bessel'] + LIBRARY_DIRS + [SAGE_LIB],
@@ -59,7 +69,9 @@ setuptools.setup(
     create_extension=create_extension,
     packages=['hilbert_maass',
               'hilbert_maass.bessel',
-              'hilbert_maass.modform']
+              'hilbert_maass.modform',
+              'hilbert_maass.database'
+              ]
 )
     # dependency_links=['https://github.com/fredstro/hilbertmodgroup.git/#egg=package-1.0'],
     # setup_requires=['cython'],
