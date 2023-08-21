@@ -1,7 +1,11 @@
-import datetime
-
+import logging
 import mongoengine as me
-from comp_manager.document.models import DBObjectBase
+log = logging.getLogger(__name__)
+try:
+    from comp_manager.document.models import DBObjectBase
+except ImportError as e:
+    DBObjectBase = object
+    log.error(f"Cannot import comp_manager.document.models: {e}")
 
 
 class HilbertMaassFormDB(DBObjectBase):
