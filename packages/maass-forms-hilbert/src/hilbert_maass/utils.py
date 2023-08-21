@@ -171,15 +171,14 @@ def map_int_to_tuple(index: Integer_t, tuple_limits: tuple[tuple[Integer_t]],
 @cached_function()
 def number_field_basis_matrix(number_field: NumberField, prec: int = 53) -> Matrix:
     """
-    :param number_field:
-    :param prec:
-    :return:
-    """
+    Basis matrix with respect to the '.vector' property of number field elements.
 
+    Note: number_field_basis_matrix(nf, prec)*elt.vector() == elt.complex_embeddings(prec)
+    """
+    V, f, _ = number_field.vector_space()
     return matrix([
-                   b.complex_embeddings(prec)
-                   for b in number_field.integral_basis()
-                   ]).transpose()
+        f(b).complex_embeddings(prec) for b in V.basis()
+    ]).transpose()
 
 
 def ideal_basis_matrix(ideal: NumberFieldFractionalIdeal, prec: int = 53) -> Matrix:
