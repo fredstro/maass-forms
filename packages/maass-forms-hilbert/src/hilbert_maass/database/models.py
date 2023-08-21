@@ -1,12 +1,8 @@
-import logging
+"""
+Database representation of Hilbert Maass forms.
+"""
 import mongoengine as me
-log = logging.getLogger(__name__)
-try:
-    from comp_manager.document.models import DBObjectBase
-except ImportError as e:
-    DBObjectBase = object
-    log.error(f"Cannot import comp_manager.document.models: {e}")
-
+from comp_manager.document.models import DBObjectBase
 
 class HilbertMaassFormDB(DBObjectBase):
     """
