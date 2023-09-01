@@ -31,7 +31,7 @@ if shutil.which('brew') is not None:
     HOMEBREW_INC = HOMEBREW_PREFIX + '/include'
     INCLUDE_DIRS.append(HOMEBREW_INC)
 
-INCLUDE_DIRS += ['src', 'src/hilbert_maass']
+INCLUDE_DIRS += ['src']
 extra_compile_args = ['-Wno-unused-function',
                       '-Wno-implicit-function-declaration',
                       '-Wno-unused-variable',
@@ -40,8 +40,8 @@ extra_compile_args = ['-Wno-unused-function',
                       '-Wno-unreachable-code',
                       '-Wno-unreachable-code-fallthrough']
 ext_modules = [
-    Extension('hilbert_maass.bessel.besselk_dp',
-              ['src/hilbert_maass/bessel/besselk_dp.pyx'],
+    Extension('hilbert_maass.functions.bessel.besselk_dp',
+              ['src/hilbert_maass/functions/bessel/besselk_dp.pyx'],
               include_dirs=INCLUDE_DIRS,
               extra_compile_args=extra_compile_args,
               library_dirs=LIBRARY_DIRS)
@@ -57,7 +57,7 @@ except (ImportError, AttributeError):
 
 extensions = cythonize(
     ext_modules,
-    include_path=['src', 'src/hilbert_maass/bessel'] + LIBRARY_DIRS + [SAGE_LIB],
+    include_path=['src'] + LIBRARY_DIRS + [SAGE_LIB],
     compiler_directives={
         'embedsignature': True,
         'language_level': '3',
@@ -68,9 +68,11 @@ setuptools.setup(
     ext_modules=extensions,
     create_extension=create_extension,
     packages=['hilbert_maass',
-              'hilbert_maass.bessel',
+              'hilbert_maass.functions',
+              'hilbert_maass.functions.bessel',
               'hilbert_maass.modform',
-              'hilbert_maass.database'
+              'hilbert_maass.database',
+              'hilbert_maass.search'
               ]
 )
     # dependency_links=['https://github.com/fredstro/hilbertmodgroup.git/#egg=package-1.0'],
