@@ -1,16 +1,16 @@
 from sage.misc.cachefunc import cached_function
 from sage.misc.misc_c import prod
 try:
-    from .bessel.besselk_dp import besselk_dp
+    from hilbert_maass.functions.bessel.besselk_dp import besselk_dp
 except ImportError:
     besselk_dp = None
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
-from sage.rings.real_mpfr import RealNumber
+from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.functions.bessel import bessel_K
 
 
 @cached_function
-def bessel_prod(v: tuple, y: tuple, s: tuple, sgn: str = '+') -> RealNumber:
+def bessel_prod(v: tuple, y: tuple, s: tuple, sgn: str = '+') -> RealNumber_class:
     """
     A product of scaled K-Bessel functions: sqrt(y_i) e^{pi R_i/2}K_{iR_i}(2pi |v_i|y_i)
     where s_i = 1/2 + Ri

@@ -15,12 +15,13 @@ from sage.rings.number_field.number_field import NumberField
 from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.rings.real_lazy import RLF
-from sage.rings.real_mpfr import RealNumber
+from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import Matrix
 
 # User defined type for either Python int or Sage Integer
 Integer_t = Integer | int
-
+Real_t = RealNumber_class | float
+Complex_t = ComplexNumber | complex
 
 def cartesian_product_from_M(M: tuple[tuple[Integer_t]]) -> Iterable[tuple[Integer_t]]:
     return cartesian_product([range(m0[0], m0[1] + 1) for m0 in M])
@@ -71,7 +72,7 @@ def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
                        are duplicated that number of times.
     EXAMPLES::
 
-        sage: from hilbert_maass.utils import map_tuple_to_int
+        sage: from hilbert_maass.modform.utils import map_tuple_to_int
         sage: map_tuple_to_int((-1,), ((-1, 1),), 1)
         0
         sage: map_tuple_to_int((-1, -1),((-1, 1),), 2)
@@ -134,7 +135,7 @@ def map_int_to_tuple(index: Integer_t, tuple_limits: tuple[tuple[Integer_t]],
 
     EXAMPLES::
 
-    sage: from hilbert_maass.utils import map_int_to_tuple
+    sage: from hilbert_maass.modform.utils import map_int_to_tuple
     sage: map_int_to_tuple(0,((-1,1),), 1)
     (-1,)
     sage: map_int_to_tuple(0,((-1,1),), 2)

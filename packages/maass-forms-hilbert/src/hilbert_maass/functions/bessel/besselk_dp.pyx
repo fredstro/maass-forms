@@ -29,8 +29,8 @@ Also algorithms for incomplete gamma function.
 
     EXAMPLES::
 
-        sage: from hilbert_maass.bessel.besselk_dp import besselk_dp, besselk_dp_pow
-        sage: from hilbert_maass.bessel.besselk_dp import besselk_dp_rec
+        sage: from hilbert_maass.functions.bessel.besselk_dp import besselk_dp, besselk_dp_pow
+        sage: from hilbert_maass.functions.bessel.besselk_dp import besselk_dp_rec
         sage: from sage.all import RealField, ComplexField
         sage: besselk_dp(10.0,5.0) # tol 1e-14
         -0.7183327166568183
@@ -129,7 +129,7 @@ cpdef besselk_dp(double R,double x,double prec=1e-14,int pref=1,algorithm='defau
 
     EXAMPLES::
 
-        sage: from hilbert_maass.bessel.besselk_dp import besselk_dp
+        sage: from hilbert_maass.functions.bessel.besselk_dp import besselk_dp
         sage: besselk_dp(10.0,5.0) # tol 2e-14
         -0.7183327166568183
         sage: besselk_dp(10.0,3.0,pref=0) # tol 2e-14
@@ -245,7 +245,7 @@ cpdef double besselk_dp_rec(double R, double x, double prec=1e-14,
 
     EXAMPLES::
 
-        sage: from hilbert_maass.bessel.besselk_dp import besselk_dp_rec
+        sage: from hilbert_maass.functions.bessel.besselk_dp import besselk_dp_rec
         sage: besselk_dp_rec(10.0,5.0,prec=1e-16,pref=1) # tol 2e-13
         -0.7183327166568183
         sage: besselk_dp_rec(10.0,3.0,prec=1e-16) # tol 2e-15
@@ -383,7 +383,7 @@ cpdef double besselk_dp_pow(double R,double x, double prec=1E-12,int pref=0):
         
     EXAMPLES::
 
-        sage: from hilbert_maass.bessel.besselk_dp import besselk_dp_pow
+        sage: from hilbert_maass.functions.bessel.besselk_dp import besselk_dp_pow
         sage: besselk_dp_pow(10.0,3.0) # tol 7e-15
         -6.3759939798739404e-08
         
@@ -573,7 +573,7 @@ cpdef loggamma_dp(double x, double R, double prec=1E-16):
 
     EXAMPLES::
 
-        sage: from hilbert_maass.bessel.besselk_dp import loggamma_dp
+        sage: from hilbert_maass.functions.bessel.besselk_dp import loggamma_dp
         sage: loggamma_dp(1.0, 3.0) # tol 5e-16
         (-3.2441442995897556+1.053350771068613j) 
         sage: import mpmath

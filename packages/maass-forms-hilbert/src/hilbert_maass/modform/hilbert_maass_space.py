@@ -7,15 +7,12 @@ from hilbert_modgroup.pullback import HilbertPullback
 from numpy import linspace
 from sage.modules.module import Module
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
-from sage.rings.integer_ring import ZZ
-from sage.rings.number_field.number_field import NumberField
 from sage.rings.number_field.number_field_base import NumberField as NumberFieldBase
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
-from sage.rings.rational_field import QQ
-from sage.rings.real_mpfr import RealNumber
+from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from typing import ParamSpec
 from .hilbert_maass_element import HilbertMaassForm_Element
-from ..utils import number_field_from_json, number_field_to_json
+from .utils import number_field_from_json, number_field_to_json, Real_t
 
 P = ParamSpec('P')
 
@@ -29,8 +26,6 @@ class HilbertMaassFormSpace(Module):
             group = HilbertModularGroup(group)
         self._group = group
         self._cuspidal = kwargs.pop('cuspidal', False)
-        self._numerical_precision = kwargs.pop('numerical_precision', 53)
-        self._complex_field = ComplexField(self._numerical_precision)
         self._number_field = group.base_ring().number_field()
         different = self._number_field.different()
         representatives = self.group().ideal_cusp_representatives()
@@ -47,15 +42,12 @@ class HilbertMaassFormSpace(Module):
             sage: from hilbert_maass.all import HilbertMaassFormSpace
             sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
             sage: H.to_json()
-            {'cuspidal': False,
-             'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'},
-            'numerical_precision': 53}
+            {'cuspidal': False, 'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'}}
 
         """
         return {
             'number_field': number_field_to_json(self.number_field()),
-            'cuspidal': self._cuspidal,
-            'numerical_precision': int(self._numerical_precision)
+            'cuspidal': self._cuspidal
         }
 
     @classmethod
@@ -73,8 +65,7 @@ class HilbertMaassFormSpace(Module):
         """
         nf = number_field_from_json(data['number_field'])
         group = HilbertModularGroup(nf)
-        return cls(group, cuspidal=data['cuspidal'],
-                   numerical_precision=data['numerical_precision'])
+        return cls(group, cuspidal=data['cuspidal'])
 
     def __repr__(self):
         return f"HilbertMaassFormSpace({self.group()})"
@@ -207,22 +198,22 @@ class HilbertMaassFormSpace(Module):
                 return s
             s = s.list()
         if check:
-            if isinstance(s, (RealNumber, ComplexNumber, int, float)):
+            if isinstance(s, (RealNumber_class, ComplexNumber, int, float)):
                 s = [s] * self._number_field.degree()
         return self.element_class(self, s, **kwargs)
 
-    def check_interval(self, r_start: float | RealNumber,
-                             r_stop: float | RealNumber,
-                             fixed_params: tuple[float | RealNumber] = None,
+    def check_interval(self, r_start: Real_t,
+                             r_stop: Real_t,
+                             fixed_params: tuple[Real_t] = None,
                        nsteps: int = 10,
-                       Y1: float | RealNumber = None,
-                       Y2: float | RealNumber = None,
+                       Y1: Real_t = None,
+                       Y2: Real_t = None,
                        M: tuple[int] = None,
                        ideala: NumberFieldFractionalIdeal = None,
                        coeff: tuple = None
                        ) -> list:
         G = self.an_element()
-        CF = self._complex_field
+        CF = ComplexField(r_start.parent().prec())
         ideala = ideala or self._number_field.fractional_ideal(1)
         Y1v = Y1 or (0.75, 0.75)
         Y2v = Y2 or (0.73, 0.73)

@@ -2,6 +2,7 @@
 Classes For Hilbert-Maass forms
 
 """
+import json
 import logging
 from typing import ParamSpec
 
@@ -11,11 +12,11 @@ from sage.matrix.constructor import matrix
 from sage.modules.free_module_element import vector
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
-from sage.rings.real_mpfr import RealNumber
+from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import ModuleElement, Matrix
 
 from .coefficients import HilbertMaassCoefficients, compute_coefficients
-from ..utils import Integer_t, complex_tuple_to_json
+from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json
 
 P = ParamSpec('P')
 log = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ log = logging.getLogger(__name__)
 class HilbertMaassForm_Element(ModuleElement):
 
     def __init__(self, parent: 'HilbertMaassFormSpace',
-                 spectral_parameter: tuple[ComplexNumber | RealNumber],
+                 spectral_parameter: tuple[ComplexNumber | RealNumber_class],
                  coefficients: Matrix | HilbertMaassCoefficients = None,
                  **kwargs: P.kwargs) -> None:
         super(HilbertMaassForm_Element, self).__init__(parent, **kwargs)
@@ -54,7 +55,7 @@ class HilbertMaassForm_Element(ModuleElement):
 
     def to_json(self):
         return {
-            'space': self.parent().to_json(),
+            'parent': self.parent().to_json(),
             'spectral_parameter': complex_tuple_to_json(self.spectral_parameter),
             'coefficients':
                 self.coefficients().to_json()
@@ -63,11 +64,13 @@ class HilbertMaassForm_Element(ModuleElement):
     @classmethod
     def from_json(cls, data):
         from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-        space = HilbertMaassFormSpace.from_json(data=data['space'])
+        if isinstance(data, str):
+            data = json.loads(data)
+        parent = HilbertMaassFormSpace.from_json(data=data['parent'])
         spectral_parameter = tuple(ComplexField(x['prec'])(x['val'])
                               for x in data['spectral_parameter'])
         coefficients = HilbertMaassCoefficients.from_json(data['coefficients'])
-        return cls(space, spectral_parameter, coefficients)
+        return cls(parent, spectral_parameter, coefficients)
 
     def is_cuspidal(self):
         return self.cuspidal
@@ -81,7 +84,7 @@ class HilbertMaassForm_Element(ModuleElement):
 
     def __repr__(self):
         return f"Hilbert Maass form for {self.parent()} with spectral parameter" \
-               f" {self.spectral_parameter()}"
+               f" {self.spectral_parameter}"
 
     def dual_ideal_element(self, coordinates: tuple[Integer_t] or vector,
                            ideal: NumberFieldFractionalIdeal):
@@ -152,9 +155,12 @@ class HilbertMaassForm_Element(ModuleElement):
         return C
 
 
-def HilbertMaassForm(group: 'HilbertModularGroup',
-                     spectral_parameter: tuple[ComplexNumber | RealNumber],
+def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace',
+                     spectral_parameter: tuple[ComplexNumber | RealNumber_class],
                      **kwargs: P.kwargs) -> HilbertMaassForm_Element:
     from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-    space = HilbertMaassFormSpace(group, **kwargs)
+    if isinstance(group, HilbertMaassFormSpace):
+        space = group
+    else:
+        space = HilbertMaassFormSpace(group, **kwargs)
     return HilbertMaassForm_Element(space, spectral_parameter=spectral_parameter)

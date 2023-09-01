@@ -1,18 +1,14 @@
 from hilbert_maass.modform.coefficients import HilbertMaassCoefficients
-from hilbert_maass.utils import map_int_to_tuple
 from sage.arith.misc import divisors
 from sage.categories.sets_cat import cartesian_product
 from sage.rings.complex_mpfr import ComplexNumber
-from sage.rings.integer import Integer
 from sage.rings.number_field.number_field import QuadraticField
 from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.structure.sage_object import SageObject
 from typing import NoReturn, ParamSpec
 
-from sage.structure.element import ModuleElement
-
-from ..utils import Integer_t
+from .utils import Integer_t
 
 P = ParamSpec('P')
 

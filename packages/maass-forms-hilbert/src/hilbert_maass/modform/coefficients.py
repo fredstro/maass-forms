@@ -1,6 +1,5 @@
 import json
 
-from hilbert_maass.functions import bessel_prod
 from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement
 from sage.categories.sets_cat import cartesian_product
 from sage.matrix.constructor import matrix
@@ -12,8 +11,8 @@ from sage.rings.real_mpfr import RealField, RealNumber
 from typing import ParamSpec
 
 import logging
-from hilbert_maass.utils import ideal_coordinates, map_tuple_to_int, map_int_to_tuple, \
-    get_Q_from_bounds, ideal_basis_matrix
+from hilbert_maass.modform.utils import ideal_coordinates, map_tuple_to_int, map_int_to_tuple, \
+    get_Q_from_bounds
 from sage.functions.other import ceil
 from sage.misc.cachefunc import cached_method
 from sage.rings.integer import Integer
@@ -22,9 +21,9 @@ from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdea
 from sage.structure.element import Matrix
 from sage.structure.sage_object import SageObject
 
-from hilbert_maass.functions import bessel_prod, exp_trace_prod
+from ..functions.functions import bessel_prod, exp_trace_prod
 
-from ..utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
+from .utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
     complex_tuple_to_json, complex_tuple_from_json
 
 P = ParamSpec('P')
@@ -111,8 +110,7 @@ class HilbertMaassCoefficients(SageObject):
                   ['9.00000000000000']],
                  'prec': 53,
                  'space': {'cuspidal': False,
-                  'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'},
-                  'numerical_precision': 53},
+                  'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'}},
                  'spectral_parameter': [{'prec': 53,
                          'val': '0.500000000000000 + 1.00000000000000*I'},
                         {'prec': 53, 'val': '0.500000000000000 + 1.00000000000000*I'}]}
@@ -150,8 +148,9 @@ class HilbertMaassCoefficients(SageObject):
         CF = ComplexField(data['prec'])
         coefficients = matrix(CF, data['coefficients'])
         from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
+        M = tuple(tuple(x) for x in data['M'])
         return cls(
-            coefficients, M=data['M'],
+            coefficients, M=M,
             spectral_parameter=complex_tuple_from_json(data['spectral_parameter']),
             space=HilbertMaassFormSpace.from_json(data['space'])
         )
@@ -260,13 +259,13 @@ class HilbertMaassCoefficients(SageObject):
 
 @cached_method
 def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
-                          spectral_parameter: tuple = None,
+                          spectral_parameter: tuple[ComplexNumber] = None,
                           M: tuple[tuple[Integer_t]] = None,
                           Y: tuple = None,
                           smax: float | RealNumber = None,
                           ideala: NumberFieldFractionalIdeal = None) -> tuple:
-    CF = space._complex_field
-    spectral_parameter = spectral_parameter or (10, )
+    spectral_parameter = spectral_parameter or (ComplexField(53)(0.5,10), )
+    CF = spectral_parameter[0].parent()
     if not spectral_parameter and not smax:
         raise ValueError("Need either spectral parameter or smax set.")
     if spectral_parameter and not smax:
