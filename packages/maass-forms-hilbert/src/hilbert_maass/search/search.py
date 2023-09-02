@@ -3,7 +3,7 @@ Routines to search for Hilbert Maass forms
 """
 import logging
 import numpy
-from comp_manager.utils import insert_object
+from comp_manager.utils import insert_object, load_object
 from hilbert_maass.database.models import HilbertMaassFormDB
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t
@@ -78,12 +78,13 @@ def compute_on_grid(space, grid_limits: tuple[tuple[Real_t]],
     grids, grid_indices = create_grid(grid_limits, grid_numbers)
     CF = ComplexField(prec)
     for m in grid_indices:
-        spectral_parameter = tuple(CF(grid[tuple(m)]) for grid in grids)
-        maass_form = HilbertMaassFormDB.near_or_create(
+        spectral_parameter = tuple(CF(0.5, grid[tuple(m)]) for grid in grids)
+        maass_form_db = HilbertMaassFormDB.near_or_create(
             parent=space.to_json(),
             spectral_parameter=spectral_parameter,
-            bound_m=bound_m).first()
-        if not maass_form.coefficients():
+            bound_m=bound_m)
+        if not maass_form_db.coefficients:
+            maass_form = load_object(maass_form_db)
             maass_form.compute_coefficients(M=bound_m)
             insert_object(maass_form)
         log.debug(f"Computed Hilbert Maass form for s={spectral_parameter}")
