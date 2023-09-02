@@ -10,6 +10,7 @@ from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.utils import Real_t, Integer_t, Complex_t
 from mongoengine import QuerySet
 from sage.rings.cc import CC
+from sage.all import Integer
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 
 P = ParamSpec('P')
@@ -18,7 +19,7 @@ class Point(me.EmbeddedDocument):
     x = me.FloatField()
     y = me.FloatField()
 
-    def str(self):
+    def __str__(self):
         """
         String representation of self.
 
@@ -30,6 +31,10 @@ class HilbertMaassformQuerySet(QuerySet, ABC):
     """
     Customised QuerySet for HilbertMaassFormsDB.
     """
+
+    def __getitem__(self, item):
+        if isinstance(item, Integer):
+            return super().__getitem__(int(item))
 
     def near(self, spectral_parameter: tuple[Complex_t],
              max_distance: Real_t = 1e-10) -> QuerySet:
@@ -93,6 +98,7 @@ class HilbertMaassFormDB(DBObjectBase):
     spectral_parameter = me.ListField(me.DictField())
     # Storing the spectral parameters as list of points on a line enables geo searching
     spectral_parameter_points = me.EmbeddedDocumentListField(Point, default=[])
+    y_values = me.ListField(me.FloatField())
     coefficients = me.DictField()
     parent = me.DictField()
     # Set manually (or automatically) to 'tentative' if the form is
@@ -114,9 +120,12 @@ class HilbertMaassFormDB(DBObjectBase):
 
         """
         if self.spectral_parameter and not self.spectral_parameter_points:
-            coords = [Point(**{'x': float(CC(s['val']).real()), 'y': float(CC(s['val']).imag())})
-                      for s in self.spectral_parameter]
+            complex_pts = [complex(s['val'].replace('*I', 'j').replace(' ', ''))
+                           for s in self.spectral_parameter]
+            coords = [Point(**{'x': s.real, 'y': s.imag}) for s in complex_pts]
             self.spectral_parameter_points = coords
+        if self.coefficients and not self.y_values:
+            self.y_values = [float(y) for y in self.coefficients['Y']]
         if not self.max_m and self.coefficients:
             self.max_m = max(max(m) for m in self.coefficients['M'])
         super(HilbertMaassFormDB, self).save(**kwargs)
@@ -140,9 +149,12 @@ class HilbertMaassFormDB(DBObjectBase):
         """
         if not isinstance(parent, dict):
             parent = parent.to_json()
-        maass_form = cls(parent=parent).near(spectral_parameter, max_distance=max_distance)\
+        maass_form_db = cls.objects(parent=parent).near(spectral_parameter, max_distance=max_distance)\
             .with_precision(bound_m).first()
-        if not maass_form:
-            maass_form = HilbertMaassForm(parent, spectral_parameter)
-            maass_form.compute_coefficients(m=bound_m)
-            return maass_form
+        if not maass_form_db:
+            space = HilbertMaassFormSpace.from_json(parent)
+            maass_form = HilbertMaassForm(space, spectral_parameter)
+            maass_form.compute_coefficients(M=bound_m)
+            maass_form_db = cls(**maass_form.to_json())
+            maass_form_db.save()
+        return maass_form_db

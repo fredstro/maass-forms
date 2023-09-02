@@ -24,7 +24,7 @@ from sage.structure.sage_object import SageObject
 from ..functions.functions import bessel_prod, exp_trace_prod
 
 from .utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
-    complex_tuple_to_json, complex_tuple_from_json
+    complex_tuple_to_json, complex_tuple_from_json, Real_t
 
 P = ParamSpec('P')
 log = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class HilbertMaassCoefficients(SageObject):
     """
     def __init__(self, coefficients: Matrix, M: tuple[Integer_t],
                  spectral_parameter: tuple[ComplexNumber | RealNumber],
-                 space: 'HilbertMaassFormSpace',
+                 space: 'HilbertMaassFormSpace', Y: list[Real_t] = None,
                  coordinate_ideals: list[NumberFieldFractionalIdeal] = None,
                  check: bool = True,
                  **kwargs: P.kwargs) -> None:
@@ -85,6 +85,7 @@ class HilbertMaassCoefficients(SageObject):
         self._M = M
         self._spectral_parameter = spectral_parameter
         self._space = space
+        self._Y = Y or tuple()
 
     def to_json(self) -> dict:
         """
@@ -95,8 +96,9 @@ class HilbertMaassCoefficients(SageObject):
                 sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
                 sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
                 sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
+                sage: Y = (1.0,1.0)
                 sage: Cmat = Matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
-                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H)
+                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H, Y)
                 sage: C.to_json()
                 {'M': ((-1, 1), (-1, 1)),
                  'coefficients': [['1.00000000000000'],
@@ -120,7 +122,8 @@ class HilbertMaassCoefficients(SageObject):
             'coefficients': [[str(x) for x in r] for r in self._coefficients],
             'prec': int(self._coefficients.base_ring().prec()),
             'spectral_parameter': complex_tuple_to_json(self._spectral_parameter),
-            'space': self._space.to_json()
+            'space': self._space.to_json(),
+            'Y': tuple(float(y) for y in self._Y)
         }
 
     @classmethod
@@ -149,10 +152,11 @@ class HilbertMaassCoefficients(SageObject):
         coefficients = matrix(CF, data['coefficients'])
         from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
         M = tuple(tuple(x) for x in data['M'])
+        Y = tuple(RealField(data['prec'](x)) for x in data['Y'])
         return cls(
             coefficients, M=M,
             spectral_parameter=complex_tuple_from_json(data['spectral_parameter']),
-            space=HilbertMaassFormSpace.from_json(data['space'])
+            space=HilbertMaassFormSpace.from_json(data['space'], Y=Y)
         )
 
     def space(self):
@@ -425,7 +429,8 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
     else:
         X = Vmat.solve_right(-RHSmat)
     return HilbertMaassCoefficients(X, M, spectral_parameter=spectral_parameter,
-                                    space=space, coordinate_ideals=space.dual_ideals())
+                                    space=space, coordinate_ideals=space.dual_ideals(),
+                                    Y=Y)
 
 
 def matrix_element(s: tuple, Q: tuple, v: tuple, w: tuple, zpb_v: list, zm_v: list,
