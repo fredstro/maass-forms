@@ -80,7 +80,7 @@ def compute_on_grid(space, grid_limits: tuple[tuple[Real_t]],
     for m in grid_indices:
         spectral_parameter = tuple(CF(grid[tuple(m)]) for grid in grids)
         maass_form = HilbertMaassFormDB.near_or_create(
-            space=space.to_json(),
+            parent=space.to_json(),
             spectral_parameter=spectral_parameter,
             bound_m=bound_m).first()
         if not maass_form.coefficients():
