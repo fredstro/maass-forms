@@ -34,7 +34,10 @@ class HilbertMaassformQuerySet(QuerySet, ABC):
 
     def __getitem__(self, item):
         if isinstance(item, Integer):
-            return super().__getitem__(int(item))
+            item = int(item)
+        if isinstance(item, slice) and isinstance(item.stop, Integer):
+            item = slice(int(item.start), int(item.stop))
+        return super().__getitem__(item)
 
     def near(self, spectral_parameter: tuple[Complex_t],
              max_distance: Real_t = 1e-10) -> QuerySet:
