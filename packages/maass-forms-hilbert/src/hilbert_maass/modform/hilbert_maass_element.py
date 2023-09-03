@@ -51,7 +51,7 @@ class HilbertMaassForm_Element(ModuleElement):
         }
 
     def __reduce__(self):
-        return self.__class__, self.parent(), self.spectral_parameter,
+        return self.__class__, (self.parent(), self.spectral_parameter, self._coefficients)
 
     def to_json(self):
         return {

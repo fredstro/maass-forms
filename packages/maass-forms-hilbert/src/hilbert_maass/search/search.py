@@ -8,7 +8,8 @@ import numpy
 from comp_manager.utils import insert_object, load_object
 from hilbert_maass.database.models import HilbertMaassFormDB
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
-from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t
+from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
+from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t, Complex_t
 from sage.categories.sets_cat import cartesian_product
 from sage.parallel.decorate import parallel
 from sage.rings.complex_mpfr import ComplexField
@@ -52,7 +53,7 @@ def create_grid(grid_limits: tuple[tuple[Real_t]],
     return grids, cartesian_product([range(grids[0].shape[i]) for i in range(len(grids[0].shape))])
 
 
-def compute_on_grid(space, grid_limits: tuple[tuple[Real_t]],
+def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_t]],
                     grid_numbers: tuple[Integer_t], prec: Integer_t = 53,
                     bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
                     num_threads: Integer_t = None):
@@ -91,7 +92,9 @@ def compute_on_grid(space, grid_limits: tuple[tuple[Real_t]],
 
 
 @parallel()
-def compute_one_spectral_parameter(space, spectral_parameter, bound_m):
+def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
+                                   spectral_parameter: tuple[Complex_t],
+                                   bound_m: tuple[tuple[Integer_t]] | Integer_t):
     maass_form_db = HilbertMaassFormDB.near_or_create(
         parent=space.to_json(),
         spectral_parameter=spectral_parameter,

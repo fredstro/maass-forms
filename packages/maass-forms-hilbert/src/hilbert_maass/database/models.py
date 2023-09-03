@@ -6,14 +6,15 @@ from typing import ParamSpec
 
 import mongoengine as me
 from comp_manager.document.models import DBObjectBase
+from comp_manager.document.queryset import QuerySetCompat
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.utils import Real_t, Integer_t, Complex_t
 from mongoengine import QuerySet
-from sage.rings.cc import CC
 from sage.all import Integer
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 
 P = ParamSpec('P')
+
 
 class Point(me.EmbeddedDocument):
     x = me.FloatField()
@@ -27,7 +28,7 @@ class Point(me.EmbeddedDocument):
         return f"({self.x}, {self.y})"
 
 
-class HilbertMaassformQuerySet(QuerySet, ABC):
+class HilbertMaassformQuerySet(QuerySetCompat):
     """
     Customised QuerySet for HilbertMaassFormsDB.
     """

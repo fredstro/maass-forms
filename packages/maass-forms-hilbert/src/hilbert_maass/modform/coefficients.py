@@ -26,6 +26,8 @@ from ..functions.functions import bessel_prod, exp_trace_prod
 from .utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
     complex_tuple_to_json, complex_tuple_from_json, Real_t
 
+from comp_manager.decorators import mongo_cache
+
 P = ParamSpec('P')
 log = logging.getLogger(__name__)
 
@@ -286,14 +288,17 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
     log.debug(f"M = {M}, Y = {Y}, Qs = {Qs}")
     if not ideala:
         ideala = space.pullback().number_field().ideal(1)
-    zpb, zm = get_pb_pts(space.pullback(), Qs, ideala, Y)
+    zpb, zm = get_pb_pts(space, Qs, ideala, Y)
     return zpb, zm, Qs, M, Y
 
 
-def get_pb_pts(P, Q: tuple, ideala: NumberFieldFractionalIdeal, Y: tuple, prec: int = 53) -> tuple:
+@mongo_cache()
+def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFractionalIdeal,
+               Y: tuple, prec: int = 53) -> tuple:
     """
     Get the list of points in the scaled lattice together with the corresponding pullbacks.
     """
+    P = space.pullback()
     n = P.number_field().degree()
     CF = RealField(prec)
     ideala_matrix = matrix(P.basis_matrix_ideal(ideala))
