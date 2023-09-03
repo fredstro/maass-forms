@@ -87,7 +87,7 @@ def compute_on_grid(space, grid_limits: tuple[tuple[Real_t]],
         input_params.append((space, spectral_parameter, bound_m))
     if num_threads is not None:
         os.environ['SAGE_NUM_THREADS'] = str(num_threads)
-    compute_one_spectral_parameter(input_params)
+    return compute_one_spectral_parameter(input_params)
 
 
 @parallel()
