@@ -2,12 +2,15 @@
 Routines to search for Hilbert Maass forms
 """
 import logging
+import os
+
 import numpy
 from comp_manager.utils import insert_object, load_object
 from hilbert_maass.database.models import HilbertMaassFormDB
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t
 from sage.categories.sets_cat import cartesian_product
+from sage.parallel.decorate import parallel
 from sage.rings.complex_mpfr import ComplexField
 from sage.rings.integer import Integer
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
@@ -51,7 +54,8 @@ def create_grid(grid_limits: tuple[tuple[Real_t]],
 
 def compute_on_grid(space, grid_limits: tuple[tuple[Real_t]],
                     grid_numbers: tuple[Integer_t], prec: Integer_t = 53,
-                    bound_m: tuple[tuple[Integer_t]] | Integer_t = 2):
+                    bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
+                    num_threads: Integer_t = None):
     """
     Compute a Hilbert Maass form on a grid.
 
@@ -77,14 +81,23 @@ def compute_on_grid(space, grid_limits: tuple[tuple[Real_t]],
         bound_m = [(-bound_m, bound_m)] * space.number_field().absolute_degree()
     grids, grid_indices = create_grid(grid_limits, grid_numbers)
     CF = ComplexField(prec)
+    input_params = []
     for m in grid_indices:
         spectral_parameter = tuple(CF(0.5, grid[tuple(m)]) for grid in grids)
-        maass_form_db = HilbertMaassFormDB.near_or_create(
-            parent=space.to_json(),
-            spectral_parameter=spectral_parameter,
-            bound_m=bound_m)
-        if not maass_form_db.coefficients:
-            maass_form = load_object(maass_form_db)
-            maass_form.compute_coefficients(M=bound_m)
-            insert_object(maass_form)
+        input_params.append((space, spectral_parameter, bound_m))
+    if num_threads is not None:
+        os.environ['SAGE_NUM_THREADS'] = str(num_threads)
+    compute_one_spectral_parameter(input_params)
+
+
+@parallel()
+def compute_one_spectral_parameter(space, spectral_parameter, bound_m):
+    maass_form_db = HilbertMaassFormDB.near_or_create(
+        parent=space.to_json(),
+        spectral_parameter=spectral_parameter,
+        bound_m=bound_m)
+    if not maass_form_db.coefficients:
+        maass_form = load_object(maass_form_db)
+        maass_form.compute_coefficients(M=bound_m)
+        insert_object(maass_form)
         log.debug(f"Computed Hilbert Maass form for s={spectral_parameter}")
