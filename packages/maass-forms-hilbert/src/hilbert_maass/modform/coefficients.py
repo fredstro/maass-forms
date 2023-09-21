@@ -37,10 +37,11 @@ class HilbertMaassCoefficients(SageObject):
     Coefficients of Hilbert Maass Forms
 
     """
-    def __init__(self, coefficients: Matrix, M: tuple[Integer_t],
+    def __init__(self, coefficients: Matrix,
+                 M: tuple[Integer_t | tuple[Integer_t]],
                  spectral_parameter: tuple[ComplexNumber | RealNumber],
-                 space: 'HilbertMaassFormSpace', Y: list[Real_t] = None,
-                 coordinate_ideals: list[NumberFieldFractionalIdeal] = None,
+                 space: 'HilbertMaassFormSpace', Y: tuple[Real_t] = None,
+                 coordinate_ideals: tuple[NumberFieldFractionalIdeal] = None,
                  check: bool = True,
                  **kwargs: P.kwargs) -> None:
         r"""
@@ -158,7 +159,8 @@ class HilbertMaassCoefficients(SageObject):
         return cls(
             coefficients, M=M,
             spectral_parameter=complex_tuple_from_json(data['spectral_parameter']),
-            space=HilbertMaassFormSpace.from_json(data['space'], Y=Y)
+            space=HilbertMaassFormSpace.from_json(data['space']),
+            Y=Y
         )
 
     def space(self):
