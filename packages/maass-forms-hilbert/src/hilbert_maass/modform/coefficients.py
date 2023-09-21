@@ -154,7 +154,7 @@ class HilbertMaassCoefficients(SageObject):
         coefficients = matrix(CF, data['coefficients'])
         from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
         M = tuple(tuple(x) for x in data['M'])
-        Y = tuple(RealField(data['prec'](x)) for x in data['Y'])
+        Y = tuple(RealField(data['prec'])(x) for x in data['Y'])
         return cls(
             coefficients, M=M,
             spectral_parameter=complex_tuple_from_json(data['spectral_parameter']),
