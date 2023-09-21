@@ -6,6 +6,7 @@ from .modform.eisenstein_series import HilbertEisensteinSeries
 from .modform.hilbert_maass_space import HilbertMaassFormSpace
 from .modform.hilbert_maass_element import HilbertMaassForm_Element, HilbertMaassForm
 from .modform.coefficients import HilbertMaassCoefficients, compute_coefficients, get_pb_pts
+from .search.search import compute_on_grid, create_grid, compute_one_spectral_parameter
 try:
     from .database.models import HilbertMaassFormDB
 except ImportError as e:
