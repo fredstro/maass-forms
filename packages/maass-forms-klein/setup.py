@@ -1,43 +1,66 @@
 import os
-import setuptools
-from setuptools.extension import Extension
-from Cython.Build import cythonize
-# Check if we are currently in a SageMath environment.
-SAGE_LOCAL = os.getenv('SAGE_LOCAL')
-if not SAGE_LOCAL:
-    raise ValueError("This package can only be installed inside SageMath (http://www.sagemath.org)")
-# Find correct value for SAGE_LIB which is needed to compile the Cython extensions.
-SAGE_LIB = os.getenv('SAGE_LIB')
-if not SAGE_LIB:
-    try:
-        from sage.env import SAGE_LIB
-    except ModuleNotFoundError:
-        raise ModuleNotFoundError("To install this package you need to either specify the "
-                                  "environment variable 'SAGE_LIB' or call pip with "
-                                  "'--no-build-isolation'")
-if not os.path.isdir(SAGE_LIB):
-    raise ValueError(f"The library path {SAGE_LIB} is not a directory.")
+import shutil
+import subprocess
+import sys
 
-# lib_headers = {"gmp": [os.path.join(SAGE_INC, 'gmp.h')],  # cf. #8664, #9896
-import pprint
-# pprint.pprint(os.environ)
-print("SAGE_LIB-",SAGE_LIB)
-# Extension modules using Cython
+import setuptools
+from sage_setup.extensions import create_extension
+from setuptools.extension import Extension
+import Cython.Compiler.Main
+from Cython.Build import cythonize
+from sage.env import SAGE_LIB
+
+debug = False
+gdb_debug = True
+if os.environ.get('SAGE_DEBUG', None) == 'yes':
+    print('Enabling Cython debugging support')
+    debug = True
+    Cython.Compiler.Main.default_options['gdb_debug'] = True
+    Cython.Compiler.Main.default_options['output_dir'] = 'build'
+    gdb_debug = True
+
+LIBRARY_DIRS = []
+INCLUDE_DIRS = []
+if shutil.which('brew') is not None:
+    proc = subprocess.Popen("/opt/homebrew/bin/brew --prefix", shell=True,
+                            stdout=subprocess.PIPE, stdin=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, close_fds=True)
+    HOMEBREW_PREFIX = proc.stdout.readline().decode('utf-8').strip()
+    HOMEBREW_LIB = HOMEBREW_PREFIX + '/lib'
+    LIBRARY_DIRS.append(HOMEBREW_LIB)
+    HOMEBREW_INC = HOMEBREW_PREFIX + '/include'
+    INCLUDE_DIRS.append(HOMEBREW_INC)
+
+INCLUDE_DIRS += ['src']
 extra_compile_args = ['-Wno-unused-function',
                       '-Wno-implicit-function-declaration',
                       '-Wno-unused-variable',
                       '-Wno-deprecated-declarations',
-                      '-Wno-deprecated-register']
+                      '-Wno-deprecated-register',
+                      '-Wno-unreachable-code',
+                      '-Wno-unreachable-code-fallthrough']
+
 ext_modules = [
     Extension(
-        'knot_maass.functions.besselk',
-        sources=[os.path.join('src/knot_maass/functions/besselk.pyx')],
+        'knot_maass.functions.besselk_dp',
+        sources=[os.path.join('src/knot_maass/functions/besselk_dp.pyx')],
         extra_compile_args=extra_compile_args,
-        libraries=['gmp']
-    )]
+        include_dirs=INCLUDE_DIRS, library_dirs=LIBRARY_DIRS
+    ),
+    Extension(
+        'knot_maass.hyperbolic_space.upper_half_space',
+        sources=[os.path.join('src/knot_maass/hyperbolic_space/upper_half_space.pyx')],
+        extra_compile_args=extra_compile_args,
+        include_dirs=INCLUDE_DIRS, library_dirs=LIBRARY_DIRS
+    )
+]
 
 print("ext modules=",ext_modules)
 setuptools.setup(
+    packages=['knot_maass',
+              'knot_maass.functions',
+              'knot_maass.hyperbolic_space',
+              'knot_maass.modform'],
     ext_modules=cythonize(
         ext_modules,
         include_path=['src', SAGE_LIB],

@@ -110,3 +110,4 @@ venv.bak/
 /src/knot_maass/functions/besselk.c
 *.term
 *.sage-chat
+*.c

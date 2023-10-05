@@ -1,2 +1,2 @@
-from modform.kmass_space import KnotMaassFormSpace
-from modform.kmaass_element import KnotMaassFormElement
+from knot_maass.modform.kmaass_space import KnotMaassFormSpace
+from knot_maass.modform.kmaass_element import KnotMaassFormElement
