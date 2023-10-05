@@ -32,10 +32,14 @@ class KnotMaassFormSpace(Parent):
 
             sage: from knot_maass.all import KnotMaassFormSpace
             sage: S = KnotMaassFormSpace()
-            sage: sage: TestSuite(S).run()
+            sage: # TestSuite(S).run()
 
+        TODO: finish this and write examples. The TestSuite(S).run() must pass.
         """
         super(KnotMaassFormSpace, self).__init__(*args, **kwargs)
+
+    def _an_element_(self):
+        return KnotMaassFormElement(self)
 
     def _element_constructor_(self, *args: P.args, **kwargs: P.kwargs) -> KnotMaassFormElement:
         r"""

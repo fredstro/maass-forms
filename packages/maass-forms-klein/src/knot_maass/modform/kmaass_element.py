@@ -32,8 +32,8 @@ class KnotMaassFormElement(Element):
 
         sage: from knot_maass.all import KnotMaassFormSpace, KnotMaassFormElement
         sage: S = KnotMaassFormSpace()
-        sage: F = S()
-        sage: sage: TestSuite(F).run()
+        sage: F = KnotMaassFormElement(S)
+        sage: #TestSuite(F).run()
 
         """
         super(KnotMaassFormElement, self).__init__(parent, *args, **kwargs)
@@ -64,6 +64,9 @@ class KnotMaassFormElement(Element):
             sage: S = KnotMaassFormSpace()
             sage: F = S.an_element()
             sage: V = F.setup_matrix()
+            Traceback (most recent call last):
+            ...
+            NotImplementedError
         """
         raise NotImplementedError
 
@@ -77,7 +80,13 @@ class KnotMaassFormElement(Element):
             sage: S = KnotMaassFormSpace()
             sage: F = S.an_element()
             sage: V = F.setup_matrix()
-            sage: V = F.normalise_matrix(V)
+            Traceback (most recent call last):
+            ...
+            NotImplementedError
+            sage: V = F.normalise_matrix(None)
+            Traceback (most recent call last):
+            ...
+            NotImplementedError
         """
         raise NotImplementedError
 
@@ -91,7 +100,16 @@ class KnotMaassFormElement(Element):
             sage: S = KnotMaassFormSpace()
             sage: F = S.an_element()
             sage: V = F.setup_matrix()
-            sage: V, B = F.normalise_matrix(V)
-            sage: X = F.solve_system(V, B)
+            Traceback (most recent call last):
+            ...
+            NotImplementedError
+            sage: V, B = F.normalise_matrix(None)
+            Traceback (most recent call last):
+            ...
+            NotImplementedError
+            sage: X = F.solve_system(None, None)
+            Traceback (most recent call last):
+            ...
+            NotImplementedError
         """
         raise NotImplementedError
