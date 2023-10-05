@@ -108,3 +108,5 @@ venv.bak/
 # Since there might be .c files that should be included
 # we ignore explicit files
 /src/knot_maass/functions/besselk.c
+*.term
+*.sage-chat

@@ -30,9 +30,9 @@ class KnotMaassFormSpace(Parent):
 
         EXAMPLES::
 
-        sage: from knot_maass.all import KnotMaassFormSpace
-        sage: S = KnotMaassFormSpace()
-        sage: sage: TestSuite(S).run()
+            sage: from knot_maass.all import KnotMaassFormSpace
+            sage: S = KnotMaassFormSpace()
+            sage: sage: TestSuite(S).run()
 
         """
         super(KnotMaassFormSpace, self).__init__(*args, **kwargs)
