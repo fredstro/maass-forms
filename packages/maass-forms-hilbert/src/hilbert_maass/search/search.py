@@ -7,10 +7,12 @@ import os
 import numpy
 from comp_manager.utils import insert_object, load_object
 from hilbert_maass.database.models import HilbertMaassFormDB
+from hilbert_maass.modform.coefficients import get_pb_pts_set_params
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t, Complex_t
 from sage.categories.sets_cat import cartesian_product
+from sage.functions.other import ceil
 from sage.parallel.decorate import parallel
 from sage.rings.complex_mpfr import ComplexField
 from sage.rings.integer import Integer
@@ -88,6 +90,12 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
         input_params.append((space, spectral_parameter, bound_m))
     if num_threads is not None:
         os.environ['SAGE_NUM_THREADS'] = str(num_threads)
+    # Prepare the cache to avoid race errors
+    smax = 0
+    for r in input_params:
+        smax = max(smax, max([abs(x) for x in r[1]]))
+    for si in range(0, ceil(smax)+1):
+        get_pb_pts_set_params(space, M=input_params[0][2], smax = si)
     return compute_one_spectral_parameter(input_params)
 
 
