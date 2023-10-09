@@ -44,6 +44,11 @@ ext_modules = [
               ['src/hilbert_maass/functions/bessel/besselk_dp.pyx'],
               include_dirs=INCLUDE_DIRS,
               extra_compile_args=extra_compile_args,
+              library_dirs=LIBRARY_DIRS),
+    Extension('hilbert_maass.functions.functions_cy',
+              ['src/hilbert_maass/functions/functions_cy.pyx'],
+              include_dirs=INCLUDE_DIRS,
+              extra_compile_args=extra_compile_args,
               library_dirs=LIBRARY_DIRS)
     ]
 
