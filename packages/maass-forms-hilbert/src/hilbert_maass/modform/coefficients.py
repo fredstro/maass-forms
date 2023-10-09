@@ -21,7 +21,8 @@ from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdea
 from sage.structure.element import Matrix
 from sage.structure.sage_object import SageObject
 
-from ..functions.functions import bessel_prod, exp_trace_prod
+from ..functions.functions import bessel_prod
+from ..functions.functions_cy import exp_trace_prod_dp, bessel_prod_dp2
 
 from .utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
     complex_tuple_to_json, complex_tuple_from_json, Real_t
@@ -104,6 +105,7 @@ class HilbertMaassCoefficients(SageObject):
                 sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H, Y)
                 sage: C.to_json()
                 {'M': ((-1, 1), (-1, 1)),
+                 'Y': (1.0, 1.0),
                  'coefficients': [['1.00000000000000'],
                   ['2.00000000000000'],
                   ['3.00000000000000'],
@@ -345,7 +347,7 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
         sage: M = (2,2)
         sage: s = CC(1.5,1.5), CC(1.5,1.5)
         sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
-        sage: X= compute_coefficients(H, s, M = 2); X
+        sage: X= compute_coefficients(H, s, M = 2); # long time
         Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
     """
     complex_field = spectral_parameter[0].parent()
@@ -444,14 +446,19 @@ def matrix_element(s: tuple, Q: tuple, v: tuple, w: tuple, zpb_v: list, zm_v: li
                    sgn: str = '+') -> ComplexNumber:
     factor = prod(2 * q for q in Q)
     summa = 0
+    sgn_bool = bool(sgn == '+')
+    n = len(s)
     for m, zm in enumerate(zm_v):  # m in cartesian_product(Q_combination):
         xm = zm.real()
         zmpb = zpb_v[m]
         ympb = zmpb.imag()
         xmpb = zmpb.real()
-        bes = bessel_prod(w, tuple(ympb), s, sgn=sgn)
+        if n == 2:
+            bes = bessel_prod_dp2(w[0], w[1], ympb[0], ympb[1], s[0], s[1], sgn_bool)
+        else:
+            bes = bessel_prod(w, ympb, s, sgn)
         exp_arg = (xmpb[0] * w[0] - xm[0] * v[0], xmpb[1] * w[1] - xm[1] * v[1])
-        exp_val = exp_trace_prod(exp_arg)
+        exp_val = exp_trace_prod_dp(exp_arg)
         term = bes * exp_val
         summa += term
     return summa / factor

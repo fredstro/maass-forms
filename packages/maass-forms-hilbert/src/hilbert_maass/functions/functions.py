@@ -42,6 +42,12 @@ def bessel_prod(v: tuple, y: tuple, s: tuple, sgn: str = '+') -> RealNumber_clas
 def exp_trace_prod(x: tuple, prec: int = 53) -> ComplexNumber:
     """
     Return e( trace(x) )
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.functions.functions import exp_trace_prod
+        sage: exp_trace_prod((1.0,1.5)) # abs tol 1e-10
+        -1.00000000000000 - 3.31384565490311e-14*I
     """
     summa = 0
     CF = ComplexField(prec)
