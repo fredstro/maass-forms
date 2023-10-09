@@ -132,6 +132,7 @@ class HilbertMaassForm_Element(ModuleElement):
             TypeError: HilbertMaassForm() missing 1 required positional argument: 'spectral...
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
             sage: C = F.compute_coefficients(spectral_parameter, M = (-1,1))
+            Cannot connect to cache collection.
             sage: C[(0,0)] # abs tol 1e-10
             0.167572243136260 - 0.590945405474222*I
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)

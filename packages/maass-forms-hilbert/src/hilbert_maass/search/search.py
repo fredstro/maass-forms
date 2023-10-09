@@ -4,6 +4,7 @@ Routines to search for Hilbert Maass forms
 import logging
 import os
 
+import mongoengine
 import numpy
 from comp_manager.utils import insert_object, load_object
 from hilbert_maass.database.models import HilbertMaassFormDB
@@ -36,7 +37,7 @@ def create_grid(grid_limits: tuple[tuple[Real_t]],
     EXAMPLES::
 
         sage: from hilbert_maass.all import HilbertMaassFormSpace
-        sage: from hilbert_maass.search.search import compute_on_grid
+        sage: from hilbert_maass.search.search import create_grid, compute_on_grid
         sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
         sage: create_grid(((0,1),(0,1)), (2,2))
         ([array([[0., 1.],
@@ -73,15 +74,26 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
         sage: from hilbert_maass.all import HilbertMaassFormSpace
         sage: from hilbert_maass.search.search import compute_on_grid
         sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
-        sage: compute_on_grid(H, ((0,1),(0,1)), (2,2))
+        sage: result = list(compute_on_grid(H, ((0,1),(0,1)), (2,2), bound_m=1, num_threads=1))
+        sage: len(result)
+        4
+        sage: spectral_parameters = [result[x][0][0][1] for x in range(4)]
+        sage: spectral_parameters.sort()
+        [(0.500000000000000, 0.500000000000000),
+         (0.500000000000000, 0.500000000000000 + 1.00000000000000*I),
+         (0.500000000000000 + 1.00000000000000*I, 0.500000000000000),
+         (0.500000000000000 + 1.00000000000000*I,
+          0.500000000000000 + 1.00000000000000*I)]
 
+        sage: result[0][1]
+        Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal...
     """
     if len(grid_limits) != len(grid_numbers):
         raise ValueError("Number of grid limits does not match number of grid numbers")
     if len(grid_numbers) != space.number_field().absolute_degree():
         raise ValueError("Number of number of grid points does not match number field degree")
     if isinstance(bound_m, (Integer, int)):
-        bound_m = [(-bound_m, bound_m)] * space.number_field().absolute_degree()
+        bound_m = tuple([(-bound_m, bound_m)] * space.number_field().absolute_degree())
     grids, grid_indices = create_grid(grid_limits, grid_numbers)
     CF = ComplexField(prec)
     input_params = []
@@ -103,12 +115,18 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
 def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
                                    spectral_parameter: tuple[Complex_t],
                                    bound_m: tuple[tuple[Integer_t]] | Integer_t):
-    maass_form_db = HilbertMaassFormDB.near_or_create(
-        parent=space.to_json(),
-        spectral_parameter=spectral_parameter,
-        bound_m=bound_m)
-    if not maass_form_db.coefficients:
+    try:
+        maass_form_db = HilbertMaassFormDB.near_or_create(
+            parent=space.to_json(),
+            spectral_parameter=spectral_parameter,
+            bound_m=bound_m)
         maass_form = load_object(maass_form_db)
+    except mongoengine.connection.ConnectionFailure:
+        log.warning(f"Could not connect to database. Compute locally only")
+        maass_form = HilbertMaassForm(space, spectral_parameter)
+        maass_form.compute_coefficients(M=bound_m)
+    if not maass_form.coefficients():
         maass_form.compute_coefficients(M=bound_m)
         insert_object(maass_form)
         log.debug(f"Computed Hilbert Maass form for s={spectral_parameter}")
+    return maass_form
