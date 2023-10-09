@@ -7,6 +7,7 @@ from typing import ParamSpec
 import mongoengine as me
 from comp_manager.document.models import DBObjectBase
 from comp_manager.document.queryset import QuerySetCompat
+from comp_manager.utils import insert_object
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.utils import Real_t, Integer_t, Complex_t
 from mongoengine import QuerySet
@@ -159,6 +160,5 @@ class HilbertMaassFormDB(DBObjectBase):
             space = HilbertMaassFormSpace.from_json(parent)
             maass_form = HilbertMaassForm(space, spectral_parameter)
             maass_form.compute_coefficients(M=bound_m)
-            maass_form_db = cls(**maass_form.to_json())
-            maass_form_db.save()
+            maass_form_db = insert_object(maass_form)
         return maass_form_db
