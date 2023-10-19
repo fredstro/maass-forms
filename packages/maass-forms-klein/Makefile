@@ -49,25 +49,25 @@ tox:
 	sage --python -m tox src -c tox.ini -e $(TOX_ARGS)
 
 docker:
-	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) -t hilbertmodgroup-$(TAG) .
+	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) -t knot_maass-$(TAG) .
 
 docker-rebuild:
-	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) --no-cache -t hilbertmodgroup-$(TAG) .
+	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) --no-cache -t knot_maass-$(TAG) .
 
 docker-test: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init hilbertmodgroup-$(TAG) test
+	docker run --platform=linux/x86_64 -it -e GIT_BRANCH=$(GIT_BRANCH) --init knot_maass-$(TAG) test
 
 docker-examples: docker
-	docker run -p $(NBPORT):$(NBPORT) -it -e GIT_BRANCH=$(GIT_BRANCH) -e NBPORT=$(NBPORT) --init hilbertmodgroup-$(TAG) examples $(EXAMPLES_ARGS)
+	docker run -p $(NBPORT):$(NBPORT) -it -e GIT_BRANCH=$(GIT_BRANCH) -e NBPORT=$(NBPORT) --init knot_maass-$(TAG) examples $(EXAMPLES_ARGS)
 
 docker-tox: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) -e TOX_ARGS=$(TOX_ARGS) --init hilbertmodgroup-$(TAG) tox
+	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) -e TOX_ARGS=$(TOX_ARGS) --init knot_maass-$(TAG) tox
 
 docker-shell: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init hilbertmodgroup-$(TAG) shell
+	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init knot_maass-$(TAG) shell
 
 docker-sage: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init hilbertmodgroup-$(TAG) run
+	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init knot_maass-$(TAG) run
 
 
 clean:
