@@ -84,7 +84,6 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
          (0.500000000000000 + 1.00000000000000*I, 0.500000000000000),
          (0.500000000000000 + 1.00000000000000*I,
           0.500000000000000 + 1.00000000000000*I)]
-
         sage: result[0][1]
         Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal...
     """

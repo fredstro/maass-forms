@@ -208,6 +208,10 @@ def ideal_basis_matrix(ideal: NumberFieldFractionalIdeal, prec: int = 53) -> Mat
                    ]).transpose()
 
 @cached_function()
+def dual_ideal(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractionalIdeal:
+    return ideala ** -1 * ideala.number_field().different() ** -1
+
+@cached_function()
 def dual_ideal_basis_matrix(ideal: NumberFieldFractionalIdeal, prec: int = 53) -> Matrix:
     """
     :param number_field:

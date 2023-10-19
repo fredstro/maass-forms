@@ -25,7 +25,7 @@ from ..functions.functions import bessel_prod
 from ..functions.functions_cy import exp_trace_prod_dp, bessel_prod_dp2
 
 from .utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
-    complex_tuple_to_json, complex_tuple_from_json, Real_t
+    complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal
 
 from comp_manager.decorators import mongo_cache
 
@@ -69,8 +69,7 @@ class HilbertMaassCoefficients(SageObject):
         super(HilbertMaassCoefficients, self).__init__(**kwargs)
         if not coordinate_ideals:
             representatives = space.group().ideal_cusp_representatives()
-            different = space.group().base_ring().number_field().different()
-            coordinate_ideals = [ideal ** -1 * different ** -1 for ideal in representatives]
+            coordinate_ideals = [dual_ideal(ideal) for ideal in representatives]
         if check:
             if any(M0 == M1 == 0 for M0, M1 in M):
                 raise ValueError('M must be non-zero')
@@ -376,7 +375,7 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
     n_0 = map_tuple_to_int(t_0, M)
     # tuple for 1
     # Try this first:
-    ideala_dual = ideala ** -1 * ideala.number_field().different() ** -1
+    ideala_dual = dual_ideal(ideala)
     x, y = ideala_dual.gens_two()
     delta = None
     for delta_test in [x + y, x - y, -x - y, -x + y]:
