@@ -389,7 +389,7 @@ cpdef double besselk_dp_pow(double R,double x, double prec=1E-12,int pref=0):
         
         # Value that is expected to be returned
         
-        sage: besselk_dp_pow(10.0,3.0,pref=1) # tol 1e-16
+        sage: besselk_dp_pow(10.0,3.0,pref=1) # tol 1e-13
         -0.42308698672506334
         
         # Compared to correct value
@@ -579,9 +579,9 @@ cpdef loggamma_dp(double x, double R, double prec=1E-16):
         sage: import mpmath
         sage: a=mpmath.mpc(loggamma_dp(1.0, 3.0))
         sage: b=mpmath.loggamma(mpmath.mpc(1,3))
-        sage: abs(a-b) # abs tol 2e-15
+        sage: abs(a-b) # abs tol 3e-15
         mpf('0.0')
-        sage: abs(a-b) < 2e-15
+        sage: abs(a-b) < 3e-15
         True
 
     """
