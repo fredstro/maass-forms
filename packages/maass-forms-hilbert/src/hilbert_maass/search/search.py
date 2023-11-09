@@ -14,6 +14,8 @@ from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t, Complex_t
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import ceil
+from sage.matrix.constructor import matrix
+from sage.modules.free_module_element import vector
 from sage.parallel.decorate import parallel
 from sage.rings.complex_mpfr import ComplexField
 from sage.rings.integer import Integer
@@ -153,13 +155,13 @@ def broyden_iteration(previous_iterations: list):
     """
     if not isinstance(previous_iterations, tuple) or len(previous_iterations) != 3:
         raise ValueError("Input should be a tuple of lenght 3")
-    v1, v2, v3 = previous_iterations
+    v0, v1, v2 = previous_iterations
     delta_x0 = vector([v1[0] - v0[0], v1[1] - v0[1]])
     delta_y0 = vector([v1[2] - v0[2], v1[3] - v0[3]])
     delta_x1 = vector([v2[0] - v1[0], v2[1] - v1[1]])
     delta_y1 = vector([v2[2] - v1[2], v2[3] - v1[3]])
     # Initial approximation of the Jacobian
-    def jacobian_approximation(delta_x0, delta_y0):
+    def jacobian_approximation(x, f):
         return matrix([[f[0] / x[0], 0], [0, f[1] / x[1]]])
     J0 = jacobian_approximation(delta_x0, delta_y0)
     # Finite difference
