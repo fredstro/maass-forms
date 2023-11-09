@@ -129,3 +129,46 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
         insert_object(maass_form)
         log.debug(f"Computed Hilbert Maass form for s={spectral_parameter}")
     return maass_form
+
+def broyden_iteration(previous_iterations: list):
+    """
+    Basic implementation of Broyden's method to find solution of 2x2 system of equations:
+    a x + b y = f
+    c x + d y = g
+
+
+    INPUT:
+
+    - previous_iterations -- tuple of length 3 consisting of tuples of length 4 (x,y,f,g).
+
+    We use 3 points represented at tuples of length 4:
+    v0 = (x_{n-1}, y_{n-1}, f_{n-1}, f_{n-1})
+    v0 = (x_{n-1}, y_{n-1}, f_{n-1}, f_{n-1})
+    v0 = (x_{n-1}, y_{n-1}, f_{n-1}, f_{n-1})
+    v0 = (x_{n-1}, y_{n-1}, f_{n-1}, f_{n-1})
+
+    Step n-1 = (x0,y0) step n = (x1,y1)
+
+    NOTE: See https://en.wikipedia.org/wiki/Broyden%27s_method
+    """
+    if not isinstance(previous_iterations, tuple) or len(previous_iterations) != 3:
+        raise ValueError("Input should be a tuple of lenght 3")
+    v1, v2, v3 = previous_iterations
+    delta_x0 = vector([v1[0] - v0[0], v1[1] - v0[1]])
+    delta_y0 = vector([v1[2] - v0[2], v1[3] - v0[3]])
+    delta_x1 = vector([v2[0] - v1[0], v2[1] - v1[1]])
+    delta_y1 = vector([v2[2] - v1[2], v2[3] - v1[3]])
+    # Initial approximation of the Jacobian
+    def jacobian_approximation(delta_x0, delta_y0):
+        return matrix([[f[0] / x[0], 0], [0, f[1] / x[1]]])
+    J0 = jacobian_approximation(delta_x0, delta_y0)
+    # Finite difference
+    delta_J = (delta_y1 - J0 * delta_x1) / delta_x1.norm(2) ** 2 * delta_x1
+    print("diff=", delta_y1 - J0 * delta_x1, delta_J)
+    J1 = J0 + delta_J
+    print("J1=", J1)
+    x1 = vector([v2[0], v2[1]])
+    f1 = vector([v2[2], v2[3]])
+    x_new = x1 - J1 * f1
+    print("x new=", x_new)
+    return x_new
