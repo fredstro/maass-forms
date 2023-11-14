@@ -23,8 +23,9 @@ Integer_t = Integer | int
 Real_t = RealNumber_class | float
 Complex_t = ComplexNumber | complex
 
+@cached_function
 def cartesian_product_from_M(M: tuple[tuple[Integer_t]]) -> Iterable[tuple[Integer_t]]:
-    return cartesian_product([range(m0[0], m0[1] + 1) for m0 in M])
+    return list(cartesian_product([range(m0[0], m0[1] + 1) for m0 in M]))
 
 
 def length_from_M(M: tuple[tuple[Integer_t]]) -> int:
