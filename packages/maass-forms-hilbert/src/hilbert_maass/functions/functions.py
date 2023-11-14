@@ -1,3 +1,4 @@
+from hilbert_maass.functions.functions_cy import bessel_prod_dp2
 from sage.misc.cachefunc import cached_function
 from sage.misc.misc_c import prod
 try:
@@ -10,14 +11,26 @@ from sage.functions.bessel import bessel_K
 
 
 @cached_function
-def bessel_prod(v: tuple, y: tuple, s: tuple, sgn: str = '+') -> RealNumber_class:
+def bessel_prod(v: tuple, y: tuple, s: tuple, sgn: str = '+', use_iR: bool = False)\
+        -> RealNumber_class:
     """
     A product of scaled K-Bessel functions: sqrt(y_i) e^{pi R_i/2}K_{iR_i}(2pi |v_i|y_i)
     where s_i = 1/2 + Ri
+
+    INPUT:
+
+    - ``v`` -- tuple of complex numbers
+    - ``y`` -- tuple of complex numbers
+    - ``s`` -- tuple of complex numbers
+    - ``sgn`` -- '+' or '-'
+    - ``use_iR`` -- boolean, if True compute K_{iR}(x) where s_i = 1/2 + Ri
+
     """
     n = len(v)
-    if len(y) != n:
+    if len(y) != n or len(s) != n:
         raise ValueError("Need vectors of same length")
+    if n == 2 and use_iR:
+        return bessel_prod_dp2(v[0], v[1], y[0], y[1], s[0], s[1], sgn == '+')
     i = 0
     CF = s[0].parent()
     if all(vi == 0 for vi in v):
@@ -37,6 +50,7 @@ def bessel_prod(v: tuple, y: tuple, s: tuple, sgn: str = '+') -> RealNumber_clas
             CF(y[i]).sqrt()*besselk_dp(R[i], twopi * abs(v[i]) * y[i], pref=1) for i in range(n)
         ]
     return prod(bessels)
+
 
 @cached_function
 def exp_trace_prod(x: tuple, prec: int = 53) -> ComplexNumber:
