@@ -284,20 +284,29 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
         M = ((-M0, M0),) * space.number_field().absolute_degree()
     if isinstance(M, tuple) and not isinstance(M[0], tuple):
         M = (M,) * space.number_field().absolute_degree()
+    if not ideala:
+        ideala = space.pullback().number_field().ideal(1)
     if Y is None:
+        # Try to find best value of Y
         Y = (CF(0.75), ) * space.number_field().absolute_degree()
     Qs = get_Q_from_bounds(space.pullback(), M)
     Qs = tuple([ceil(q) + 5 for q in Qs])
-    log.debug(f"M = {M}, Y = {Y}, Qs = {Qs}")
-    if not ideala:
-        ideala = space.pullback().number_field().ideal(1)
-    zpb, zm = get_pb_pts(space, Qs, ideala, Y)
+    # We try with given Y and if it doesn't work we keep decreasing Y until it does.
+    for i in range(1, 10):
+        log.debug(f"M = {M}, Y = {Y}, Qs = {Qs}")
+        try:
+            zpb, zm = get_pb_pts(space, Qs, ideala, Y)
+        except ArithmeticError:
+            log.debug("Arithmetic error, trying smaller Y")
+            Y = tuple([y * 0.95 for y in Y])
+        else:
+            break
     return zpb, zm, Qs, M, Y
 
 
 @mongo_cache()
 def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFractionalIdeal,
-               Y: tuple, prec: int = 53) -> tuple:
+               Y: tuple, prec: int = 53, check: bool = True) -> tuple:
     """
     Get the list of points in the scaled lattice together with the corresponding pullbacks.
     """
@@ -313,7 +322,10 @@ def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFrac
         xm = basis_matrix_m * vector(m)
         zm_elt = UpperHalfPlaneProductElement([(xm[i], Y[i]) for i in range(n)])
         zm.append(zm_elt)
-        zmpb.append(P.reduce(zm_elt))
+        pbpt = P.reduce(zm_elt)
+        if any(y <= Y[i] for i, y in enumerate(pbpt.imag())):
+            raise ArithmeticError(f"Point {pbpt.imag()} has imaginary part smaller than {Y}")
+        zmpb.append(pbpt)
     return zmpb, zm
 
 
@@ -323,7 +335,8 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
                          idealb: NumberFieldFractionalIdeal = None,
                          M: tuple[Integer_t] = None,
                          Y: tuple[float | RealNumber] = None,
-                         sgn: str = '-', returnV: bool = False) -> 'HilbertMaassCoefficients':
+                         sgn: str = '-', returnV: bool = False,
+                         ncpus: int = 1) -> 'HilbertMaassCoefficients':
     r"""
 
     INPUT:
@@ -356,18 +369,29 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
     zpb, zm, Qs, M, Y = get_pb_pts_set_params(space, smax=smax,
                                               M=M, Y=Y, ideala=ideala)
     log.debug(f"M = {M}, Y = {Y}, Qs = {Qs}")
+    use_iR = all((s-0.5).real() == 0 for s in spectral_parameter)
     matrixV = {}
-    for V in cartesian_product_from_M(M):
-        v = dual_ideal_element(V, ideala)
-        for W in cartesian_product_from_M(M):
-            # For cuspidal forms we don't need to compute the row corresponding to 0
-            if space.is_cuspidal() and (all(x == 0 for x in W) or all(x == 0 for x in V)):
-                matrixV[(V, W)] = 0
-            else:
-                w = dual_ideal_element(W, idealb)
-                matrixV[(V, W)] = matrix_element(spectral_parameter, Qs, v, w, zpb, zm, sgn='-')
-        matrixV[(V, V)] = matrixV[(V, V)] - bessel_prod(tuple(v), tuple(Y), spectral_parameter,
-                                                        sgn='-')
+    if ncpus > 1:
+        matrix_arguments = []
+        matrix_keys = []
+    matrixV = setup_matrix(space, spectral_parameter,
+                           ideala, idealb, Y, M, Qs, zpb, zm, sgn='-')
+    # if ncpus > 1:
+    #     matrix_values = list(matrix_element(matrix_arguments))
+    #     for n, key in enumerate(matrix_keys):
+    #         matrixV[key] = matrix_values[n]
+    # for V in cartesian_product_from_M(M):
+    #     v = dual_ideal_element(V, ideala)
+    #     for W in cartesian_product_from_M(M):
+    #         # For cuspidal forms we don't need to compute the row corresponding to 0
+    #         if space.is_cuspidal() and (all(x == 0 for x in W) or all(x == 0 for x in V)):
+    #             matrixV[(V, W)] = 0
+    #         else:
+    #             w = dual_ideal_element(W, idealb)
+    #             matrixV[(V, W)] = matrix_element(spectral_parameter, Qs, v, w, zpb, zm, sgn='-')
+    #     matrixV[(V, V)] = matrixV[(V, V)] - bessel_prod(tuple(v), tuple(Y), spectral_parameter,
+    #                                                     sgn='-', use_iR=use_iR)
+
     RHS = {}
     # if is_cuspidal:
     # Set c(0)=0 and c(delta)=1 where delta >>0 is generator of the index ideal.
@@ -397,7 +421,8 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
             W = w = (0,) * len(v)
             RHS[(V, W)] = matrix_element(spectral_parameter, Qs, v, w, zpb, zm, sgn='+')
             if V == W:  # == 0,...,0
-                RHS[(V, W)] = RHS[(V, W)] - bessel_prod(v, tuple(Y), spectral_parameter, sgn='+')
+                RHS[(V, W)] = RHS[(V, W)] - bessel_prod(v, tuple(Y), spectral_parameter, sgn='+',
+                                                        use_iR=use_iR)
     else:
         for V in cartesian_product_from_M(M):
             RHS[(V, t_1)] = matrixV[(V, t_1)]
@@ -440,6 +465,75 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
                                     space=space, coordinate_ideals=space.dual_ideals(),
                                     Y=Y)
 
+def setup_matrix(space: 'HilbertMaassFormSpace',
+                 spectral_parameter: tuple[complex | ComplexNumber],
+                 ideala: NumberFieldFractionalIdeal,
+                 idealb: NumberFieldFractionalIdeal,
+                 Y,
+                 M: tuple[tuple[Integer_t]],
+                 Qs: tuple, zpb: list, zm: list, sgn: str = '-') -> dict[tuple[tuple[Integer_t]]]:
+    matrixV = {}
+    use_iR = all((s-0.5).real() == 0 for s in spectral_parameter)
+    bes_values = {}
+    n = len(spectral_parameter)
+    xms = [zmi.real() for zmi in zm]
+    xpbs = [zpbi.real() for zpbi in zpb]
+    ypbs = [zpbi.imag() for zpbi in zpb]
+    # Pre-compute dual ideal elements
+    dual_ideal_elements = {
+        0: {},
+        1: {}}
+    for W in cartesian_product_from_M(M):
+        dual_ideal_elements[0][W] = tuple(dual_ideal_element(W, ideala))
+        dual_ideal_elements[1][W] = tuple(dual_ideal_element(W, idealb))
+    # Pre-compute the Bessel product values
+    for m, ympb in enumerate(ypbs):  # m in cartesian_product(Q_combination):
+        bes_values[m] = {}
+        for W in cartesian_product_from_M(M):
+            # For cuspidal forms we don't need to compute the row corresponding to 0
+            if space.is_cuspidal() and (all(x == 0 for x in W)):
+                bes_values[m][W] = 0
+                continue
+            w = dual_ideal_elements[1][W]
+            if n == 2:
+                bes = bessel_prod_dp2(w[0], w[1], ympb[0], ympb[1],
+                                      spectral_parameter[0], spectral_parameter[1],
+                                      sgn == '+')
+            else:
+                bes = bessel_prod(tuple(w), tuple(ympb), spectral_parameter, sgn, use_iR=use_iR)
+            exp_arg = (xpbs[m][0] * w[0], xpbs[m][1] * w[1])
+            exp_val = exp_trace_prod_dp(exp_arg)
+            bes_values[m][W] = bes * exp_val
+    # Pre-compute the exponential values
+    exp_values = {}
+    for m, xm in enumerate(xms):
+        exp_values[m] = {}
+        for V in cartesian_product_from_M(M):
+            v = dual_ideal_elements[0][V]
+            exp_arg = (- xm[0] * v[0], - xm[1] * v[1])
+            exp_values[m][V] = exp_trace_prod_dp(exp_arg)
+    factor = prod(2 * q for q in Qs)
+    for V in cartesian_product_from_M(M):
+        for W in cartesian_product_from_M(M):
+            # For cuspidal forms we don't need to compute the row corresponding to 0
+            if space.is_cuspidal() and (all(x == 0 for x in W) or all(x == 0 for x in V)):
+                matrixV[(V, W)] = 0
+            else:
+                summa = 0
+                for m in range(len(xms)-1, -1, -1):
+                    bes = bes_values[m][W]
+                    term = bes * exp_values[m][V]
+                    summa += term
+                matrixV[(V, W)] = summa / factor
+        v = dual_ideal_elements[0][V]
+        if n == 2:
+            bes = bessel_prod_dp2(v[0], v[1], Y[0], Y[1],
+                                  spectral_parameter[0], spectral_parameter[1],
+                                  sgn == '+')
+        else:
+            bes = bessel_prod(v, tuple(Y), spectral_parameter, sgn=sgn, use_iR=use_iR)
+        matrixV[(V, V)] = matrixV[(V, V)] - bes
+    return matrixV
 
 def matrix_element(s: tuple, Q: tuple, v: tuple, w: tuple, zpb_v: list, zm_v: list,
                    sgn: str = '+') -> ComplexNumber:
@@ -447,6 +541,7 @@ def matrix_element(s: tuple, Q: tuple, v: tuple, w: tuple, zpb_v: list, zm_v: li
     summa = 0
     sgn_bool = bool(sgn == '+')
     n = len(s)
+    use_iR = all((si - 0.5).real() == 0 for si in s)
     for m, zm in enumerate(zm_v):  # m in cartesian_product(Q_combination):
         xm = zm.real()
         zmpb = zpb_v[m]
@@ -455,7 +550,7 @@ def matrix_element(s: tuple, Q: tuple, v: tuple, w: tuple, zpb_v: list, zm_v: li
         if n == 2:
             bes = bessel_prod_dp2(w[0], w[1], ympb[0], ympb[1], s[0], s[1], sgn_bool)
         else:
-            bes = bessel_prod(w, ympb, s, sgn)
+            bes = bessel_prod(tuple(w), tuple(ympb), tuple(s), sgn, use_iR=use_iR)
         exp_arg = (xmpb[0] * w[0] - xm[0] * v[0], xmpb[1] * w[1] - xm[1] * v[1])
         exp_val = exp_trace_prod_dp(exp_arg)
         term = bes * exp_val
