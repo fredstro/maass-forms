@@ -68,7 +68,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
         return self(__raw__={"$and": conditions})
 
     # @queryset_manager
-    def with_precision(self, m_bound: tuple[Integer_t]) -> QuerySet:
+    def with_precision(self, m_bound: tuple[Integer_t], y: tuple[Integer_t] = None) -> QuerySet:
         """
         Find HilbertMaassFormsDB objects with coefficient precision bounded by m_bound.
 
@@ -86,6 +86,14 @@ class HilbertMaassformQuerySet(QuerySetCompat):
             }
             for i in range(len(m_bound))
         ]
+        if y:
+            conditions += [
+                {
+                    f"coefficients.Y.{i}.0": float(y[i][0]),
+                    f"coefficients.Y.{i}.1": float(y[i][1]),
+                }
+                for i in range(len(y))
+            ]
         return self(__raw__={"$and": conditions}).order_by('-max_m')
 
 
@@ -114,6 +122,10 @@ class HilbertMaassFormDB(DBObjectBase):
                             default='unchecked')
     comments = me.StringField()
     max_m = me.IntField()
+    # Skip 'coefficients' since we only want to compare against the
+    # input values, not the computed values.
+    _skip_keys = ['_id', 'created_at', 'updated_at', 'hash',
+                  'coefficients']
 
     def save(self, **kwargs: P.kwargs):
         """
@@ -148,14 +160,15 @@ class HilbertMaassFormDB(DBObjectBase):
     @classmethod
     def near_or_create(cls, parent: HilbertMaassFormSpace, spectral_parameter: tuple[Complex_t],
                        max_distance: Real_t=1e-10,
-                       bound_m: tuple[Integer_t] = None) -> 'HilbertMaassFormDB':
+                       bound_m: tuple[Integer_t] = None,
+                       y: tuple[Real_t] = None) -> 'HilbertMaassFormDB':
         """
         Find or create HilbertMaassFormsDB objects near the given spectral parameter.
         """
         if not isinstance(parent, dict):
             parent = parent.to_json()
         maass_form_db = cls.objects(parent=parent).near(spectral_parameter, max_distance=max_distance)\
-            .with_precision(bound_m).first()
+            .with_precision(bound_m, y).first()
         if not maass_form_db:
             space = HilbertMaassFormSpace.from_json(parent)
             maass_form = HilbertMaassForm(space, spectral_parameter)
