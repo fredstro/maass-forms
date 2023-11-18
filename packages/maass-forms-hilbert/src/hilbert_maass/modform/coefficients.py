@@ -25,7 +25,7 @@ from ..functions.functions import bessel_prod
 from ..functions.functions_cy import exp_trace_prod_dp, bessel_prod_dp2
 
 from .utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
-    complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal
+    complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal, totally_positive_generator
 
 from comp_manager.decorators import mongo_cache
 
@@ -288,21 +288,53 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
         ideala = space.pullback().number_field().ideal(1)
     if Y is None:
         # Try to find best value of Y
-        Y = (CF(0.75), ) * space.number_field().absolute_degree()
+        Y = find_max_y(space, M)
+        # Y = (CF(0.55), ) * space.number_field().absolute_degree()
     Qs = get_Q_from_bounds(space.pullback(), M)
     Qs = tuple([ceil(q) + 5 for q in Qs])
     # We try with given Y and if it doesn't work we keep decreasing Y until it does.
+    zpb = None
     for i in range(1, 10):
         log.debug(f"M = {M}, Y = {Y}, Qs = {Qs}")
         try:
             zpb, zm = get_pb_pts(space, Qs, ideala, Y)
-        except ArithmeticError:
-            log.debug("Arithmetic error, trying smaller Y")
+        except ArithmeticError as e:
+            log.debug(f"Arithmetic error, trying smaller Y: {e}")
             Y = tuple([y * 0.95 for y in Y])
         else:
             break
+    if not zpb:
+        raise ArithmeticError("Could not find good Y!")
     return zpb, zm, Qs, M, Y
 
+def find_max_y(space: 'HilbertMaassFormSpace', M: tuple[tuple[Integer_t]],
+               starting_Y: tuple[RealNumber] = None,
+               max_iterations: int =100) -> tuple[Real_t]:
+    """
+    Find max allowed Y.
+
+    EXAMPLES::
+
+
+    """
+    if not starting_Y:
+        starting_Y = (0.55,) * space.number_field().absolute_degree()
+    Y = starting_Y
+    if not isinstance(M, tuple):
+        M = ((-M, M),) * space.number_field().absolute_degree()
+    Qs = get_Q_from_bounds(space.pullback(), M)
+    log.debug(f"Trying: {Qs, Y}")
+    for i in range(max_iterations):
+        try:
+            for id in space.group().ideal_cusp_representatives():
+                get_pb_pts(space, Qs, id, Y)
+        except ArithmeticError:
+            log.debug("Arithmetic error, trying smaller Y")
+            Y = tuple([y * 0.98 for y in Y])
+        else:
+            log.debug(f"Y={Y} is ok")
+            break
+    return Y
 
 @mongo_cache()
 def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFractionalIdeal,
@@ -318,13 +350,14 @@ def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFrac
     Q_combination = [range(1 - q, q + 1) for q in Q]
     zmpb = []
     zm = []
+    log.info(f"Computing pullback for Q = {Q}, Y = {Y} idealamatrix={ideala_matrix}")
     for m in cartesian_product(Q_combination):
         xm = basis_matrix_m * vector(m)
         zm_elt = UpperHalfPlaneProductElement([(xm[i], Y[i]) for i in range(n)])
         zm.append(zm_elt)
         pbpt = P.reduce(zm_elt)
-        if any(y <= Y[i] for i, y in enumerate(pbpt.imag())):
-            raise ArithmeticError(f"Point {pbpt.imag()} has imaginary part smaller than {Y}")
+        if check and any(y <= Y[i] for i, y in enumerate(pbpt.imag())):
+            raise ArithmeticError(f"Point {pbpt} has imaginary part smaller than {Y}. zm={zm_elt}")
         zmpb.append(pbpt)
     return zmpb, zm
 
@@ -335,7 +368,8 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
                          idealb: NumberFieldFractionalIdeal = None,
                          M: tuple[Integer_t] = None,
                          Y: tuple[float | RealNumber] = None,
-                         sgn: str = '-', returnV: bool = False,
+                         returnV: bool = False,
+                         set_coefficients: dict = None,
                          ncpus: int = 1) -> 'HilbertMaassCoefficients':
     r"""
 
@@ -343,24 +377,40 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
 
     - ``space`` -- Hilbert Maass form space
     - ``ideala``  -- NumberField Fractional Ideal corresponding to cusp.
-    - ``idealb``  --
-    - ``s``       --
-    - ``M``  --
-    - ``Y``  --
-    - ``prec``  --
-    - ``cuspidal``  --
-    - ``sgn``  --
-    - ``returnV``  --
+    - ``idealb``  -- ? not used at the moment
+    - ``s``       -- tuple of complex numbers - spectral parameter
+    - ``M``       -- tuple of tuples of integers (or integer) - truncation bound
+    - ``Y``       -- tuple of real numbers - height of sampling points
+    - ``returnV`` -- boolean - return the matrix V - only used for debugging
+    - ``ncpus``   -- number of cpus to use (need to be less than $SAGE_NUM_THREADS)
+    - ``set_coefficients`` -- dictionary of coefficients to be set (default: None)
 
     EXAMPLES::
 
         sage: from hilbert_maass.all import HilbertMaassFormSpace
         sage: from hilbert_maass.modform.coefficients import compute_coefficients
         sage: M = (2,2)
-        sage: s = CC(1.5,1.5), CC(1.5,1.5)
-        sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
-        sage: X= compute_coefficients(H, s, M = 2); # long time
+        sage: s = CC(0.5,1.5), CC(0.5,1.5)
+        sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+        sage: X = compute_coefficients(H, s, Y=(0.32, 0.32),M = 2); X
         Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
+        sage: X[(0,0)] == 0
+        True
+        sage: X[(1,1)] == 1
+        True
+        sage: X[(1,0)] # tol 1e-10
+        0.00485522543130167 - 0.00688440573364561*I
+        sage: s = CC(0.5, 4.893781291438), CC(0.5, 4.893781291438)
+        sage: H = HilbertMaassFormSpace(QuadraticField(5), cuspidal=True)
+        sage: X = compute_coefficients(H, s, Y=(0.32, 0.32),M = 5); X
+        sage: X[(0,0)] == 0
+        True
+        sage: X[(1,1)] == 1
+        True
+        sage: X[(0,-1)] # tol 1e-10
+        1.00433823032911 + 0.000860350482435101*I
+        sage: X[(0,1)] # tol 1e-10
+        1.03339492015793 + 0.00102068814615568*I
     """
     complex_field = spectral_parameter[0].parent()
     ideala = ideala or space.number_field().ideal(1)
@@ -376,66 +426,53 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
         matrix_keys = []
     matrixV = setup_matrix(space, spectral_parameter,
                            ideala, idealb, Y, M, Qs, zpb, zm, sgn='-')
-    # if ncpus > 1:
-    #     matrix_values = list(matrix_element(matrix_arguments))
-    #     for n, key in enumerate(matrix_keys):
-    #         matrixV[key] = matrix_values[n]
-    # for V in cartesian_product_from_M(M):
-    #     v = dual_ideal_element(V, ideala)
-    #     for W in cartesian_product_from_M(M):
-    #         # For cuspidal forms we don't need to compute the row corresponding to 0
-    #         if space.is_cuspidal() and (all(x == 0 for x in W) or all(x == 0 for x in V)):
-    #             matrixV[(V, W)] = 0
-    #         else:
-    #             w = dual_ideal_element(W, idealb)
-    #             matrixV[(V, W)] = matrix_element(spectral_parameter, Qs, v, w, zpb, zm, sgn='-')
-    #     matrixV[(V, V)] = matrixV[(V, V)] - bessel_prod(tuple(v), tuple(Y), spectral_parameter,
-    #                                                     sgn='-', use_iR=use_iR)
-
     RHS = {}
-    # if is_cuspidal:
-    # Set c(0)=0 and c(delta)=1 where delta >>0 is generator of the index ideal.
-    t_0 = (0,) * space.number_field().absolute_degree()
-    n_0 = map_tuple_to_int(t_0, M)
-    # tuple for 1
-    # Try this first:
-    ideala_dual = dual_ideal(ideala)
-    x, y = ideala_dual.gens_two()
-    delta = None
-    for delta_test in [x + y, x - y, -x - y, -x + y]:
-        if not delta_test.is_totally_positive():
-            continue
-        if ideala_dual != ideala_dual.number_field().fractional_ideal(delta_test):
-            continue
-        delta = delta_test
-        break
-    if not delta:
-        raise ArithmeticError(f"Cannot find a totally positive generator for {ideala_dual}")
-    # Coordinate vector of delta
-    t_1 = ideal_coordinates(ideala_dual, delta)
-    n_1 = map_tuple_to_int(t_1, M)
+    normalisation = {}
+    if space.is_cuspidal():
+        # Set c(0)=0
+        t_0 = (0,) * space.number_field().absolute_degree()
+        n_0 = map_tuple_to_int(t_0, M)
+        normalisation[n_0] = 0
+        # By default set c(delta)=1 where delta >>0 is generator of the index ideal.
+        # tuple for delta
+        ideala_dual = dual_ideal(ideala)
+        delta = totally_positive_generator(ideala_dual)
+        # Coordinate vector of delta
+        t_1 = ideal_coordinates(ideala_dual, delta)
+        n_1 = map_tuple_to_int(t_1, M)
+        normalisation[n_1] = 1
+    # Then update from set_coefficients
+    if not set_coefficients:
+        set_coefficients = {}
+    for t, v in set_coefficients.items():
+        normalisation[map_tuple_to_int(t, M)] = v
+
     if not space.is_cuspidal():
         for V in cartesian_product_from_M(M):
             V = tuple(V)
             v = dual_ideal_element(V, ideala)
             W = w = (0,) * len(v)
             RHS[(V, W)] = matrix_element(spectral_parameter, Qs, v, w, zpb, zm, sgn='+')
-            if V == W:  # == 0,...,0
+            if V == W:
                 RHS[(V, W)] = RHS[(V, W)] - bessel_prod(v, tuple(Y), spectral_parameter, sgn='+',
                                                         use_iR=use_iR)
     else:
+        t_0 = (0,) * space.number_field().absolute_degree()
         for V in cartesian_product_from_M(M):
-            RHS[(V, t_1)] = matrixV[(V, t_1)]
+            RHS[(V, t_0)] = 0
+            for n, v in normalisation.items():
+                t = map_int_to_tuple(n, M)
+                RHS[(V, t_0)] += matrixV[(V, t)] * v
     n = length_from_M(M)
     Vmat = [[
         matrixV[map_int_to_tuple(r, M), map_int_to_tuple(k, M)]
         for k in range(n)
     ] for r in range(n)]
     Vmat = matrix(complex_field, n, n, Vmat)
-    if not space.is_cuspidal():
-        W = t_0
-    else:
-        W = t_1
+    # if not space.is_cuspidal():
+    W = t_0
+    # else:
+    #     W = t_1
     RHSmat = [
         RHS[(map_int_to_tuple(k, M), W)] for k in range(n)
     ]
