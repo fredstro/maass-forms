@@ -151,7 +151,7 @@ class HilbertMaassForm_Element(ModuleElement):
                                  idealb=idealb,
                                  M=M,
                                  Y=Y,
-                                 sgn=sgn)
+                                 )
         self._coefficients = C
         return C
 

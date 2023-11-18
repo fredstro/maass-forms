@@ -4,6 +4,7 @@ from typing import Iterable
 from hilbert_modgroup.pullback import HilbertPullback
 from sage.all import ZZ
 from sage.categories.sets_cat import cartesian_product
+from sage.functions.other import ceil
 from sage.matrix.constructor import matrix
 from sage.misc.cachefunc import cached_function
 from sage.misc.misc_c import prod
@@ -50,6 +51,7 @@ def get_Q_from_bounds(P: HilbertPullback, M: tuple[tuple[Integer_t]]) -> tuple:
         t = matrix(P.basis_matrix_ideal(ida)).transpose().norm(Infinity)
         if t > C:
             C = t
+    C = ceil(C)
     C = C * max(max(abs(b0), abs(b1)) for b0, b1 in M)
     return (C,) * len(M)
 
@@ -266,7 +268,30 @@ def dual_ideal_element(coordinates: tuple[Integer_t] or vector,
     if not as_nf_element:
         return dual_ideal_basis_matrix(ideal)*vector(coordinates)
     dual = ideal ** -1 * ideal.number_field().different() ** -1
-    return sum([c * dual.integral_basis[i] for i, c in enumerate(coordinates)])
+    return sum([c * dual.integral_basis()[i] for i, c in enumerate(coordinates)])
+
+def totally_positive_generator(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractionalIdeal:
+    """
+    Find a totally positive generator for an ideal.
+
+    INPUT:
+
+    - ``ideala`` -- NumberFieldFractionalIdeal
+
+
+    """
+    x, y = ideala.gens_two()
+    delta = None
+    for delta_test in [x + y, x - y, -x - y, -x + y]:
+        if not delta_test.is_totally_positive():
+            continue
+        if ideala != ideala.number_field().fractional_ideal(delta_test):
+            continue
+        delta = delta_test
+        break
+    if not delta:
+        raise ArithmeticError(f"Cannot find a totally positive generator for {ideala_dual}")
+    return delta
 
 def complex_number_to_json(s: ComplexNumber) -> dict:
     """

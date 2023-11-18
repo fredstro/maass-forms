@@ -61,7 +61,10 @@ def create_grid(grid_limits: tuple[tuple[Real_t]],
 def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_t]],
                     grid_numbers: tuple[Integer_t], prec: Integer_t = 53,
                     bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
-                    num_threads: Integer_t = None):
+                    y: tuple[Real_t] | None = None,
+                    num_threads: Integer_t = None,
+                    spectral_symmetry: bool = True,
+                    spectral_epsilon: Real_t = 1e-2):
     """
     Compute a Hilbert Maass form on a grid.
 
@@ -70,6 +73,8 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
     - ``space`` -- space of Hilbert Maass forms
     - ``grid_limits`` -- tuple of tuples to represent the boundary of the grid
     - ``grid_numbers`` -- tuple of integers to represent the number of grid points in each dimension
+    - ``spectral_symmetry`` -- only calculate for spectral parameters (r1,r2) with r1 <= r2 + eps
+    - ``spectral_epsilon`` -- eps (see above)
 
     EXAMPLES::
 
@@ -100,7 +105,14 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
     input_params = []
     for m in grid_indices:
         spectral_parameter = tuple(CF(0.5, grid[tuple(m)]) for grid in grids)
-        input_params.append((space, spectral_parameter, bound_m))
+        log.debug(f"Computing spectral parameter {spectral_parameter}")
+        log.debug(f"Ineqs:{[spectral_parameter[i+1].imag() > spectral_parameter[i].imag() + spectral_epsilon for i in range(len(spectral_parameter)-1)]}")
+        if spectral_symmetry and any(spectral_parameter[i+1].imag() > spectral_parameter[i].imag() +
+                                     spectral_epsilon for i in range(len(spectral_parameter)-1)):
+            log.debug(f"Skipping spectral parameter {spectral_parameter}")
+            continue
+
+        input_params.append((space, spectral_parameter, bound_m, y))
     if num_threads is not None:
         os.environ['SAGE_NUM_THREADS'] = str(num_threads)
     # Prepare the cache to avoid race errors
@@ -108,19 +120,21 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
     for r in input_params:
         smax = max(smax, max([abs(x) for x in r[1]]))
     for si in range(0, ceil(smax)+1):
-        get_pb_pts_set_params(space, M=input_params[0][2], smax = si)
+        get_pb_pts_set_params(space, M=input_params[0][2], Y=y, smax=si)
     return compute_one_spectral_parameter(input_params)
 
 
 @parallel()
 def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
                                    spectral_parameter: tuple[Complex_t],
-                                   bound_m: tuple[tuple[Integer_t]] | Integer_t):
+                                   bound_m: tuple[tuple[Integer_t]] | Integer_t,
+                                   y: tuple[Real_t] | None = None):
     try:
         maass_form_db = HilbertMaassFormDB.near_or_create(
             parent=space.to_json(),
             spectral_parameter=spectral_parameter,
-            bound_m=bound_m)
+            bound_m=bound_m,
+            y=y)
         maass_form = load_object(maass_form_db)
     except mongoengine.connection.ConnectionFailure:
         log.warning(f"Could not connect to database. Compute locally only")

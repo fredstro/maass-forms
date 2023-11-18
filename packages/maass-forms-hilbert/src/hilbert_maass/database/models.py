@@ -1,7 +1,7 @@
 """
 Database representation of Hilbert Maass forms.
 """
-from abc import ABC
+import logging
 from typing import ParamSpec
 
 import mongoengine as me
@@ -13,6 +13,8 @@ from hilbert_maass.modform.utils import Real_t, Integer_t, Complex_t
 from mongoengine import QuerySet
 from sage.all import Integer
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
+
+log = logging.getLogger(__name__)
 
 P = ParamSpec('P')
 
@@ -89,8 +91,8 @@ class HilbertMaassformQuerySet(QuerySetCompat):
         if y:
             conditions += [
                 {
-                    f"coefficients.Y.{i}.0": float(y[i][0]),
-                    f"coefficients.Y.{i}.1": float(y[i][1]),
+                    f"coefficients.Y.{i}.0": float(y[i]),
+                    f"coefficients.Y.{i}.1": float(y[i]),
                 }
                 for i in range(len(y))
             ]
@@ -170,8 +172,9 @@ class HilbertMaassFormDB(DBObjectBase):
         maass_form_db = cls.objects(parent=parent).near(spectral_parameter, max_distance=max_distance)\
             .with_precision(bound_m, y).first()
         if not maass_form_db:
+            log.debug(f"Compute for s,m,y={spectral_parameter, bound_m, y}")
             space = HilbertMaassFormSpace.from_json(parent)
             maass_form = HilbertMaassForm(space, spectral_parameter)
-            maass_form.compute_coefficients(M=bound_m)
+            maass_form.compute_coefficients(M=bound_m, Y=y)
             maass_form_db = insert_object(maass_form)
         return maass_form_db
