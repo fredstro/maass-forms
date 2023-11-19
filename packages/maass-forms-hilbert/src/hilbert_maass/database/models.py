@@ -98,6 +98,9 @@ class HilbertMaassformQuerySet(QuerySetCompat):
             ]
         return self(__raw__={"$and": conditions}).order_by('-max_m')
 
+    def with_set_coefficients(self, set_coefficients: dict) -> QuerySet:
+        return self(__raw__={"set_coefficient": True})
+
 
 class HilbertMaassFormDB(DBObjectBase):
     """
@@ -114,6 +117,8 @@ class HilbertMaassFormDB(DBObjectBase):
     # Storing the spectral parameters as list of points on a line enables geo searching
     spectral_parameter_points = me.EmbeddedDocumentListField(Point, default=[])
     y_values = me.ListField(me.FloatField())
+    # Describe which coefficients has been set in the normalisation
+    set_coefficient = me.DictField()
     coefficients = me.DictField()
     parent = me.DictField()
     # Set manually (or automatically) to 'tentative' if the form is
@@ -163,18 +168,20 @@ class HilbertMaassFormDB(DBObjectBase):
     def near_or_create(cls, parent: HilbertMaassFormSpace, spectral_parameter: tuple[Complex_t],
                        max_distance: Real_t=1e-10,
                        bound_m: tuple[Integer_t] = None,
-                       y: tuple[Real_t] = None) -> 'HilbertMaassFormDB':
+                       y: tuple[Real_t] = None,
+                       set_coefficients: dict = None) -> 'HilbertMaassFormDB':
         """
         Find or create HilbertMaassFormsDB objects near the given spectral parameter.
         """
         if not isinstance(parent, dict):
             parent = parent.to_json()
-        maass_form_db = cls.objects(parent=parent).near(spectral_parameter, max_distance=max_distance)\
-            .with_precision(bound_m, y).first()
+        maass_form_db = cls.objects(parent=parent).near(spectral_parameter,
+                                                        max_distance=max_distance)\
+            .with_precision(bound_m, y).with_set_coefficients(set_coefficients).first()
         if not maass_form_db:
             log.debug(f"Compute for s,m,y={spectral_parameter, bound_m, y}")
             space = HilbertMaassFormSpace.from_json(parent)
             maass_form = HilbertMaassForm(space, spectral_parameter)
-            maass_form.compute_coefficients(M=bound_m, Y=y)
+            maass_form.compute_coefficients(M=bound_m, Y=y, set_coefficients=set_coefficients)
             maass_form_db = insert_object(maass_form)
         return maass_form_db

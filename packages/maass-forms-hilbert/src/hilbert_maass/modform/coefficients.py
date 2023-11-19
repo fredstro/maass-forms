@@ -25,7 +25,8 @@ from ..functions.functions import bessel_prod
 from ..functions.functions_cy import exp_trace_prod_dp, bessel_prod_dp2
 
 from .utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
-    complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal, totally_positive_generator
+    complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal, totally_positive_generator, \
+    Complex_t, coefficient_dict_to_json, coefficient_dict_from_json
 
 from comp_manager.decorators import mongo_cache
 
@@ -40,9 +41,10 @@ class HilbertMaassCoefficients(SageObject):
     """
     def __init__(self, coefficients: Matrix,
                  M: tuple[Integer_t | tuple[Integer_t]],
-                 spectral_parameter: tuple[ComplexNumber | RealNumber],
+                 spectral_parameter: tuple[Complex_t | Real_t],
                  space: 'HilbertMaassFormSpace', Y: tuple[Real_t] = None,
                  coordinate_ideals: tuple[NumberFieldFractionalIdeal] = None,
+                 set_coefficients: dict = None,
                  check: bool = True,
                  **kwargs: P.kwargs) -> None:
         r"""
@@ -56,6 +58,8 @@ class HilbertMaassCoefficients(SageObject):
         - ``space`` -- Hilbert Maass form space
         - ``coordinate_ideals`` -- list of fractional ideals indexing the different components
         - ``check`` -- boolean, if True, check that the coefficients are of the correct dimension.
+        - ``set_coefficients`` -- dictionary with coefficients to set.
+
         EXAMPLES::
 
             sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
@@ -85,6 +89,7 @@ class HilbertMaassCoefficients(SageObject):
 
         self._coordinate_ideals = coordinate_ideals
         self._coefficients = coefficients
+        self._set_coefficients = set_coefficients
         self._M = M
         self._spectral_parameter = spectral_parameter
         self._space = space
@@ -101,7 +106,9 @@ class HilbertMaassCoefficients(SageObject):
                 sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
                 sage: Y = (1.0,1.0)
                 sage: Cmat = Matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
-                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H, Y)
+                sage: set_coefficients = {(0,0): 0, (0,1): 1}
+                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H, Y,
+                ....:   set_coefficients=set_coefficients)
                 sage: C.to_json()
                 {'M': ((-1, 1), (-1, 1)),
                  'Y': (1.0, 1.0),
@@ -114,6 +121,8 @@ class HilbertMaassCoefficients(SageObject):
                   ['7.00000000000000'],
                   ['8.00000000000000'],
                   ['9.00000000000000']],
+                  'coefficients_set': {'[0, 0]': {'prec': 53, 'val': '0.000000000000000'},
+                                       '[0, 1]': {'prec': 53, 'val': '1.00000000000000'}},
                  'prec': 53,
                  'space': {'cuspidal': False,
                   'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'}},
@@ -126,6 +135,7 @@ class HilbertMaassCoefficients(SageObject):
             'coefficients': [[str(x) for x in r] for r in self._coefficients],
             'prec': int(self._coefficients.base_ring().prec()),
             'spectral_parameter': complex_tuple_to_json(self._spectral_parameter),
+            'coefficients_set': coefficient_dict_to_json(self._set_coefficients),
             'space': self._space.to_json(),
             'Y': tuple(float(y) for y in self._Y)
         }
@@ -140,8 +150,11 @@ class HilbertMaassCoefficients(SageObject):
                 sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
                 sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
                 sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
+                sage: Y = (0.5, 0.5)
                 sage: Cmat = Matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
-                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H)
+                sage: set_coefficients = {(0,0): 0, (0,1): 1}
+                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H, Y,
+                ....:   set_coefficients=set_coefficients)
                 sage: HilbertMaassCoefficients.from_json(C.to_json()) == C
                 True
                 sage: import json
@@ -161,7 +174,8 @@ class HilbertMaassCoefficients(SageObject):
             coefficients, M=M,
             spectral_parameter=complex_tuple_from_json(data['spectral_parameter']),
             space=HilbertMaassFormSpace.from_json(data['space']),
-            Y=Y
+            Y=Y,
+            set_coefficients=coefficient_dict_from_json(data['coefficients_set']),
         )
 
     def space(self):
@@ -178,7 +192,10 @@ class HilbertMaassCoefficients(SageObject):
             return False
         return self.space() == other.space() and \
             self.coefficient_matrix() == other.coefficient_matrix() and \
-            self.spectral_parameter() == other.spectral_parameter()
+            self.spectral_parameter() == other.spectral_parameter() and \
+            self._Y == other._Y and \
+            self._M == other._M and \
+            self._set_coefficients == other._set_coefficients
 
     def __repr__(self):
         """
@@ -399,13 +416,14 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
         sage: X[(1,1)] == 1
         True
         sage: X[(1,0)] # tol 1e-10
-        0.00485522543130167 - 0.00688440573364561*I
+        0.0115350696785523 + 0.0000689324559423392*I
         sage: s = CC(0.5, 4.893781291438), CC(0.5, 4.893781291438)
         sage: H = HilbertMaassFormSpace(QuadraticField(5), cuspidal=True)
-        sage: X = compute_coefficients(H, s, Y=(0.32, 0.32),M = 5); X
+        sage: X = compute_coefficients(H, s, Y=(0.55, 0.55),M = 5); X
+        Coefficients of a Hilbert Maass form with M=((-5, 5), (-5, 5)) and 1 cusp
         sage: X[(0,0)] == 0
         True
-        sage: X[(1,1)] == 1
+        sage: X[(1,-1)] == 1
         True
         sage: X[(0,-1)] # tol 1e-10
         1.00433823032911 + 0.000860350482435101*I
@@ -428,11 +446,13 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
                            ideala, idealb, Y, M, Qs, zpb, zm, sgn='-')
     RHS = {}
     normalisation = {}
+    t_0 = (0,) * space.number_field().absolute_degree()
+    n_0 = map_tuple_to_int(t_0, M)
     if space.is_cuspidal():
         # Set c(0)=0
-        t_0 = (0,) * space.number_field().absolute_degree()
-        n_0 = map_tuple_to_int(t_0, M)
         normalisation[n_0] = 0
+    if not set_coefficients:
+        set_coefficients = {}
         # By default set c(delta)=1 where delta >>0 is generator of the index ideal.
         # tuple for delta
         ideala_dual = dual_ideal(ideala)
@@ -442,8 +462,6 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
         n_1 = map_tuple_to_int(t_1, M)
         normalisation[n_1] = 1
     # Then update from set_coefficients
-    if not set_coefficients:
-        set_coefficients = {}
     for t, v in set_coefficients.items():
         normalisation[map_tuple_to_int(t, M)] = v
 
@@ -469,37 +487,43 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
         for k in range(n)
     ] for r in range(n)]
     Vmat = matrix(complex_field, n, n, Vmat)
-    # if not space.is_cuspidal():
-    W = t_0
-    # else:
-    #     W = t_1
+    if returnV:
+        return Vmat
     RHSmat = [
-        RHS[(map_int_to_tuple(k, M), W)] for k in range(n)
+        RHS[(map_int_to_tuple(k, M), t_0)] for k in range(n)
     ]
     RHSmat = matrix(complex_field, n, 1, RHSmat)
-    if returnV:
-        return Vmat, RHSmat
-    log.debug(f"n, n_0, n_1= {n, n_0, n_1}")
-    # Make sure that n0 < n1:
-    c0 = complex_field(0)
-    c1 = complex_field(1)
-    if n_0 > n_1:
-        n_0, n_1 = n_1, n_0
-        c0, c1 = c1, c0
-    if space.is_cuspidal():
-        delete_rows = (n_0, n_1)
+    # Find rows to delete
+    delete_rows = list(normalisation.keys())
+    delete_rows.sort()
+    delete_rows = tuple(delete_rows)
+    # Delete rows
+    if delete_rows:
+        # delete_rows = (n_0, n_1)
         Vmat = Vmat.delete_rows(delete_rows)
         RHSmat = RHSmat.delete_rows(delete_rows)
         Vmat = Vmat.delete_columns(delete_rows)
         X = Vmat.solve_right(-RHSmat)
         # Add back coefficients for 0 and 1
-        rows = X.rows()[0:n_0] + [(c0,)] + X.rows()[n_0:n_1 - 1] \
-                               + [(c1,)] + X.rows()[n_1 - 1:]
+        skip_step = 0
+        rows = []
+        log.debug(f"normalisation = {normalisation}")
+        for n in range(X.nrows() + len(normalisation)):
+            if n in normalisation:
+                rows.append((normalisation[n],))
+                skip_step += 1
+            else:
+                rows.append(X.rows()[n-skip_step])
+        # rows = X.rows()[0:n_0] + [(c0,)] + X.rows()[n_0:n_1 - 1] \
+        #                        + [(c1,)] + X.rows()[n_1 - 1:]
         X = matrix(rows)
     else:
         X = Vmat.solve_right(-RHSmat)
+    # Recreate the actual used set_coefficients dictionary
+    set_coefficients_used = { map_int_to_tuple(k, M): v for k, v in normalisation.items() }
     return HilbertMaassCoefficients(X, M, spectral_parameter=spectral_parameter,
                                     space=space, coordinate_ideals=space.dual_ideals(),
+                                    set_coefficients=set_coefficients_used,
                                     Y=Y)
 
 def setup_matrix(space: 'HilbertMaassFormSpace',

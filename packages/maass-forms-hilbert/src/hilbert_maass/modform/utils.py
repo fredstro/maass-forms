@@ -2,7 +2,7 @@ import json
 from typing import Iterable
 
 from hilbert_modgroup.pullback import HilbertPullback
-from sage.all import ZZ
+from sage.all import ZZ, CC
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import ceil
 from sage.matrix.constructor import matrix
@@ -301,6 +301,8 @@ def complex_number_to_json(s: ComplexNumber) -> dict:
 
     - ``s`` -- complex number
     """
+    if not isinstance(s, ComplexNumber):
+        s = CC(s)
     return {'prec': s.parent().prec(), 'val': str(s)}
 
 
@@ -354,3 +356,62 @@ def number_field_from_json(data: dict | str) -> NumberField:
     if isinstance(data, str):
         data = json.loads(data)
     return NumberField(ZZ['x'](data['polynomial']), names=data['names'])
+
+
+def coefficient_dict_to_json(coeff_dict: dict) -> dict:
+    """
+    Convert a coefficient dict to JSON format.
+
+    INPUT:
+
+    - ``coeff_dict`` -- dict of coefficients with keys as integer tuples
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.modform.utils import coefficient_dict_to_json
+        sage: data = { (0, 0): 1, (1, 1): 1, (2, 2): 1 }
+        sage: coefficient_dict_to_json(data)
+         {'[0, 0]': {'prec': 53, 'val': '1.00000000000000'},
+         '[1, 1]': {'prec': 53, 'val': '1.00000000000000'},
+         '[2, 2]': {'prec': 53, 'val': '1.00000000000000'}}
+        sage: from sage.rings.complex_mpfr import ComplexField
+        sage: CF = ComplexField(103)
+        sage: data = { (0, 0): 1, (1, 1): CF(1), (2, 2): CF(0,1) }
+        sage: coefficient_dict_to_json(data)
+         {'[0, 0]': {'prec': 53, 'val': '1.00000000000000'},
+          '[1, 1]': {'prec': 103, 'val': '1.00000000000000000000000000000'},
+          '[2, 2]': {'prec': 103, 'val': '1.00000000000000000000000000000*I'}}
+
+    """
+    return {json.dumps([int(ki) for ki in k]): complex_number_to_json(v) for k,v in coeff_dict.items() }
+
+
+def coefficient_dict_from_json(data: dict | str) -> dict:
+    """
+    Convert a coefficient dict from JSON format.
+
+    INPUT:
+
+    - ``data`` -- json data as dict or string
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.modform.utils import (coefficient_dict_from_json,
+        ....:                                       coefficient_dict_to_json)
+        sage: data = { (0, 0): 1, (1, 1): 1, (2, 2): 1 }
+        sage: json_string = coefficient_dict_to_json(data)
+        sage: coefficient_dict_from_json(json_string)
+        {(0, 0): 1.00000000000000, (1, 1): 1.00000000000000, (2, 2): 1.00000000000000}
+        sage: from sage.rings.complex_mpfr import ComplexField
+        sage: CF = ComplexField(103)
+        sage: data = { (0, 0): 1, (1, 1): CF(1), (2, 2): CF(0,1) }
+        sage: json_string = coefficient_dict_to_json(data)
+        sage: coefficient_dict_from_json(json_string)
+         {(0, 0): 1.00000000000000,
+         (1, 1): 1.00000000000000000000000000000,
+         (2, 2): 1.00000000000000000000000000000*I}
+
+    """
+    if isinstance(data, str):
+        data = json.loads(data)
+    return { tuple(json.loads(k)): complex_number_from_json(v) for k,v in data.items() }

@@ -64,6 +64,7 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
                     y: tuple[Real_t] | None = None,
                     num_threads: Integer_t = None,
                     spectral_symmetry: bool = True,
+                    set_coefficients: dict = None,
                     spectral_epsilon: Real_t = 1e-2):
     """
     Compute a Hilbert Maass form on a grid.
@@ -112,7 +113,7 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
             log.debug(f"Skipping spectral parameter {spectral_parameter}")
             continue
 
-        input_params.append((space, spectral_parameter, bound_m, y))
+        input_params.append((space, spectral_parameter, bound_m, y, set_coefficients))
     if num_threads is not None:
         os.environ['SAGE_NUM_THREADS'] = str(num_threads)
     # Prepare the cache to avoid race errors
@@ -128,20 +129,24 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
 def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
                                    spectral_parameter: tuple[Complex_t],
                                    bound_m: tuple[tuple[Integer_t]] | Integer_t,
-                                   y: tuple[Real_t] | None = None):
+                                   y: tuple[Real_t] | None = None,
+                                   set_coefficients: dict = None):
     try:
         maass_form_db = HilbertMaassFormDB.near_or_create(
             parent=space.to_json(),
             spectral_parameter=spectral_parameter,
             bound_m=bound_m,
+            set_coefficients=set_coefficients,
             y=y)
         maass_form = load_object(maass_form_db)
     except mongoengine.connection.ConnectionFailure:
         log.warning(f"Could not connect to database. Compute locally only")
         maass_form = HilbertMaassForm(space, spectral_parameter)
-        maass_form.compute_coefficients(M=bound_m)
+        maass_form.compute_coefficients(M=bound_m, set_coefficients=set_coefficients,
+                                        Y=y)
     if not maass_form.coefficients():
-        maass_form.compute_coefficients(M=bound_m)
+        maass_form.compute_coefficients(M=bound_m, set_coefficients=set_coefficients,
+                                        Y=y)
         insert_object(maass_form)
         log.debug(f"Computed Hilbert Maass form for s={spectral_parameter}")
     return maass_form

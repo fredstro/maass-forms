@@ -104,6 +104,7 @@ class HilbertMaassForm_Element(ModuleElement):
                              idealb: NumberFieldFractionalIdeal = None,
                              M: tuple[tuple[Integer_t]] = None,
                              Y: tuple = None,
+                             set_coefficients: dict = None,
                              prec: int = 53,
                              sgn: str = '-',
                              returnV: bool = False) -> 'HilbertMaassCoefficients' or tuple:
@@ -132,9 +133,8 @@ class HilbertMaassForm_Element(ModuleElement):
             TypeError: HilbertMaassForm() missing 1 required positional argument: 'spectral...
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
             sage: C = F.compute_coefficients(spectral_parameter, M = (-1,1))
-            Cannot connect to cache collection.
             sage: C[(0,0)] # abs tol 1e-10
-            0.167572243136260 - 0.590945405474222*I
+            0.246026138189148 - 0.592492957413492*I
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
             sage: C = F.compute_coefficients(spectral_parameter, M = (-3,3)) # long time (100s)
             sage: C[(0,0)] # abs tol 1e-10 # long time (100s)
@@ -151,6 +151,7 @@ class HilbertMaassForm_Element(ModuleElement):
                                  idealb=idealb,
                                  M=M,
                                  Y=Y,
+                                 set_coefficients=set_coefficients
                                  )
         self._coefficients = C
         return C
