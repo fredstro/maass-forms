@@ -65,6 +65,7 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
                     num_threads: Integer_t = None,
                     spectral_symmetry: bool = True,
                     set_coefficients: dict = None,
+                    use_database: bool = True,
                     spectral_epsilon: Real_t = 1e-2):
     """
     Compute a Hilbert Maass form on a grid.
@@ -74,19 +75,27 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
     - ``space`` -- space of Hilbert Maass forms
     - ``grid_limits`` -- tuple of tuples to represent the boundary of the grid
     - ``grid_numbers`` -- tuple of integers to represent the number of grid points in each dimension
-    - ``spectral_symmetry`` -- only calculate for spectral parameters (r1,r2) with r1 <= r2 + eps
+    - ``spectral_symmetry`` -- (default=True) only calculate for spectral parameters (r1,r2) with r1 <= r2 + eps
     - ``spectral_epsilon`` -- eps (see above)
+    - ``num_threads`` -- integer (default=1) number of threads to use,
+                         need to be less than or equal to SAGE_NUM_THREADS
+    - ``use_database`` -- boolean(default: True) use the database
 
     EXAMPLES::
 
         sage: from hilbert_maass.all import HilbertMaassFormSpace
         sage: from hilbert_maass.search.search import compute_on_grid
         sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
-        sage: result = list(compute_on_grid(H, ((0,1),(0,1)), (2,2), bound_m=1, num_threads=1))
+        sage: result = list(compute_on_grid(H, ((0,1),(0,1)), (2,2), bound_m=1, num_threads=1,
+        ....: spectral_symmetry=True, use_database=False))
+        sage: len(result)
+        3
+        sage: result = list(compute_on_grid(H, ((0,1),(0,1)), (2,2), bound_m=1, num_threads=1,
+        ....: spectral_symmetry=False, use_database=False))
         sage: len(result)
         4
         sage: spectral_parameters = [result[x][0][0][1] for x in range(4)]
-        sage: spectral_parameters.sort()
+        sage: sorted(spectral_parameters)
         [(0.500000000000000, 0.500000000000000),
          (0.500000000000000, 0.500000000000000 + 1.00000000000000*I),
          (0.500000000000000 + 1.00000000000000*I, 0.500000000000000),
@@ -113,7 +122,8 @@ def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_
             log.debug(f"Skipping spectral parameter {spectral_parameter}")
             continue
 
-        input_params.append((space, spectral_parameter, bound_m, y, set_coefficients))
+        input_params.append((space, spectral_parameter, bound_m, y,
+                             set_coefficients, use_database))
     if num_threads is not None:
         os.environ['SAGE_NUM_THREADS'] = str(num_threads)
     # Prepare the cache to avoid race errors
@@ -130,24 +140,55 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
                                    spectral_parameter: tuple[Complex_t],
                                    bound_m: tuple[tuple[Integer_t]] | Integer_t,
                                    y: tuple[Real_t] | None = None,
-                                   set_coefficients: dict = None):
-    try:
-        maass_form_db = HilbertMaassFormDB.near_or_create(
-            parent=space.to_json(),
-            spectral_parameter=spectral_parameter,
-            bound_m=bound_m,
-            set_coefficients=set_coefficients,
-            y=y)
-        maass_form = load_object(maass_form_db)
-    except mongoengine.connection.ConnectionFailure:
-        log.warning(f"Could not connect to database. Compute locally only")
+                                   set_coefficients: dict = None,
+                                   use_database: bool = True):
+    """
+
+    INPUT:
+        - ``space`` -- HilbertMaassFormSpace
+        - ``spectral_parameter`` -- tuple of complex numbers
+        - ``bound_m`` -- tuple of tuples of integers or integer
+        - ``y`` -- tuple of real numbers
+        - ``set_coefficients`` -- dict (coefficients to set and values)
+        - ``use_database`` -- bool (default: True) set to False to not use database.
+
+    EXAMPLES::
+
+    sage: from hilbert_maass.search.search import compute_one_spectral_parameter
+    sage: from hilbert_maass.all import HilbertMaassFormSpace
+    sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+    sage: # Define the input parameters
+    sage: spectral_parameter = (0.5 + 0.5j, 0.5 + 1j)
+    sage: bound_m = ((-1, 1), (-1, 1))
+    sage: y = (0.1, 0.2)
+    sage: set_coefficients = {(0,1): 1, (0,0): 2}
+    sage: use_database = False
+    sage: compute_one_spectral_parameter(space, spectral_parameter, bound_m, y,
+    ....: set_coefficients, use_database)
+    Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal Order...
+
+    """
+    maass_form = None
+    if use_database:
+        try:
+            maass_form_db = HilbertMaassFormDB.near_or_create(
+                parent=space.to_json(),
+                spectral_parameter=spectral_parameter,
+                bound_m=bound_m,
+                set_coefficients=set_coefficients,
+                y=y)
+            maass_form = load_object(maass_form_db)
+        except mongoengine.connection.ConnectionFailure:
+            log.warning(f"Could not connect to database. Compute locally only")
+    if not maass_form:
         maass_form = HilbertMaassForm(space, spectral_parameter)
         maass_form.compute_coefficients(M=bound_m, set_coefficients=set_coefficients,
                                         Y=y)
     if not maass_form.coefficients():
         maass_form.compute_coefficients(M=bound_m, set_coefficients=set_coefficients,
                                         Y=y)
-        insert_object(maass_form)
+        if use_database:
+            insert_object(maass_form)
         log.debug(f"Computed Hilbert Maass form for s={spectral_parameter}")
     return maass_form
 
