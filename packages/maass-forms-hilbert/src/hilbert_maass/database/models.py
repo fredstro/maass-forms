@@ -67,7 +67,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
         elif not (isinstance(space, dict) and 'number_field' in space):
             raise TypeError("space must be HilbertMaassFormSpace or dict with 'number_field'")
         return self(__raw__={'parent__number_field': space['number_field'],
-                             'parent__is_cuspidal': space['is_cuspidal']})
+                             'parent__cuspidal': space['cuspidal']})
 
 
     def spectral_range(self, range_real: tuple[tuple[Real_t]],
@@ -111,9 +111,9 @@ class HilbertMaassformQuerySet(QuerySetCompat):
         """
         Find HilbertMaassFormsDB objects near the given spectral parameter.
         """
-        return self.spectral_range([x.real() for x in spectral_parameter],
-                                   [x.imag() for x in spectral_parameter],
-                                   eps = max_distance)
+        return self.spectral_range([(x.real(),x.real()) for x in spectral_parameter],
+                                   [(x.imag(),x.imag()) for x in spectral_parameter],
+                                   eps=max_distance)
 
     # @queryset_manager
     def with_precision(self, m_bound: tuple[Integer_t], y: tuple[Integer_t] = None) -> QuerySet:
