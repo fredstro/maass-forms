@@ -13,6 +13,7 @@ from hilbert_maass.modform.utils import Real_t, Integer_t, Complex_t
 from mongoengine import QuerySet
 from sage.all import Integer
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
+from sage.rings.number_field.number_field_base import NumberField as NumberField_class
 
 log = logging.getLogger(__name__)
 
@@ -37,37 +38,82 @@ class HilbertMaassformQuerySet(QuerySetCompat):
     """
 
     def __getitem__(self, item):
+        """
+        Get an item from the QuerySet
+
+        INPUT:
+
+        - ``item`` -- integer or slice
+
+        """
         if isinstance(item, Integer):
             item = int(item)
         if isinstance(item, slice) and isinstance(item.stop, Integer):
             item = slice(int(item.start), int(item.stop))
         return super().__getitem__(item)
 
-    def near(self, spectral_parameter: tuple[Complex_t],
-             max_distance: Real_t = 1e-10) -> QuerySet:
+    def space(self, space: HilbertMaassFormSpace | NumberField_class | dict) -> QuerySet:
         """
-        Find HilbertMaassFormsDB objects near the given spectral parameter.
+        Filter HilbertMaassFormsDB objects by space.
+
+        INPUT:
+
+        - ``space`` -- HilbertMaassFormSpace or dict with 'number_field'
+
+
         """
-        lower_bds_x = [float(x.real() - max_distance) for x in spectral_parameter]
-        upper_bds_x = [float(x.real() + max_distance) for x in spectral_parameter]
-        lower_bds_y = [float(x.imag() - max_distance) for x in spectral_parameter]
-        upper_bds_y = [float(x.imag() + max_distance) for x in spectral_parameter]
+        if isinstance(space, HilbertMaassFormSpace):
+            space = space.to_json()
+        elif not (isinstance(space, dict) and 'number_field' in space):
+            raise TypeError("space must be HilbertMaassFormSpace or dict with 'number_field'")
+        return self(__raw__={'parent__number_field': space['number_field'],
+                             'parent__is_cuspidal': space['is_cuspidal']})
+
+
+    def spectral_range(self, range_real: tuple[tuple[Real_t]],
+                       range_imag: tuple[tuple[Real_t]] = None,
+                       eps: Real_t = 1e-10) -> QuerySet:
+        """
+        Filter for spectral parameter in a given range
+
+        INPUT:
+
+        - ``range_real`` -- tuple of tuples of real numbers
+        - ``range_imag`` -- tuple of tuples of imaginary numbers
+
+
+        """
+        lower_bds_x = [float(x[0] - eps) for x in range_real]
+        upper_bds_x = [float(x[1] + eps) for x in range_real]
+        if not range_imag:
+            range_imag = [0.5] * len(range_real)
+        lower_bds_y = [float(y[0] - eps) for y in range_imag]
+        upper_bds_y = [float(y[1] + eps) for y in range_imag]
 
         conditions = [
             {
                 f"spectral_parameter_points.{i}.x": {"$gt": lower_bds_x[i]},
                 f"spectral_parameter_points.{i}.y": {"$gt": lower_bds_y[i]}
             }
-            for i in range(len(spectral_parameter))
+            for i in range(len(range_real))
         ]
         conditions += [
             {
                 f"spectral_parameter_points.{i}.x": {"$lt": upper_bds_x[i]},
                 f"spectral_parameter_points.{i}.y": {"$lt": upper_bds_y[i]}
             }
-            for i in range(len(spectral_parameter))
+            for i in range(len(range_real))
         ]
         return self(__raw__={"$and": conditions})
+
+    def near(self, spectral_parameter: tuple[Complex_t],
+             max_distance: Real_t = 1e-10) -> QuerySet:
+        """
+        Find HilbertMaassFormsDB objects near the given spectral parameter.
+        """
+        return self.spectral_range([x.real() for x in spectral_parameter],
+                                   [x.imag() for x in spectral_parameter],
+                                   eps = max_distance)
 
     # @queryset_manager
     def with_precision(self, m_bound: tuple[Integer_t], y: tuple[Integer_t] = None) -> QuerySet:
@@ -99,7 +145,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
         return self(__raw__={"$and": conditions}).order_by('-max_m')
 
     def with_set_coefficients(self, set_coefficients: dict) -> QuerySet:
-        return self(__raw__={"set_coefficient": True})
+        return self(__raw__={"set_coefficient": set_coefficients})
 
 
 class HilbertMaassFormDB(DBObjectBase):
