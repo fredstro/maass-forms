@@ -230,7 +230,7 @@ class HilbertMaassCoefficients(SageObject):
             sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H)
             sage: C[0]
             1.00000000000000
-            sage: C[0, 1]
+            sage: C[(0, 1)]
             8.00000000000000
             sage: C[0, (0, -1)]
             2.00000000000000

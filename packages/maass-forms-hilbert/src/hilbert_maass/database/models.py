@@ -127,13 +127,15 @@ class HilbertMaassformQuerySet(QuerySetCompat):
 
 
         """
-        conditions = [
-            {
-                f"coefficients.M.{i}.0": {"$lte": int(m_bound[i][0])},
-                f"coefficients.M.{i}.1": {"$gte": int(m_bound[i][1])},
-            }
+        conditions = []
+        if m_bound:
+            conditions += [
+                {
+                    f"coefficients.M.{i}.0": {"$lte": int(m_bound[i][0])},
+                    f"coefficients.M.{i}.1": {"$gte": int(m_bound[i][1])},
+                }
             for i in range(len(m_bound))
-        ]
+            ]
         if y:
             conditions += [
                 {

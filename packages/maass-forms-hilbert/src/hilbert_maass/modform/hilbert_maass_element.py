@@ -12,6 +12,7 @@ from sage.matrix.constructor import matrix
 from sage.modules.free_module_element import vector
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
+from sage.rings.number_field.number_field_base import NumberField as NumberField_class
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import ModuleElement, Matrix
 
@@ -54,6 +55,21 @@ class HilbertMaassForm_Element(ModuleElement):
         return self.__class__, (self.parent(), self.spectral_parameter, self._coefficients)
 
     def to_json(self):
+        """
+        Json representation of self.
+
+        EXAMPLES:
+            sage: element = HilbertMaassElement(...)
+            sage: element.to_json()
+            {'parent': {...}, 'spectral_parameter': {...}, 'coefficients': {...}}
+
+            Convert the JSON representation back to an instance of `HilbertMaassElement`:
+
+            sage: json_data = {'parent': {...}, 'spectral_parameter': {...}, 'coefficients': {...}}
+            sage: element = HilbertMaassElement.from_json(json_data)
+            sage: element == HilbertMaassElement(...)
+            True
+        """
         return {
             'parent': self.parent().to_json(),
             'spectral_parameter': complex_tuple_to_json(self.spectral_parameter),
@@ -157,9 +173,30 @@ class HilbertMaassForm_Element(ModuleElement):
         return C
 
 
-def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace',
+def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or NumberField_class,
                      spectral_parameter: tuple[ComplexNumber | RealNumber_class],
                      **kwargs: P.kwargs) -> HilbertMaassForm_Element:
+    """
+    Create a Hilbert Maass form
+
+    INPUT:
+
+    - ``group``  -- Hilbert modular group or space of Hilbert maass forms
+    - ``spectral_parameter`` -- tuple of complex numbers
+
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
+        sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+        sage: from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
+        sage: spectral_parameter = (0.5 + 0.5j, 0.5 + 1j)
+        sage: form = HilbertMaassForm(space, (0.5, 1.5)); form
+        Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal Order...
+        sage: form2 = HilbertMaassForm(QuadraticField(2), spectral_parameter)
+        sage: form == form2
+        True
+    """
     from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
     if isinstance(group, HilbertMaassFormSpace):
         space = group

@@ -10,7 +10,7 @@ from sage.rings.complex_mpfr import ComplexField, ComplexNumber
 from sage.rings.number_field.number_field_base import NumberField as NumberFieldBase
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
-from typing import ParamSpec
+from typing import ParamSpec, Any
 from .hilbert_maass_element import HilbertMaassForm_Element
 from .utils import number_field_from_json, number_field_to_json, Real_t
 
@@ -70,7 +70,7 @@ class HilbertMaassFormSpace(Module):
     def __repr__(self):
         return f"HilbertMaassFormSpace({self.group()})"
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """
         Is self equal to other.
 
@@ -112,7 +112,6 @@ class HilbertMaassFormSpace(Module):
         this_level = self.group().level()
         other_level_gens = other.group().level().gens_reduced()
         return self.number_field().fractional_ideal(other_level_gens) == this_level
-
 
     def group(self):
         """
