@@ -121,7 +121,7 @@ class HilbertMaassCoefficients(SageObject):
                   ['7.00000000000000'],
                   ['8.00000000000000'],
                   ['9.00000000000000']],
-                  'coefficients_set': {'[0, 0]': {'prec': 53, 'val': '0.000000000000000'},
+                  'set_coefficients': {'[0, 0]': {'prec': 53, 'val': '0.000000000000000'},
                                        '[0, 1]': {'prec': 53, 'val': '1.00000000000000'}},
                  'prec': 53,
                  'space': {'cuspidal': False,
@@ -135,7 +135,7 @@ class HilbertMaassCoefficients(SageObject):
             'coefficients': [[str(x) for x in r] for r in self._coefficients],
             'prec': int(self._coefficients.base_ring().prec()),
             'spectral_parameter': complex_tuple_to_json(self._spectral_parameter),
-            'coefficients_set': coefficient_dict_to_json(self._set_coefficients),
+            'set_coefficients': coefficient_dict_to_json(self._set_coefficients),
             'space': self._space.to_json(),
             'Y': tuple(float(y) for y in self._Y)
         }
@@ -175,7 +175,7 @@ class HilbertMaassCoefficients(SageObject):
             spectral_parameter=complex_tuple_from_json(data['spectral_parameter']),
             space=HilbertMaassFormSpace.from_json(data['space']),
             Y=Y,
-            set_coefficients=coefficient_dict_from_json(data['coefficients_set']),
+            set_coefficients=coefficient_dict_from_json(data['set_coefficients']),
         )
 
     def space(self):

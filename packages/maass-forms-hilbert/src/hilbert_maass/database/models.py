@@ -15,6 +15,8 @@ from sage.all import Integer
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 from sage.rings.number_field.number_field_base import NumberField as NumberField_class
 
+from hilbert_maass.modform.utils import coefficient_dict_to_json
+
 log = logging.getLogger(__name__)
 
 P = ParamSpec('P')
@@ -147,7 +149,8 @@ class HilbertMaassformQuerySet(QuerySetCompat):
         return self(__raw__={"$and": conditions}).order_by('-max_m')
 
     def with_set_coefficients(self, set_coefficients: dict) -> QuerySet:
-        return self(__raw__={"set_coefficient": set_coefficients})
+        set_coefficients_db = coefficient_dict_to_json(set_coefficients)
+        return self(__raw__={"set_coefficient": set_coefficients_db})
 
 
 class HilbertMaassFormDB(DBObjectBase):
