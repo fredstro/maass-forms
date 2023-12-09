@@ -88,6 +88,8 @@ def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
         0
         sage: map_tuple_to_int((-1, -1),((-1, 1), (-1, 1)))
         0
+        sage: map_tuple_to_int((0, 0),((-1, 1), (-1, 1)))
+        4
         sage: map_tuple_to_int((-1, -3),((-1, 1), (-3, 1)))
         0
         sage: map_tuple_to_int((0, -3),((-1, 1), (-3, 1)))
@@ -128,7 +130,7 @@ def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
         raise IndexError(f"Tuple element {index_tuple} is out of bounds!")
     n = len(index_tuple)
     # Calculate the index of the tuple
-    return sum((tuple_limits[i-1][0] - tuple_limits[i-1][0] + 1)**i*(index_tuple[i] - min_tix)
+    return sum((tuple_limits[i-1][1] - tuple_limits[i-1][0] + 1)**i*(index_tuple[i] - min_tix)
                for i, (min_tix, max_tix) in enumerate(tuple_limits))
 
 
@@ -393,6 +395,8 @@ def coefficient_dict_to_json(coeff_dict: dict) -> dict:
           '[2, 2]': {'prec': 103, 'val': '1.00000000000000000000000000000*I'}}
 
     """
+    if not coeff_dict:
+        return {}
     return {json.dumps([int(ki) for ki in k]): complex_number_to_json(v) for k,v in coeff_dict.items() }
 
 
