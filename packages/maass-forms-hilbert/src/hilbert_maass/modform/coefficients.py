@@ -26,7 +26,7 @@ from ..functions.functions_cy import exp_trace_prod_dp, bessel_prod_dp2
 
 from .utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
     complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal, totally_positive_generator, \
-    Complex_t, coefficient_dict_to_json, coefficient_dict_from_json
+    Complex_t, coefficient_dict_to_json, coefficient_dict_from_json, is_tuple_zero
 
 from comp_manager.decorators import mongo_cache
 
@@ -165,6 +165,9 @@ class HilbertMaassCoefficients(SageObject):
         """
         if isinstance(data, str):
             data = json.loads(data)
+        if set(data.keys()) != \
+           {'prec', 'coefficients', 'M', 'Y', 'spectral_parameter', 'space', 'set_coefficients'}:
+            raise ValueError("Not a valid JSON representation of HilbertMaassCoefficients")
         CF = ComplexField(data['prec'])
         coefficients = matrix(CF, data['coefficients'])
         from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
@@ -552,7 +555,7 @@ def setup_matrix(space: 'HilbertMaassFormSpace',
         bes_values[m] = {}
         for W in cartesian_product_from_M(M):
             # For cuspidal forms we don't need to compute the row corresponding to 0
-            if space.is_cuspidal() and (all(x == 0 for x in W)):
+            if space.is_cuspidal() and is_tuple_zero(W):
                 bes_values[m][W] = 0
                 continue
             w = dual_ideal_elements[1][W]

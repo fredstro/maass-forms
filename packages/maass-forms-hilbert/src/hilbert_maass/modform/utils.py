@@ -17,7 +17,7 @@ from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.rings.real_lazy import RLF
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
-from sage.structure.element import Matrix
+from sage.structure.element import Matrix, Vector
 
 # User defined type for either Python int or Sage Integer
 Integer_t = Integer | int
@@ -25,9 +25,13 @@ Real_t = RealNumber_class | float
 Complex_t = ComplexNumber | complex
 
 @cached_function
-def cartesian_product_from_M(M: tuple[tuple[Integer_t]]) -> Iterable[tuple[Integer_t]]:
-    return list(cartesian_product([range(m0[0], m0[1] + 1) for m0 in M]))
+def cartesian_product_from_M(M: tuple[tuple[Integer_t]]) -> Iterable[Vector]:
+    return [v for v in
+            cartesian_product([range(m0[0], m0[1] + 1) for m0 in M])]
 
+
+def is_tuple_zero(t: tuple[Integer_t]) -> bool:
+    return all(t0 == 0 for t0 in t)
 
 def length_from_M(M: tuple[tuple[Integer_t]]) -> int:
     """
@@ -88,6 +92,12 @@ def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
         0
         sage: map_tuple_to_int((0, -3),((-1, 1), (-3, 1)))
         1
+        sage: map_tuple_to_int((0, -3),((-1, 1), (-3, 1)))
+        1
+        sage: map_tuple_to_int((0, -4), ((0,5),(-5,5)))
+        6
+        sage: map_tuple_to_int((1, -4), ((0,5),(-5,5)))
+        7
 
     TESTS::
 
@@ -117,8 +127,8 @@ def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
            for i, (min_tix, max_tix) in enumerate(tuple_limits)):
         raise IndexError(f"Tuple element {index_tuple} is out of bounds!")
     n = len(index_tuple)
-    # Check if any tuple elements are out of bounds.
-    return sum((max_tix - min_tix + 1)**i*(index_tuple[i] - min_tix)
+    # Calculate the index of the tuple
+    return sum((tuple_limits[i-1][0] - tuple_limits[i-1][0] + 1)**i*(index_tuple[i] - min_tix)
                for i, (min_tix, max_tix) in enumerate(tuple_limits))
 
 

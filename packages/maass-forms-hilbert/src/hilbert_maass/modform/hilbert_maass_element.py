@@ -31,9 +31,9 @@ class HilbertMaassForm_Element(ModuleElement):
                  **kwargs: P.kwargs) -> None:
         super(HilbertMaassForm_Element, self).__init__(parent, **kwargs)
         self.cuspidal = parent.is_cuspidal()
-        self.spectral_parameter = spectral_parameter
+        self._spectral_parameter = spectral_parameter
         self._number_field = parent.number_field()
-        self._complex_field = self.spectral_parameter[0].parent().prec()
+        self._complex_field = self._spectral_parameter[0].parent().prec()
         self.has_coefficients = False
         if coefficients is None:
             self._coefficients = None
@@ -52,29 +52,35 @@ class HilbertMaassForm_Element(ModuleElement):
         }
 
     def __reduce__(self):
-        return self.__class__, (self.parent(), self.spectral_parameter, self._coefficients)
+        return self.__class__, (self.parent(), self.spectral_parameter(), self._coefficients)
 
     def to_json(self):
         """
         Json representation of self.
 
         EXAMPLES:
-            sage: element = HilbertMaassElement(...)
-            sage: element.to_json()
-            {'parent': {...}, 'spectral_parameter': {...}, 'coefficients': {...}}
+
+            sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassForm_Element
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: element = HilbertMaassForm_Element(H, (CC(0,1),CC(0,1)))
+            sage: json_data = element.to_json()
+            sage: json_data
+            {'coefficients': {},
+             'parent': {'cuspidal': False,
+             'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'}},
+             'spectral_parameter': [{'prec': 53, 'val': '1.00000000000000*I'},
+             {'prec': 53, 'val': '1.00000000000000*I'}]}
 
             Convert the JSON representation back to an instance of `HilbertMaassElement`:
 
-            sage: json_data = {'parent': {...}, 'spectral_parameter': {...}, 'coefficients': {...}}
-            sage: element = HilbertMaassElement.from_json(json_data)
-            sage: element == HilbertMaassElement(...)
+            sage: new_element = HilbertMaassForm_Element.from_json(json_data)
+            sage: new_element == element
             True
         """
         return {
             'parent': self.parent().to_json(),
-            'spectral_parameter': complex_tuple_to_json(self.spectral_parameter),
-            'coefficients':
-                self.coefficients().to_json()
+            'spectral_parameter': complex_tuple_to_json(self.spectral_parameter()),
+            'coefficients': self.coefficients().to_json() if self.coefficients() else {}
         }
 
     @classmethod
@@ -85,6 +91,8 @@ class HilbertMaassForm_Element(ModuleElement):
         parent = HilbertMaassFormSpace.from_json(data=data['parent'])
         spectral_parameter = tuple(ComplexField(x['prec'])(x['val'])
                               for x in data['spectral_parameter'])
+        if not data['coefficients']:
+            return cls(parent, spectral_parameter)
         coefficients = HilbertMaassCoefficients.from_json(data['coefficients'])
         return cls(parent, spectral_parameter, coefficients)
 
@@ -100,7 +108,7 @@ class HilbertMaassForm_Element(ModuleElement):
 
     def __repr__(self):
         return f"Hilbert Maass form for {self.parent()} with spectral parameter" \
-               f" {self.spectral_parameter}"
+               f" {self.spectral_parameter()}"
 
     def dual_ideal_element(self, coordinates: tuple[Integer_t] or vector,
                            ideal: NumberFieldFractionalIdeal):
@@ -157,7 +165,7 @@ class HilbertMaassForm_Element(ModuleElement):
             0.245942691776149 - 0.595428499664962*I
 
         """
-        s = s or self.spectral_parameter
+        s = s or self.spectral_parameter()
         if not s:
             raise ValueError("Spectral parameter must be set in the HilbertMaassForm or "
                              "passed as parameter")
@@ -191,10 +199,10 @@ def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or 
         sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
         sage: from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
         sage: spectral_parameter = (0.5 + 0.5j, 0.5 + 1j)
-        sage: form = HilbertMaassForm(space, (0.5, 1.5)); form
+        sage: HilbertMaassForm(space, (0.5, 1.5))
         Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal Order...
-        sage: form2 = HilbertMaassForm(QuadraticField(2), spectral_parameter)
-        sage: form == form2
+        sage: HilbertMaassForm(QuadraticField(2), spectral_parameter)
+        Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal Order...
         True
     """
     from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
