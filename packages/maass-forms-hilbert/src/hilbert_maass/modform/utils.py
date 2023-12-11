@@ -130,8 +130,8 @@ def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
         raise IndexError(f"Tuple element {index_tuple} is out of bounds!")
     n = len(index_tuple)
     # Calculate the index of the tuple
-    return sum((tuple_limits[i-1][1] - tuple_limits[i-1][0] + 1)**i*(index_tuple[i] - min_tix)
-               for i, (min_tix, max_tix) in enumerate(tuple_limits))
+    return int(sum((tuple_limits[i-1][1] - tuple_limits[i-1][0] + 1)**i*(index_tuple[i] - min_tix)
+               for i, (min_tix, max_tix) in enumerate(tuple_limits)))
 
 
 @cached_function
