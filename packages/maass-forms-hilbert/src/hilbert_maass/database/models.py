@@ -68,8 +68,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
             space = space.to_json()
         elif not (isinstance(space, dict) and 'number_field' in space):
             raise TypeError("space must be HilbertMaassFormSpace or dict with 'number_field'")
-        return self(__raw__={'parent__number_field': space['number_field'],
-                             'parent__cuspidal': space['cuspidal']})
+        return self(parent__number_field=space['number_field'], parent__cuspidal=space['cuspidal'])
 
 
     def spectral_range(self, range_real: tuple[tuple[Real_t]],
@@ -150,7 +149,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
 
     def with_set_coefficients(self, set_coefficients: dict) -> QuerySet:
         set_coefficients_db = coefficient_dict_to_json(set_coefficients)
-        return self(__raw__={"set_coefficient": set_coefficients_db})
+        return self(__raw__={"coefficients__set_coefficients": set_coefficients_db})
 
 
 class HilbertMaassFormDB(DBObjectBase):
@@ -169,7 +168,7 @@ class HilbertMaassFormDB(DBObjectBase):
     spectral_parameter_points = me.EmbeddedDocumentListField(Point, default=[])
     y_values = me.ListField(me.FloatField())
     # Describe which coefficients has been set in the normalisation
-    set_coefficient = me.DictField()
+    set_coefficients = me.DictField()
     coefficients = me.DictField()
     parent = me.DictField()
     # Set manually (or automatically) to 'tentative' if the form is
