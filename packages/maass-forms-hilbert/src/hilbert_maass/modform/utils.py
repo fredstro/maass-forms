@@ -357,7 +357,7 @@ def number_field_to_json(nf: NumberField) -> dict:
     NOTE: Any information about embeddings is ignored.
 
     """
-    return {'polynomial': str(nf.polynomial()), 'names': nf._names}
+    return {'polynomial': str(nf.polynomial()), 'names': list(nf._names)}
 
 
 def number_field_from_json(data: dict | str) -> NumberField:
@@ -367,7 +367,7 @@ def number_field_from_json(data: dict | str) -> NumberField:
     """
     if isinstance(data, str):
         data = json.loads(data)
-    return NumberField(ZZ['x'](data['polynomial']), names=data['names'])
+    return NumberField(ZZ['x'](data['polynomial']), names=tuple(data['names']))
 
 
 def coefficient_dict_to_json(coeff_dict: dict) -> dict:
