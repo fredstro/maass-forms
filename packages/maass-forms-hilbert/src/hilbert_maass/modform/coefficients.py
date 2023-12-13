@@ -121,11 +121,11 @@ class HilbertMaassCoefficients(SageObject):
                   ['7.00000000000000'],
                   ['8.00000000000000'],
                   ['9.00000000000000']],
+                  'prec': 53,
                   'set_coefficients': {'[0, 0]': {'prec': 53, 'val': '0.000000000000000'},
                                        '[0, 1]': {'prec': 53, 'val': '1.00000000000000'}},
-                 'prec': 53,
                  'space': {'cuspidal': False,
-                  'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'}},
+                  'number_field': {'names': ['a'], 'polynomial': 'x^2 - 2'}},
                  'spectral_parameter': [{'prec': 53,
                          'val': '0.500000000000000 + 1.00000000000000*I'},
                         {'prec': 53, 'val': '0.500000000000000 + 1.00000000000000*I'}]}

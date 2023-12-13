@@ -246,16 +246,14 @@ cpdef double besselk_dp_rec(double R, double x, double prec=1e-14,
     EXAMPLES::
 
         sage: from hilbert_maass.functions.bessel.besselk_dp import besselk_dp_rec
-        sage: besselk_dp_rec(10.0,5.0,prec=1e-16,pref=1) # tol 2e-13
+        sage: besselk_dp_rec(10.0,5.0,prec=1e-15,pref=1) # tol 2e-13
         -0.7183327166568183
-        sage: besselk_dp_rec(10.0,3.0,prec=1e-16) # tol 2e-15
-        -6.3759939798738967e-08
-        sage: besselk_dp_rec(10.0,3.0,prec=1e-16,pref=1) # tol 3e-15
-        -0.42308698672505796
-        sage: besselk_dp_rec(100.0,3.0,prec=1e-16,pref=1) # tol 4e-13
-        0.08245770146816264
-        sage: besselk_dp_rec(100.0,3.0,prec=1e-16,pref=1) # tol 4e-13
-        0.0824577014681302
+        sage: besselk_dp_rec(10.0,3.0,prec=1e-15) # tol 2e-15
+        -6.375993979873876e-08
+        sage: besselk_dp_rec(10.0,3.0,prec=1e-15,pref=1) # tol 3e-15
+        -0.42308698672505657
+        sage: besselk_dp_rec(100.0,3.0,prec=1e-15,pref=1) # tol 4e-13
+        0.08245770146815011
 
 
     """
@@ -269,6 +267,8 @@ cpdef double besselk_dp_rec(double R, double x, double prec=1e-14,
             msg = f"Must have x > 0"
         elif res == 2:
             msg = f"besselk_dp_rec_c failed (too many iterations) for x,R={x}, {R}, value={value}"
+        elif res == -2:
+            msg = f"Precision requested is smaller than machine epsilon."
         else:
             msg = f"Error in besselk_dp_rec. Code: {res}"
         raise ArithmeticError(msg)

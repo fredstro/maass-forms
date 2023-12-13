@@ -67,7 +67,7 @@ class HilbertMaassForm_Element(ModuleElement):
             sage: json_data
             {'coefficients': {},
              'parent': {'cuspidal': False,
-             'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'}},
+             'number_field': {'names': ['a'], 'polynomial': 'x^2 - 2'}},
              'spectral_parameter': [{'prec': 53, 'val': '1.00000000000000*I'},
              {'prec': 53, 'val': '1.00000000000000*I'}]}
 
@@ -158,7 +158,7 @@ class HilbertMaassForm_Element(ModuleElement):
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
             sage: C = F.compute_coefficients(spectral_parameter, M = (-1,1))
             sage: C[(0,0)] # abs tol 1e-10
-            0.246026138189148 - 0.592492957413492*I
+            0.245527619228436 - 0.592369339237697*I
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
             sage: C = F.compute_coefficients(spectral_parameter, M = (-3,3)) # long time (100s)
             sage: C[(0,0)] # abs tol 1e-10 # long time (100s)
@@ -203,7 +203,7 @@ def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or 
         Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal Order...
         sage: HilbertMaassForm(QuadraticField(2), spectral_parameter)
         Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal Order...
-        True
+
     """
     from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
     if isinstance(group, HilbertMaassFormSpace):

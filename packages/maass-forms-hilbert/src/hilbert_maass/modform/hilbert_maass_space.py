@@ -42,7 +42,7 @@ class HilbertMaassFormSpace(Module):
             sage: from hilbert_maass.all import HilbertMaassFormSpace
             sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
             sage: H.to_json()
-            {'cuspidal': False, 'number_field': {'names': ('a',), 'polynomial': 'x^2 - 2'}}
+            {'cuspidal': False, 'number_field': {'names': ['a'], 'polynomial': 'x^2 - 2'}}
 
         """
         return {
@@ -75,7 +75,7 @@ class HilbertMaassFormSpace(Module):
         Is self equal to other.
 
         Note: Isomorphic number fields (e.g. QuadraticField(2) and NumberField(x^2-2)
-              have equal level so we use the level for comparison of groups.
+              have equal level, so we use the level for comparison of groups.
 
         INPUT:
 
@@ -187,7 +187,7 @@ class HilbertMaassFormSpace(Module):
 
         EXAMPLES::
 
-            sage: from fqm_weil.all import FiniteQuadraticModule
+
         """
         if isinstance(s, self.element_class):
             if check and s.parent() != self:
