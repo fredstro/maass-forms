@@ -200,7 +200,7 @@ class HilbertMaassFormDB(DBObjectBase):
         - ``**kwargs``  -- Keyword arguments
 
         """
-        if self.spectral_parameter and not self.spectral_parameter_points:
+        if self.spectral_parameter and not self.r_values:
             complex_pts = [complex(s['val'].replace('*I', 'j').replace(' ', ''))
                            for s in self.spectral_parameter]
             #coords = [Point(**{'x': s.real, 'y': s.imag}) for s in complex_pts]
