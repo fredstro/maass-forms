@@ -1,7 +1,9 @@
 """
 Database representation of Hilbert Maass forms.
 """
+import hashlib
 import logging
+from json import dumps
 from typing import ParamSpec
 
 import mongoengine as me
@@ -160,12 +162,17 @@ class HilbertMaassFormDB(DBObjectBase):
         'collection': 'hilbert_maass_forms',
         'object_class_name_base': 'HilbertMaassForm',
         'queryset_class': HilbertMaassformQuerySet,
+        'indexes': [
+            {'fields': ('hash',), 'unique': True},
+            {'fields': ('parent',), 'unique': False},
+        ],
     }
     # Properties matching those of HilbertMaassForm_Element
     # and in particular the output of the 'to_json' method
     spectral_parameter = me.ListField(me.DictField())
-    # Storing the spectral parameters as list of points on a line enables geo searching
-    spectral_parameter_points = me.EmbeddedDocumentListField(Point, default=[])
+    # Storing the spectral parameters as list of floats
+    # coressponding to r-values, only used for cusp forms
+    r_values = me.ListField(me.FloatField())
     y_values = me.ListField(me.FloatField())
     # Describe which coefficients has been set in the normalisation
     set_coefficients = me.DictField()
@@ -181,7 +188,7 @@ class HilbertMaassFormDB(DBObjectBase):
     max_m = me.IntField()
     # Skip 'coefficients' since we only want to compare against the
     # input values, not the computed values.
-    _skip_keys = ['_id', 'created_at', 'updated_at', 'hash',
+    _skip_keys = ['_id', 'created_at', 'updated_at', 'hash', 'comments',
                   'coefficients']
 
     def save(self, **kwargs: P.kwargs):
@@ -196,8 +203,9 @@ class HilbertMaassFormDB(DBObjectBase):
         if self.spectral_parameter and not self.spectral_parameter_points:
             complex_pts = [complex(s['val'].replace('*I', 'j').replace(' ', ''))
                            for s in self.spectral_parameter]
-            coords = [Point(**{'x': s.real, 'y': s.imag}) for s in complex_pts]
-            self.spectral_parameter_points = coords
+            #coords = [Point(**{'x': s.real, 'y': s.imag}) for s in complex_pts]
+            #self.spectral_parameter_points = coords
+            self.r_values = [float(s.imag) for s in complex_pts]
         if self.coefficients and not self.y_values:
             self.y_values = [float(y) for y in self.coefficients['Y']]
         if not self.max_m and self.coefficients:
