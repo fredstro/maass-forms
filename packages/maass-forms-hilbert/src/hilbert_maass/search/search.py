@@ -12,6 +12,7 @@ from hilbert_maass.modform.coefficients import get_pb_pts_set_params
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t, Complex_t
+from sage.all import CC
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import ceil
 from sage.matrix.constructor import matrix
@@ -56,6 +57,11 @@ def create_grid(grid_limits: tuple[tuple[Real_t]],
     grids = numpy.meshgrid(
         *(numpy.linspace(x0, x1, grid_numbers[i]) for i, (x0, x1) in enumerate(grid_limits)))
     return grids, cartesian_product([range(grids[0].shape[i]) for i in range(len(grids[0].shape))])
+
+
+def create_parallel_grid(grid_limits: tuple[Real_t], grid_numbers: Integer_t):
+    grids = numpy.linspace(grid_limits[0], grid_limits[1], grid_numbers)
+    return grids
 
 
 def compute_on_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_t]],
@@ -182,8 +188,6 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
             log.warning(f"Could not connect to database. Compute locally only")
     if not maass_form:
         maass_form = HilbertMaassForm(space, spectral_parameter)
-        maass_form.compute_coefficients(M=bound_m, set_coefficients=set_coefficients,
-                                        Y=y)
     if not maass_form.coefficients():
         maass_form.compute_coefficients(M=bound_m, set_coefficients=set_coefficients,
                                         Y=y)
@@ -192,6 +196,25 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
         log.debug(f"Computed Hilbert Maass form for s={spectral_parameter}")
     return maass_form
 
+
+
+def compute_on_parallel_grid(space: HilbertMaassFormSpace, grid_limits: tuple[Real_t],
+                             grid_numbers: Integer_t, prec: Integer_t = 53,
+                             bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
+                             y: tuple[Real_t] | None = None, set_coefficients: dict = None,
+                             use_database: bool = True):
+    if isinstance(bound_m, (Integer, int)):
+        bound_m = tuple([(-bound_m, bound_m)] * space.number_field().absolute_degree())
+    grids = create_parallel_grid(grid_limits, grid_numbers)
+    # print(grids)
+    CF = ComplexField(prec)
+    input_params = []
+    for m in grids:
+        spectral_parameter = (CF(0.5, m), CF(0.5, m))
+        log.debug(f"Computing spectral parameter {spectral_parameter}")
+        input_params.append((space, spectral_parameter, bound_m, y, set_coefficients, use_database))
+        # print(input_params)
+    return compute_one_spectral_parameter(input_params)
 def broyden_iteration(previous_iterations: list):
     """
     Basic implementation of Broyden's method to find solution of 2x2 system of equations:
@@ -214,7 +237,7 @@ def broyden_iteration(previous_iterations: list):
     NOTE: See https://en.wikipedia.org/wiki/Broyden%27s_method
     """
     if not isinstance(previous_iterations, tuple) or len(previous_iterations) != 3:
-        raise ValueError("Input should be a tuple of lenght 3")
+        raise ValueError("Input should be a tuple of length 3")
     v0, v1, v2 = previous_iterations
     delta_x0 = vector([v1[0] - v0[0], v1[1] - v0[1]])
     delta_y0 = vector([v1[2] - v0[2], v1[3] - v0[3]])
@@ -225,12 +248,12 @@ def broyden_iteration(previous_iterations: list):
         return matrix([[f[0] / x[0], 0], [0, f[1] / x[1]]])
     J0 = jacobian_approximation(delta_x0, delta_y0)
     # Finite difference
-    delta_J = (delta_y1 - J0 * delta_x1) / delta_x1.norm(2) ** 2 * delta_x1
-    print("diff=", delta_y1 - J0 * delta_x1, delta_J)
+    delta_J = ((delta_y1 - J0 * delta_x1) / delta_x1.norm(2) ** 2).column() * delta_x1.row()
+    # print("diff=", delta_y1 - J0 * delta_x1, delta_J)
     J1 = J0 + delta_J
-    print("J1=", J1)
+    # print("J1=", J1)
     x1 = vector([v2[0], v2[1]])
     f1 = vector([v2[2], v2[3]])
-    x_new = x1 - J1 * f1
-    print("x new=", x_new)
+    x_new = x1 - J1.inverse() * f1
+    # print("x new=", x_new)
     return x_new

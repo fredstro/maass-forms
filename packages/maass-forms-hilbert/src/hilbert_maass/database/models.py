@@ -119,7 +119,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
                                    eps=max_distance)
 
     # @queryset_manager
-    def with_precision(self, m_bound: tuple[Integer_t], y: tuple[Integer_t] = None) -> QuerySet:
+    def with_m_precision(self, m_bound: tuple[Integer_t]) -> QuerySet:
         """
         Find HilbertMaassFormsDB objects with coefficient precision bounded by m_bound.
 
@@ -139,15 +139,34 @@ class HilbertMaassformQuerySet(QuerySetCompat):
                 }
             for i in range(len(m_bound))
             ]
-        if y:
-            conditions += [
+        return self(__raw__={"$and": conditions}).order_by('-max_m')
+
+    def with_y_precision(self, y: tuple[Real_t] = None, eps: Real_t = 1e-10) -> QuerySet:
+        """
+        Find HilbertMaassFormsDB objects with coefficient precision bounded by m_bound.
+
+        INPUT:
+
+            queryset:
+            min_m:
+
+
+        """
+        if not y:
+            return self
+        if not isinstance(y, (tuple, list)):
+            y = [y] * len(y)
+        conditions = [
                 {
-                    f"coefficients.Y.{i}.0": float(y[i]),
-                    f"coefficients.Y.{i}.1": float(y[i]),
+                    f"coefficients.Y.{i}": {
+                        "$lte": float(y[i]) + float(eps),
+                        "$gte": float(y[i]) - float(eps)
+                    }
                 }
-                for i in range(len(y))
+            for i in range(len(y))
             ]
         return self(__raw__={"$and": conditions}).order_by('-max_m')
+
 
     def with_set_coefficients(self, set_coefficients: dict) -> QuerySet:
         set_coefficients_db = coefficient_dict_to_json(set_coefficients)
@@ -235,7 +254,7 @@ class HilbertMaassFormDB(DBObjectBase):
             parent = parent.to_json()
         maass_form_db = cls.objects(parent=parent).near(spectral_parameter,
                                                         max_distance=max_distance)\
-            .with_precision(bound_m, y).with_set_coefficients(set_coefficients).first()
+            .with_m_precision(bound_m).with_y_precision(y).with_set_coefficients(set_coefficients).first()
         if not maass_form_db:
             log.debug(f"Compute for s,m,y={spectral_parameter, bound_m, y}")
             space = HilbertMaassFormSpace.from_json(parent)
