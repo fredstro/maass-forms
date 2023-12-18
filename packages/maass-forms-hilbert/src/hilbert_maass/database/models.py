@@ -165,7 +165,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
                 }
             for i in range(len(y))
             ]
-        return self(__raw__={"$and": conditions}).order_by('-max_m')
+        return self(__raw__={"$and": conditions})
 
 
     def with_set_coefficients(self, set_coefficients: dict) -> QuerySet:
@@ -189,6 +189,7 @@ class HilbertMaassFormDB(DBObjectBase):
     # Properties matching those of HilbertMaassForm_Element
     # and in particular the output of the 'to_json' method
     spectral_parameter = me.ListField(me.DictField())
+    spectral_parameter_points = me.EmbeddedDocumentListField(Point, default=[])
     # Storing the spectral parameters as list of floats
     # coressponding to r-values, only used for cusp forms
     r_values = me.ListField(me.FloatField())
@@ -208,7 +209,7 @@ class HilbertMaassFormDB(DBObjectBase):
     # Skip 'coefficients' since we only want to compare against the
     # input values, not the computed values.
     _skip_keys = ['_id', 'created_at', 'updated_at', 'hash', 'comments',
-                  'coefficients']
+                  'coefficients', 'spectral_parameter_points']
 
     def save(self, **kwargs: P.kwargs):
         """
@@ -222,8 +223,8 @@ class HilbertMaassFormDB(DBObjectBase):
         if self.spectral_parameter and not self.r_values:
             complex_pts = [complex(s['val'].replace('*I', 'j').replace(' ', ''))
                            for s in self.spectral_parameter]
-            #coords = [Point(**{'x': s.real, 'y': s.imag}) for s in complex_pts]
-            #self.spectral_parameter_points = coords
+            coords = [Point(**{'x': s.real, 'y': s.imag}) for s in complex_pts]
+            self.spectral_parameter_points = coords
             self.r_values = [float(s.imag) for s in complex_pts]
         if self.coefficients and not self.y_values:
             self.y_values = [float(y) for y in self.coefficients['Y']]
