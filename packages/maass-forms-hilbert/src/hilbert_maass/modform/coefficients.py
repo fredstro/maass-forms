@@ -321,7 +321,7 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
             zpb, zm = get_pb_pts(space, Qs, ideala, Y, use_symmetry=use_symmetry)
         except ArithmeticError as e:
             log.debug(f"Arithmetic error, trying smaller Y: {e}")
-            Y = tuple([y * 0.95 for y in Y])
+            Y = tuple([y * 0.98 for y in Y])
         else:
             break
     if not zpb:
