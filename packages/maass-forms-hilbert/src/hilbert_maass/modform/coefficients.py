@@ -307,28 +307,23 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
         M = (M,) * space.number_field().absolute_degree()
     if not ideala:
         ideala = space.pullback().number_field().ideal(1)
-    if Y is None:
-        # Try to find best value of Y
-        Y = find_max_y(space, M)
-        # Y = (CF(0.55), ) * space.number_field().absolute_degree()
     Qs = get_Q_from_bounds(space.pullback(), M)
-    Qs = tuple([ceil(q) + 5 for q in Qs])
+    # Try to find best value of Y
+    Y = find_max_y(space, M, Qs=Qs, starting_Y=Y)
     # We try with given Y and if it doesn't work we keep decreasing Y until it does.
-    zpb = None
-    for i in range(1, 10):
-        log.debug(f"M = {M}, Y = {Y}, Qs = {Qs}")
-        try:
-            zpb, zm = get_pb_pts(space, Qs, ideala, Y, use_symmetry=use_symmetry)
-        except ArithmeticError as e:
-            log.debug(f"Arithmetic error, trying smaller Y: {e}")
-            Y = tuple([y * 0.98 for y in Y])
-        else:
-            break
-    if not zpb:
-        raise ArithmeticError("Could not find good Y!")
+    try:
+        zpb, zm = get_pb_pts(space, Qs, ideala, Y, use_symmetry=use_symmetry)
+    except ArithmeticError as e:
+        msg = f"Could not find good pullback points. Error: {e}"
+        log.debug(msg)
+        raise ArithmeticError(msg)
     return zpb, zm, Qs, M, Y
 
-def find_max_y(space: 'HilbertMaassFormSpace', M: tuple[tuple[Integer_t]],
+
+@cached_method()
+def find_max_y(space: 'HilbertMaassFormSpace',
+               M: tuple[tuple[Integer_t]],
+               Qs: tuple[tuple[Integer_t]] = None,
                starting_Y: tuple[RealNumber] = None,
                max_iterations: int =100) -> tuple[Real_t]:
     """
@@ -339,11 +334,20 @@ def find_max_y(space: 'HilbertMaassFormSpace', M: tuple[tuple[Integer_t]],
 
     """
     if not starting_Y:
-        starting_Y = (0.55,) * space.number_field().absolute_degree()
+        D = space.number_field().discriminant()
+        if D == 5:
+            starting_Y = 0.55
+        elif D == 8:
+            starting_Y = 0.31876213956380883
+        else:
+            starting_Y = 0.2
+    if not isinstance(starting_Y, tuple):
+        starting_Y = (starting_Y,) * space.number_field().absolute_degree()
     Y = starting_Y
     if not isinstance(M, tuple):
         M = ((-M, M),) * space.number_field().absolute_degree()
-    Qs = get_Q_from_bounds(space.pullback(), M)
+    if not Qs:
+        Qs = get_Q_from_bounds(space.pullback(), M)
     log.debug(f"Trying: {Qs, Y}")
     for i in range(max_iterations):
         try:
