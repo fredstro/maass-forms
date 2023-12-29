@@ -56,7 +56,7 @@ def get_Q_from_bounds(P: HilbertPullback, M: tuple[tuple[Integer_t]]) -> tuple:
         if t > C:
             C = t
     C = ceil(C)
-    C = C * max(max(abs(b0), abs(b1)) for b0, b1 in M)
+    C = C * (max(max(abs(b0), abs(b1)) for b0, b1 in M)+1)
     return (C,) * len(M)
 
 
