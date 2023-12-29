@@ -275,7 +275,13 @@ def broyden_iteration(previous_iterations: list):
     delta_y1 = vector([v2[2] - v1[2], v2[3] - v1[3]])
     # Initial approximation of the Jacobian
     def jacobian_approximation(x, f):
-        return matrix([[f[0] / x[0], 0], [0, f[1] / x[1]]])
+        if x[0] == 0 and x[1] == 0:
+            raise ValueError("Delta x should not be zero!")
+        if x[0] == 0:
+            return matrix([[0, f[0]/x[1]], [0, f[1]/x[1]]])
+        if x[1] == 0:
+            return matrix([[f[0]/x[0], 0], [f[1]/x[0], 0]])
+        return matrix([[f[0]/x[0], 0], [0, f[1]/x[1]]])
     J0 = jacobian_approximation(delta_x0, delta_y0)
     # Finite difference
     delta_J = ((delta_y1 - J0 * delta_x1) / delta_x1.norm(2) ** 2).column() * delta_x1.row()
