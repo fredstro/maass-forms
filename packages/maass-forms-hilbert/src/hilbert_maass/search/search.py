@@ -11,8 +11,9 @@ from hilbert_maass.database.models import HilbertMaassFormDB
 from hilbert_maass.modform.coefficients import get_pb_pts_set_params
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t, Complex_t
-from sage.all import CC
+from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t, Complex_t,\
+    totally_positive_generator, ideal_coordinates
+from sage.all import CC, sin, cos, pi
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import ceil
 from sage.matrix.constructor import matrix
@@ -20,8 +21,6 @@ from sage.modules.free_module_element import vector
 from sage.parallel.decorate import parallel
 from sage.rings.complex_mpfr import ComplexField
 from sage.rings.integer import Integer
-from sage.rings.real_mpfr import RealNumber as RealNumber_class
-
 
 log = logging.getLogger(__name__)
 
@@ -197,23 +196,54 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
     return maass_form
 
 
+def compute_on_line_grid(space: HilbertMaassFormSpace,
+                         grid_limits: tuple[Real_t],
+                         grid_numbers: Integer_t,
+                         theta: Real_t = pi/4,
+                         radius: Real_t = 1,
+                         prec: Integer_t = 53,
+                         bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
+                         y: tuple[Real_t] | None = None,
+                         set_coefficients: dict = None,
+                         use_database: bool = True,
+                         parametrisation: str = 'arc'):
+    """
+    Compute Hilbert Maassforms on a line, either along a given arc or a ray through the origin.
 
-def compute_on_parallel_grid(space: HilbertMaassFormSpace, grid_limits: tuple[Real_t],
-                             grid_numbers: Integer_t, prec: Integer_t = 53,
-                             bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
-                             y: tuple[Real_t] | None = None, set_coefficients: dict = None,
-                             use_database: bool = True):
-    if isinstance(bound_m, (Integer, int)):
+    INPUT::
+        ``space`` --
+        ``grid_limits`` --
+        ``grid_numbers`` --
+        ``theta`` -- real number (default = pi/4) gives the angle of the ray
+        ``radius`` -- real number (default = 1) gives the radius of the arc
+        ``prec`` --
+        ``bound_m`` --
+        ``y`` --
+        ``set_coefficients`` --
+        ``use_database`` --
+        ``parametrisation`` -- str (default: 'arc') either 'arc' or 'ray', depending on
+                                    whether we parametrise an arc or a ray.
+
+    Returns:
+
+    """
+    if parametrisation not in ['arc', 'ray']:
+        raise ValueError(f"parametrisation must be 'arc' or 'ray', not {parametrisation}")
+    if isinstance(bound_m, Integer_t):
         bound_m = tuple([(-bound_m, bound_m)] * space.number_field().absolute_degree())
     grids = create_parallel_grid(grid_limits, grid_numbers)
-    # print(grids)
     CF = ComplexField(prec)
+    cos_theta = CF(cos(theta))
+    sin_theta = CF(sin(theta))
     input_params = []
     for m in grids:
-        spectral_parameter = (CF(0.5, m), CF(0.5, m))
+        if parametrisation == 'arc':
+            spectral_parameter = (CF(0.5, radius * cos(m)), CF(0.5, radius * sin(m)))
+        else:
+            spectral_parameter = (CF(0.5, m * cos_theta), CF(0.5, m * sin_theta))
         log.debug(f"Computing spectral parameter {spectral_parameter}")
-        input_params.append((space, spectral_parameter, bound_m, y, set_coefficients, use_database))
-        # print(input_params)
+        input_params.append(
+            (space, spectral_parameter, bound_m, y, set_coefficients, use_database))
     return compute_one_spectral_parameter(input_params)
 def broyden_iteration(previous_iterations: list):
     """
