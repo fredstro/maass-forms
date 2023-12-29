@@ -1,5 +1,6 @@
 import json
 from typing import Iterable
+import logging
 
 from hilbert_modgroup.pullback import HilbertPullback
 from sage.all import ZZ, CC
@@ -19,6 +20,7 @@ from sage.rings.real_lazy import RLF
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import Matrix, Vector
 
+log = logging.getLogger(__name__)
 # User defined type for either Python int or Sage Integer
 Integer_t = Integer | int
 Real_t = RealNumber_class | float
@@ -313,10 +315,15 @@ def complex_number_to_json(s: ComplexNumber) -> dict:
 
     - ``s`` -- complex number
     """
+    if is_json_number(s):
+        return s
     if not isinstance(s, ComplexNumber):
         s = CC(s)
     return {'prec': s.parent().prec(), 'val': str(s)}
 
+
+def is_json_number(data: dict | str) -> bool:
+    return isinstance(data, dict) and 'prec' in data and 'val' in data and len(dict.keys())==2
 
 def complex_number_from_json(json_complex: dict | str) -> ComplexNumber:
     """
@@ -397,6 +404,8 @@ def coefficient_dict_to_json(coeff_dict: dict) -> dict:
     """
     if not coeff_dict:
         return {}
+    if all(isinstance(x, str) and is_json_number(x) for x in coeff_dict.items()):
+        return coeff_dict
     return {json.dumps([int(ki) for ki in k]): complex_number_to_json(v) for k,v in coeff_dict.items() }
 
 
