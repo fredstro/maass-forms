@@ -170,7 +170,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
 
     def with_set_coefficients(self, set_coefficients: dict) -> QuerySet:
         set_coefficients_db = coefficient_dict_to_json(set_coefficients)
-        return self(__raw__={"coefficients__set_coefficients": set_coefficients_db})
+        return self(__raw__={"coefficients.set_coefficients": set_coefficients_db})
 
 
 class HilbertMaassFormDB(DBObjectBase):
