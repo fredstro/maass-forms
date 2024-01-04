@@ -438,3 +438,27 @@ def coefficient_dict_from_json(data: dict | str) -> dict:
     if isinstance(data, str):
         data = json.loads(data)
     return { tuple(json.loads(k)): complex_number_from_json(v) for k,v in data.items() }
+
+
+def integer_to_bounds_tuple(m: Integer_t, degree: Integer_t) -> tuple[tuple[Integer_t]]:
+    """
+    Convert a positive integer to a tuple of bounds.
+
+    INPUT:
+
+    -``m`` -- positive integer
+    -``degree`` -- positive integer
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.modform.utils import integer_to_bounds_tuple
+        sage: integer_to_bounds_tuple(1, 2)
+        ((-1, 1),(-1,1))
+        sage: integer_to_bounds_tuple(2, 3)
+        ((-2,2),(-2,2),(-2,2))
+    """
+    if m <= 0 or not isinstance(m, Integer_t):
+        raise ValueError("m must be positive")
+    if degree <= 0 or not isinstance(m, Integer_t):
+        raise ValueError("degree must be positive")
+    return ((-m, m),) * degree
