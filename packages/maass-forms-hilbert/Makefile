@@ -31,8 +31,8 @@ build:
 sdist:
 	sage -python setup.py sdist
 
-install:
-	sage -python setup.py install
+install: clean sdist
+	sage -pip install --no-build-isolation dist/hilbert_maass-*.gz
 
 test:
 	sage -t src/*
