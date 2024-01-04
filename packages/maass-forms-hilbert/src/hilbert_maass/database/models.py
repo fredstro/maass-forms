@@ -11,13 +11,14 @@ from comp_manager.document.models import DBObjectBase
 from comp_manager.document.queryset import QuerySetCompat
 from comp_manager.utils import insert_object
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-from hilbert_maass.modform.utils import Real_t, Integer_t, Complex_t
+from hilbert_maass.modform.utils import Real_t, Integer_t, Complex_t, map_tuple_to_int
 from mongoengine import QuerySet
 from sage.all import Integer
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
+from sage.rings.complex_mpfr import ComplexField
 from sage.rings.number_field.number_field_base import NumberField as NumberField_class
 
-from hilbert_maass.modform.utils import coefficient_dict_to_json
+from hilbert_maass.modform.utils import coefficient_dict_to_json, integer_to_bounds_tuple
 
 log = logging.getLogger(__name__)
 
@@ -209,7 +210,7 @@ class HilbertMaassFormDB(DBObjectBase):
     # Skip 'coefficients' since we only want to compare against the
     # input values, not the computed values.
     _skip_keys = ['_id', 'created_at', 'updated_at', 'hash', 'comments',
-                  'coefficients', 'spectral_parameter_points']
+                  'coefficients.coefficients', 'spectral_parameter_points']
 
     def save(self, **kwargs: P.kwargs):
         """
@@ -241,6 +242,15 @@ class HilbertMaassFormDB(DBObjectBase):
         return f"Hilbert Maass form for NumberField({poly}) with spectral parameter" \
            f" {spectral_parameter}"
 
+    def coefficient(self, t: tuple[Integer_t]) -> Complex_t:
+        """
+        Return the coefficient corresponding to the given tuple.
+
+        """
+        bound_tuple = integer_to_bounds_tuple(self.max_m, len(self.spectral_parameter))
+        n = map_tuple_to_int(t, bound_tuple)
+        prec = self.spectral_parameter[0]['prec']
+        return ComplexField(prec)(self.coefficients['coefficients'][n][0])
 
     @classmethod
     def near_or_create(cls, parent: HilbertMaassFormSpace, spectral_parameter: tuple[Complex_t],
