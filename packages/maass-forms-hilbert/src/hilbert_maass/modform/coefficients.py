@@ -312,7 +312,8 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
     Y = find_max_y(space, M, Qs=Qs, starting_Y=Y)
     # We try with given Y and if it doesn't work we keep decreasing Y until it does.
     try:
-        zpb, zm = get_pb_pts(space, Qs, ideala, Y, use_symmetry=use_symmetry)
+        zpb, zm = get_pb_pts(space, Qs, ideala, Y, use_symmetry=use_symmetry,
+                             prec=CF.prec())
     except ArithmeticError as e:
         msg = f"Could not find good pullback points. Error: {e}"
         log.debug(msg)
