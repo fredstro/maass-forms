@@ -76,7 +76,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
 
     def spectral_range(self, range_real: tuple[tuple[Real_t]],
                        range_imag: tuple[tuple[Real_t]] = None,
-                       eps: Real_t = 1e-10) -> QuerySet:
+                       eps: Real_t = 1e-15) -> QuerySet:
         """
         Filter for spectral parameter in a given range
 
@@ -111,7 +111,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
         return self(__raw__={"$and": conditions})
 
     def near(self, spectral_parameter: tuple[Complex_t],
-             max_distance: Real_t = 1e-10) -> QuerySet:
+             max_distance: Real_t = 1e-15) -> QuerySet:
         """
         Find HilbertMaassFormsDB objects near the given spectral parameter.
         """
@@ -142,7 +142,7 @@ class HilbertMaassformQuerySet(QuerySetCompat):
             ]
         return self(__raw__={"$and": conditions}).order_by('-max_m')
 
-    def with_y_precision(self, y: tuple[Real_t] = None, eps: Real_t = 1e-10) -> QuerySet:
+    def with_y_precision(self, y: tuple[Real_t] = None, eps: Real_t = 1e-15) -> QuerySet:
         """
         Find HilbertMaassFormsDB objects with coefficient precision bounded by m_bound.
 
@@ -254,7 +254,7 @@ class HilbertMaassFormDB(DBObjectBase):
 
     @classmethod
     def near_or_create(cls, parent: HilbertMaassFormSpace, spectral_parameter: tuple[Complex_t],
-                       max_distance: Real_t=1e-10,
+                       max_distance: Real_t=1e-15,
                        bound_m: tuple[Integer_t] = None,
                        y: tuple[Real_t] = None,
                        set_coefficients: dict = None) -> 'HilbertMaassFormDB':
