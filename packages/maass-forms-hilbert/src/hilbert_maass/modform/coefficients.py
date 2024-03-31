@@ -181,6 +181,12 @@ class HilbertMaassCoefficients(SageObject):
             set_coefficients=coefficient_dict_from_json(data['set_coefficients']),
         )
 
+    def M(self):
+        return self._M
+
+    def Y(self):
+        return self._Y
+
     def space(self):
         return self._space
 
