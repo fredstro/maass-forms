@@ -5,14 +5,20 @@ from hilbert_modgroup.all import HilbertModularGroup
 from hilbert_modgroup.hilbert_modular_group_class import HilbertModularGroup_class
 from hilbert_modgroup.pullback import HilbertPullback
 from numpy import linspace
+from sage.matrix.constructor import matrix
+from sage.misc.cachefunc import cached_method
+from sage.modules.free_module_element import vector
 from sage.modules.module import Module
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
 from sage.rings.number_field.number_field_base import NumberField as NumberFieldBase
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from typing import ParamSpec, Any
+
+from sage.structure.element import ModuleElement
+
 from .hilbert_maass_element import HilbertMaassForm_Element
-from .utils import number_field_from_json, number_field_to_json, Real_t
+from .utils import number_field_from_json, number_field_to_json, Real_t, Integer_t
 
 P = ParamSpec('P')
 
@@ -31,6 +37,7 @@ class HilbertMaassFormSpace(Module):
         representatives = self.group().ideal_cusp_representatives()
         self._dual_ideals = [ideal**-1*different**-1 for ideal in representatives]
         self._pullback = None
+        self._dual_ideal_basis_matrix = []
         super(HilbertMaassFormSpace, self).__init__(group.base_ring(), **kwargs)
 
     def to_json(self):
@@ -146,6 +153,24 @@ class HilbertMaassFormSpace(Module):
 
     def dual_ideals(self):
         return self._dual_ideals
+
+    @cached_method
+    def dual_ideal_basis_matrix(self, ideal: NumberFieldFractionalIdeal | Integer_t = None):
+        if ideal is None:
+            ideal = 0
+        if isinstance(ideal, NumberFieldFractionalIdeal):
+            ideal = self._dual_ideals.index(ideal)
+        if not self._dual_ideal_basis_matrix:
+            self._dual_ideal_basis_matrix = [
+                matrix(self.pullback()._get_lattice_and_ideal_basis(dual_ideal)[0])
+                for dual_ideal in self.dual_ideals()
+            ]
+        return self._dual_ideal_basis_matrix[ideal]
+
+    @cached_method
+    def dual_ideal_element(self, coordinates: tuple[Integer_t] | ModuleElement,
+                           ideal: NumberFieldFractionalIdeal | Integer_t = None):
+        return self.dual_ideal_basis_matrix(ideal) * vector(coordinates)
 
     def is_cuspidal(self):
         """

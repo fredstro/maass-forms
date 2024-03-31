@@ -6,10 +6,15 @@ import json
 import logging
 from typing import ParamSpec
 
+from hilbert_maass.functions.functions import bessel_prod
+from hilbert_maass.functions.functions_cy import exp_trace_prod_dp
+from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement__class
+from matplotlib import pyplot as plt
+from sage.all import CC
+from sage.arith.srange import xsrange
 # from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-from hilbert_modgroup.pullback import HilbertPullback
-from sage.matrix.constructor import matrix
-from sage.modules.free_module_element import vector
+from sage.functions.other import real, imag
+from sage.plot.misc import setup_for_eval_on_grid
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.rings.number_field.number_field_base import NumberField as NumberField_class
@@ -17,7 +22,7 @@ from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import ModuleElement, Matrix
 
 from .coefficients import HilbertMaassCoefficients, compute_coefficients
-from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json
+from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, cartesian_product_from_M
 
 P = ParamSpec('P')
 log = logging.getLogger(__name__)
@@ -42,17 +47,13 @@ class HilbertMaassForm_Element(ModuleElement):
             self._coefficients = coefficients
         else:
             self._coefficients = HilbertMaassCoefficients(coefficients, self.parent().group())
-        self._pullback = HilbertPullback(self.parent().group())
-        different = self.parent().number_field().different()
-        representatives = self.parent().group().ideal_cusp_representatives()
-        self._dual_ideals = [ideal**-1*different**-1 for ideal in representatives]
-        self._dual_ideal_matrix = {
-            ideal:  matrix(self._pullback._get_lattice_and_ideal_basis(ideal**-1*different**-1)[0])
-            for ideal in representatives
-        }
 
     def __reduce__(self):
         return self.__class__, (self.parent(), self.spectral_parameter(), self._coefficients)
+
+    def __repr__(self):
+        return f"Hilbert Maass form for {self.parent()} with spectral parameter" \
+               f" {self.spectral_parameter()}"
 
     def to_json(self):
         """
@@ -90,7 +91,7 @@ class HilbertMaassForm_Element(ModuleElement):
             data = json.loads(data)
         parent = HilbertMaassFormSpace.from_json(data=data['parent'])
         spectral_parameter = tuple(ComplexField(x['prec'])(x['val'])
-                              for x in data['spectral_parameter'])
+                                   for x in data['spectral_parameter'])
         if not data['coefficients']:
             return cls(parent, spectral_parameter)
         coefficients = HilbertMaassCoefficients.from_json(data['coefficients'])
@@ -106,13 +107,31 @@ class HilbertMaassForm_Element(ModuleElement):
             self.spectral_parameter() == other.spectral_parameter() and \
             self.coefficients() == other.coefficients()
 
-    def __repr__(self):
-        return f"Hilbert Maass form for {self.parent()} with spectral parameter" \
-               f" {self.spectral_parameter()}"
-
-    def dual_ideal_element(self, coordinates: tuple[Integer_t] or vector,
-                           ideal: NumberFieldFractionalIdeal):
-        return self._dual_ideal_matrix[ideal]*vector(coordinates)
+    def __call__(self, z: list | tuple, **kwargs: P.kwargs) -> ComplexNumber:
+        if self._coefficients is None:
+            raise ValueError("Coefficients must be computed first")
+        if self.parent().group().ncusps() > 1:
+            # TODO: support multiple cusps: find closest cusp and use correct Fourier expansion
+            raise NotImplementedError("Only one cusp supported for now")
+        C = self._coefficients
+        if isinstance(z, UpperHalfPlaneProductElement__class):
+            x = z.real()
+            y = z.imag()
+        else:
+            x = [real(zi) for zi in z]
+            y = [imag(zi) for zi in z]
+            if not all([yi > 0 for yi in y]):
+                raise ValueError("y must be positive")
+        summa = 0
+        ideala = 0
+        for V in cartesian_product_from_M(self.coefficients().M()):
+            V = tuple(V)
+            v = self.parent().dual_ideal_element(V, ideala)
+            bes = bessel_prod(v, tuple(y), self.spectral_parameter())
+            exp_arg = tuple([x[i] * v for i, v in enumerate(v)])
+            term = bes * exp_trace_prod_dp(exp_arg)
+            summa += self.coefficients()[V] * term
+        return summa
 
     def spectral_parameter(self):
         return self._spectral_parameter
@@ -180,6 +199,70 @@ class HilbertMaassForm_Element(ModuleElement):
         self._coefficients = C
         return C
 
+    def plot(self, **kwargs):
+        """
+        Density plot of self along one copy of the hyperbolic upper half-plane with
+        other parameters set to fixed values (by default set to i).
+
+        Note: You need to compute Fourier coefficients before plotting.
+
+        PLOT OPTIONS:
+
+        - ``plot_points`` -- (default: `200`); the minimal number of plot points.
+
+        - ``xmin`` -- starting x value.
+        - ``xmax`` -- ending x value.
+        - ``ymin`` -- starting y value.
+        - ``ymax`` -- ending y value.
+        - ``xset`` -- list of fixed x values (default: 0).
+        - ``yset`` -- list of fixed y values (default: 1).
+        - ``cmap`` -- color map (default: `jet`).
+
+        EXAMPLES::
+
+            sage: from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
+            sage: F = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: F.plot()
+        """
+        n = self.parent().number_field().degree()
+        xset = kwargs.get("xset", [0] * (n - 1))
+        yset = kwargs.get("yset", [1] * (n - 1))
+        xmin = kwargs.get("xmin", -4)
+        xmax = kwargs.get("xmax", 4)
+        ymin = kwargs.get("ymin", 0.0001)
+        ymax = kwargs.get("ymax", 4)
+        show_axis = kwargs.get("show_axis", False)
+        plot_points_x = kwargs.get("plot_points_x", 50)
+        plot_points_y = kwargs.get("plot_points_y", 50)
+        cmap = kwargs.get('cmap', ['jet'])
+        # Create grid points
+        fixed_zs = [CC(x,y) for x, y in zip(xset, yset)]
+
+        def function_to_eval(x, y):
+            return abs(self(fixed_zs + [CC(x, y)]))
+
+        g, ranges = setup_for_eval_on_grid([function_to_eval],
+                                           [[xmin, xmax], [ymin, ymax]],
+                                           [plot_points_x, plot_points_y])
+        g = g[0]
+        xy_data_array = [[g(x, y) for x in xsrange(*ranges[0], include_endpoint=True)] for y in
+                         xsrange(*ranges[1], include_endpoint=True)]
+        res = []
+        for cmapi in cmap:
+            g = plt.figure(figsize=(xmax - xmin, ymax - ymin))
+            ax = g.add_subplot(111)
+            ax.imshow(xy_data_array, origin='lower',
+                      cmap=cmapi,
+                      extent=(xmin, xmax, ymin, ymax),
+                      interpolation='catrom')
+            if not show_axis:
+                ax.set_frame_on(False)
+                ax.get_xaxis().set_visible(False)
+                ax.get_yaxis().set_visible(False)
+            res.append(g)
+        if len(res) == 1:
+            return res[0]
+        return res
 
 def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or NumberField_class,
                      spectral_parameter: tuple[ComplexNumber | RealNumber_class],
@@ -211,3 +294,4 @@ def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or 
     else:
         space = HilbertMaassFormSpace(group, **kwargs)
     return HilbertMaassForm_Element(space, spectral_parameter=spectral_parameter)
+
