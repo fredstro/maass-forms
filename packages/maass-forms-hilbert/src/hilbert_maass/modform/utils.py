@@ -15,6 +15,7 @@ from sage.rings.infinity import Infinity
 from sage.rings.integer import Integer
 from sage.rings.number_field.number_field import NumberField
 from sage.rings.number_field.number_field_element import NumberFieldElement
+from sage.rings.number_field.unit_group import UnitGroup
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.rings.real_lazy import RLF
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
@@ -294,17 +295,24 @@ def totally_positive_generator(ideala: NumberFieldFractionalIdeal) -> NumberFiel
 
 
     """
-    x, y = ideala.gens_two()
-    delta = None
-    for delta_test in [x + y, x - y, -x - y, -x + y]:
-        if not delta_test.is_totally_positive():
-            continue
-        if ideala != ideala.number_field().fractional_ideal(delta_test):
-            continue
-        delta = delta_test
-        break
-    if not delta:
-        raise ArithmeticError(f"Cannot find a totally positive generator for {ideala_dual}")
+    narrow_class_number = ideala.number_field().narrow_class_group().order()
+    UK = UnitGroup(ideala.number_field())
+    unit = UK.gens_values()[1]
+    if (narrow_class_number == 1):
+        x, y = ideala.gens_two()
+        delta = None
+        for delta_test in [x + y, x - y, -x - y, -x + y]:
+            if not delta_test.is_totally_positive():
+                continue
+            if ideala != ideala.number_field().fractional_ideal(delta_test):
+                continue
+            delta = delta_test
+            break
+        if not delta:
+            raise ArithmeticError(f"Cannot find a totally positive generator for {ideala}")
+    else:
+        y = ideala.gen(1)
+        delta = -y * unit
     return delta
 
 def complex_number_to_json(s: ComplexNumber) -> dict:
