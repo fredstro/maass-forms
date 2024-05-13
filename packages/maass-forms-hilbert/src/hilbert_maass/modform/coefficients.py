@@ -25,8 +25,8 @@ from ..functions.functions import bessel_prod
 from ..functions.functions_cy import exp_trace_prod_dp, bessel_prod_dp2
 
 from .utils import Integer_t, length_from_M, cartesian_product_from_M, dual_ideal_element, \
-    complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal, totally_positive_generator, \
-    Complex_t, coefficient_dict_to_json, coefficient_dict_from_json, is_tuple_zero
+    complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal, ideal_generator, \
+    Complex_t, coefficient_dict_to_json, coefficient_dict_from_json, is_tuple_zero, mongo_cache
 
 from comp_manager.decorators import mongo_cache
 
@@ -477,7 +477,7 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
             # By default set c(delta)=1 where delta >>0 is generator of the index ideal.
             # tuple for delta
             ideala_dual = dual_ideal(ideala)
-            delta = totally_positive_generator(ideala_dual)
+            delta = ideal_generator(ideala_dual)
             # Coordinate vector of delta
             t_1 = ideal_coordinates(ideala_dual, delta)
             n_1 = map_tuple_to_int(t_1, M)
@@ -631,7 +631,7 @@ def setup_matrix(space: 'HilbertMaassFormSpace',
         # By default set c(delta)=1 where delta >>0 is generator of the index ideal.
         # tuple for delta
         ideala_dual = dual_ideal(ideala)
-        delta = totally_positive_generator(ideala_dual)
+        delta = ideal_generator(ideala_dual)
         # Coordinate vector of delta
         t_1 = ideal_coordinates(ideala_dual, delta)
         n_1 = map_tuple_to_int(t_1, M)
