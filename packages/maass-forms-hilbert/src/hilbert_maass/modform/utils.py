@@ -19,6 +19,14 @@ from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdea
 from sage.rings.real_lazy import RLF
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import Matrix, Vector
+try:
+    from comp_manager.decorators import mongo_cache
+except ModuleNotFoundError:
+    # Handle the case when comp_manager is not installed
+    def mongo_cache(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
 
 log = logging.getLogger(__name__)
 # User defined type for either Python int or Sage Integer
