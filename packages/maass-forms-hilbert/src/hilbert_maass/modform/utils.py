@@ -316,7 +316,7 @@ def ideal_generator(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractional
         if not delta:
             raise ArithmeticError(f"Cannot find a totally positive generator for {ideala}")
     else:
-        delta = idela.gens_reduced()[0]
+        delta = ideala.gens_reduced()[0]
     return delta
 
 def complex_number_to_json(s: ComplexNumber) -> dict:
