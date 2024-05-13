@@ -12,7 +12,7 @@ from hilbert_maass.modform.coefficients import get_pb_pts_set_params
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t, Complex_t,\
-    totally_positive_generator, ideal_coordinates
+    ideal_generator, ideal_coordinates
 from sage.all import CC, sin, cos, pi
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import ceil
