@@ -6,6 +6,7 @@ from hilbert_modgroup.pullback import HilbertPullback
 from sage.all import ZZ, CC
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import ceil
+from sage.misc.functional import round
 from sage.matrix.constructor import matrix
 from sage.misc.cachefunc import cached_function
 from sage.misc.misc_c import prod
@@ -253,9 +254,24 @@ def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
     """
     Find the coordinates of an ideal element with respect to an integral basis of that element.
 
-    :param ideala:
-    :param element:
-    :return:
+    INPUT:
+     - `ideala` -- an ideal
+     - `element` -- an element of `ideala`
+     - `check` -- if True, check that the coordinates are correct
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.modform.utils import (dual_ideal, ideal_generator,
+        ....:   ideal_coordinates, number_field_basis_matrix, ideal_basis_matrix)
+        sage: ideala_dual = dual_ideal(QuadraticField(3).ideal(1))
+        sage: delta = ideal_generator(ideala_dual)
+        sage: ideal_coordinates(ideala_dual, delta, check=True)
+        (0, -1)
+        sage: ideala_dual = dual_ideal(QuadraticField(5).ideal(1))
+        sage: delta = ideal_generator(ideala_dual)
+        sage: ideal_coordinates(ideala_dual, delta, check=True)
+        (1, -1)
+
     """
     nf = ideala.number_field()
     if not isinstance(element, NumberFieldElement):
@@ -263,16 +279,16 @@ def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
     if element not in ideala:
         raise ValueError(f"Element {element} not in ideal: {ideala}")
     basis_change_matrix = ideal_basis_matrix(ideala) ** -1 * number_field_basis_matrix(nf)
-    ideal_coordinates = basis_change_matrix * element.vector()
-    if check:
-        assert sum([c * ideala.integral_basis[i]
-                    for i, c in enumerate(ideal_coordinates)]) == element
     coordinates = basis_change_matrix * element.vector()
-    coordinates_int = tuple(int(c.real()) for c in coordinates if c.imag() == 0)
+    eps = basis_change_matrix.base_ring().epsilon() * 2 ** 3
+    coordinates_int = tuple(round(c.real()) for c in coordinates if abs(c.imag()) < eps)
     if len(coordinates_int) != len(coordinates):
         raise ArithmeticError(f"Can not find lattice coordinates for delta={element}."
                               f" coordinates={coordinates}"
                               f" coordinates_int={coordinates_int}")
+    if check:
+        assert sum([c * ideala.integral_basis()[i]
+                    for i, c in enumerate(ideal_coordinates)]) == element
     return coordinates_int
 
 
