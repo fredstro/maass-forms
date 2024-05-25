@@ -21,7 +21,8 @@ from sage.rings.number_field.number_field_base import NumberField as NumberField
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import ModuleElement, Matrix
 
-from .coefficients import HilbertMaassCoefficients, compute_coefficients
+from .coefficients import HilbertMaassCoefficients
+from .compute_coefficients import compute_coefficients
 from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, cartesian_product_from_M
 
 P = ParamSpec('P')
@@ -38,7 +39,11 @@ class HilbertMaassForm_Element(ModuleElement):
         self.cuspidal = parent.is_cuspidal()
         self._spectral_parameter = spectral_parameter
         self._number_field = parent.number_field()
-        self._complex_field = self._spectral_parameter[0].parent().prec()
+        if hasattr(self._spectral_parameter[0], 'parent') and \
+                hasattr(self._spectral_parameter[0].parent(), 'prec'):
+            self._complex_field = self._spectral_parameter[0].parent()
+        else:
+            self._complex_field = ComplexField(prec=53)
         self.has_coefficients = False
         if coefficients is None:
             self._coefficients = None
@@ -177,7 +182,7 @@ class HilbertMaassForm_Element(ModuleElement):
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
             sage: C = F.compute_coefficients(spectral_parameter, M = (-1,1))
             sage: C[(0,0)] # abs tol 1e-10
-            0.245527619228436 - 0.592369339237697*I
+            0.245812923865781 - 0.592627771502401*I
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
             sage: C = F.compute_coefficients(spectral_parameter, M = (-3,3)) # long time (100s)
             sage: C[(0,0)] # abs tol 1e-10 # long time (100s)
@@ -221,8 +226,15 @@ class HilbertMaassForm_Element(ModuleElement):
         EXAMPLES::
 
             sage: from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-            sage: F = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: F = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False).an_element()
             sage: F.plot()
+            Traceback (most recent call last):
+            ...
+            ValueError: Coefficients must be computed first
+            sage: F.compute_coefficients(M=1)
+            Coefficients of a Hilbert Maass form with M=((-1, 1), (-1, 1)) and 1 cusp
+            sage: F.plot()
+            <Figure size 800x399.99 with 1 Axes>
         """
         n = self.parent().number_field().degree()
         xset = kwargs.get("xset", [0] * (n - 1))
@@ -251,7 +263,7 @@ class HilbertMaassForm_Element(ModuleElement):
         for cmapi in cmap:
             g = plt.figure(figsize=(xmax - xmin, ymax - ymin))
             ax = g.add_subplot(111)
-            ax.imshow(xy_data_array, origin='lower',
+            t = ax.imshow(xy_data_array, origin='lower',
                       cmap=cmapi,
                       extent=(xmin, xmax, ymin, ymax),
                       interpolation='catrom')

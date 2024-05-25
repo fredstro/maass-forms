@@ -13,12 +13,14 @@ cdef extern from "complex.h":
 
 cdef extern from "math.h":
     cdef double sqrt(double)
+    cdef double cos(double)
+    cdef double sin(double)
 
 cdef double twopi = 6.28318530717958647692528676656
 cdef double complex twopii = _Complex_I * 6.28318530717958647692528676656
 from sage.functions.bessel import bessel_K
 
-cpdef exp_trace_prod_dp(x):
+cpdef exp_trace_prod_dp(x, symmetry=0):
     """
     Return e( trace(x) )
 
@@ -32,7 +34,12 @@ cpdef exp_trace_prod_dp(x):
     cdef double xi
     for xi in x:
         summa += <double>xi
-    return cexp(twopii*summa)
+    if symmetry == 0:
+        return cexp(twopii*summa)
+    if symmetry == 1:
+        return cos(twopi*summa)
+    if symmetry == -1:
+        return sin(twopi*summa)
 
 cpdef bessel_prod_dp2(double v0, double v1, double y0, double y1,
                       double complex s0, double complex s1, int sgn):

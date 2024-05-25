@@ -17,7 +17,6 @@ from sage.rings.integer import Integer
 from sage.rings.number_field.number_field import NumberField
 from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
-from sage.rings.real_lazy import RLF
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import Matrix, Vector
 try:
@@ -288,7 +287,7 @@ def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
                               f" coordinates_int={coordinates_int}")
     if check:
         assert sum([c * ideala.integral_basis()[i]
-                    for i, c in enumerate(ideal_coordinates)]) == element
+                    for i, c in enumerate(coordinates_int)]) == element
     return coordinates_int
 
 
@@ -481,9 +480,9 @@ def integer_to_bounds_tuple(m: Integer_t, degree: Integer_t) -> tuple[tuple[Inte
 
         sage: from hilbert_maass.modform.utils import integer_to_bounds_tuple
         sage: integer_to_bounds_tuple(1, 2)
-        ((-1, 1),(-1,1))
+        ((-1, 1), (-1, 1))
         sage: integer_to_bounds_tuple(2, 3)
-        ((-2,2),(-2,2),(-2,2))
+        ((-2, 2), (-2, 2), (-2, 2))
     """
     if m <= 0 or not isinstance(m, Integer_t):
         raise ValueError("m must be positive")

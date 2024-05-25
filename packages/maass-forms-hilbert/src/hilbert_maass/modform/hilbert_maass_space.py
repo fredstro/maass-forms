@@ -40,6 +40,14 @@ class HilbertMaassFormSpace(Module):
         self._dual_ideal_basis_matrix = []
         super(HilbertMaassFormSpace, self).__init__(group.base_ring(), **kwargs)
 
+    def an_element(self):
+        """
+
+        """
+        from .hilbert_maass_element import HilbertMaassForm
+        spectral_parameter = (ComplexField(53)(0, 0),) * self.number_field().degree()
+        return HilbertMaassForm(self, spectral_parameter=spectral_parameter)
+
     def to_json(self):
         """
         JSON representation of self.
