@@ -13,7 +13,7 @@ from sage.misc.cachefunc import cached_method
 from sage.rings.integer import Integer
 from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
-from sage.structure.element import Matrix
+from sage.structure.element import Matrix, ModuleElement
 from sage.structure.sage_object import SageObject
 
 from ..functions.functions import bessel_prod
@@ -85,6 +85,7 @@ class HilbertMaassCoefficients(SageObject):
 
         self._coordinate_ideals = coordinate_ideals
         self._coefficients = coefficients
+        self._coefficients.set_immutable()
         self._set_coefficients = set_coefficients
         self._M = M
         self._spectral_parameter = spectral_parameter
@@ -98,6 +99,12 @@ class HilbertMaassCoefficients(SageObject):
             if not isinstance(index_tuples[0], list):
                 raise ValueError('index_tuples must be a list of lists')
         self._index_tuples = index_tuples
+
+    def coordinate_ideals(self):
+        return self._coordinate_ideals
+
+    def coordinate_ideal_generators(self):
+        return [ideal_generator(ida) for ida in self._coordinate_ideals]
 
     def to_json(self) -> dict:
         """
@@ -189,6 +196,12 @@ class HilbertMaassCoefficients(SageObject):
             index_tuples=data['index_tuples']
         )
 
+    def __hash__(self):
+        self._coefficients.set_immutable()
+        return hash((self._coefficients, self._Y, self._M, str(self._index_tuples),
+                     self._spectral_parameter, self._space,
+                     str(self._set_coefficients)))
+
     def M(self):
         return self._M
 
@@ -200,6 +213,9 @@ class HilbertMaassCoefficients(SageObject):
 
     def coefficient_matrix(self):
         return self._coefficients
+
+    def set_coefficients(self):
+        return self._set_coefficients
 
     def spectral_parameter(self):
         return self._spectral_parameter
@@ -288,20 +304,21 @@ class HilbertMaassCoefficients(SageObject):
         try:
             return self._coefficients.column(cusp)[v]
         except IndexError:
-            raise ValueError(f'Can not get coefficient for {v}')
+            raise ValueError(f'Can not get coefficient for {cusp}:{v}')
 
     def get_coefficient_index(self, v: tuple, cusp: int = 0) -> int:
         if self._index_tuples:
             return self._index_tuples[cusp].index(v)
         return map_tuple_to_int(v, self._M)
 
-    @cached_method
+    # @cached_method
     def keys(self, as_elements=False) -> list:
         if self._index_tuples:
             keys_tuple = self._index_tuples[0]
         else:
             keys_tuple = [map_int_to_tuple(v, self._M)
                       for v in range(self._coefficients.nrows())]
+            self._index_tuples = [keys_tuple]
         if not as_elements:
             return keys_tuple
         else:
@@ -310,3 +327,15 @@ class HilbertMaassCoefficients(SageObject):
 
     def __iter__(self) -> iter:
         return iter(self._coefficients.column(0))
+
+    def norms(self, use_abs=False):
+        r"""
+        Add up coefficients of the same norm.
+        This is mainly a way to see if a form is "close to 0".
+        """
+        elements_by_norm = {}
+        for k in self.keys(as_elements=True):
+            if k.norm() not in elements_by_norm:
+                elements_by_norm[k.norm()] = 0
+            elements_by_norm[k.norm()] += abs(self[k]) if use_abs else self[k]
+        return elements_by_norm

@@ -85,6 +85,9 @@ class HilbertMaassFormSpace(Module):
     def __repr__(self):
         return f"HilbertMaassFormSpace({self.group()})"
 
+    def __hash__(self):
+        return hash(str(self.to_json()))
+
     def __eq__(self, other: Any) -> bool:
         """
         Is self equal to other.

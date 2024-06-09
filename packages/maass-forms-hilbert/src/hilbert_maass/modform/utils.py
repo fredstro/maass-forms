@@ -4,6 +4,7 @@ import logging
 
 from hilbert_modgroup.pullback import HilbertPullback
 from sage.all import ZZ, CC
+from sage.arith.misc import factor
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import ceil
 from sage.misc.functional import round
@@ -489,3 +490,14 @@ def integer_to_bounds_tuple(m: Integer_t, degree: Integer_t) -> tuple[tuple[Inte
     if degree <= 0 or not isinstance(m, Integer_t):
         raise ValueError("degree must be positive")
     return ((-m, m),) * degree
+
+
+def ideal_factors(ida):
+    prime_factors = [x[0] for x in factor(ida)]
+    exponents = [range(x[1]+1) for x in factor(ida)]
+    new_exponents = list(cartesian_product(exponents))
+    factors = []
+    for ex in new_exponents:
+        idb = prod([p**ex[i] for i, p in enumerate(prime_factors)])
+        factors.append(idb)
+    return factors
