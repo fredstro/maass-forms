@@ -16,3 +16,9 @@ dependencies = [
 [tool.setuptools_scm]
 write_to = "src/hilbert_maass/version.py"
 git_describe_command = "git describe --tags --long --match *.*"
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+addopts = [
+    "--import-mode=prepend",
+]
