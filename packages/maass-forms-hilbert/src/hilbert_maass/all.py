@@ -5,7 +5,8 @@ from .functions.bessel.besselk_dp import besselk_dp
 from .modform.eisenstein_series import HilbertEisensteinSeries
 from .modform.hilbert_maass_space import HilbertMaassFormSpace
 from .modform.hilbert_maass_element import HilbertMaassForm_Element, HilbertMaassForm
-from .modform.coefficients import HilbertMaassCoefficients, compute_coefficients, get_pb_pts
+from .modform.coefficients import HilbertMaassCoefficients
+from .modform.compute_coefficients import get_pb_pts, compute_coefficients
 from .search.search import compute_on_grid, create_grid, compute_one_spectral_parameter
 try:
     from .database.models import HilbertMaassFormDB

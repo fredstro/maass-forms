@@ -4,6 +4,7 @@ import logging
 
 from hilbert_modgroup.pullback import HilbertPullback
 from sage.all import ZZ, CC
+from sage.arith.misc import factor
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import ceil
 from sage.misc.functional import round
@@ -17,7 +18,6 @@ from sage.rings.integer import Integer
 from sage.rings.number_field.number_field import NumberField
 from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
-from sage.rings.real_lazy import RLF
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import Matrix, Vector
 from sage.rings.number_field.unit_group import UnitGroup
@@ -290,7 +290,7 @@ def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
                               f" coordinates_int={coordinates_int}")
     if check:
         assert sum([c * ideala.integral_basis()[i]
-                    for i, c in enumerate(ideal_coordinates)]) == element
+                    for i, c in enumerate(coordinates_int)]) == element
     return coordinates_int
 
 
@@ -487,16 +487,15 @@ def integer_to_bounds_tuple(m: Integer_t, degree: Integer_t) -> tuple[tuple[Inte
 
         sage: from hilbert_maass.modform.utils import integer_to_bounds_tuple
         sage: integer_to_bounds_tuple(1, 2)
-        ((-1, 1),(-1,1))
+        ((-1, 1), (-1, 1))
         sage: integer_to_bounds_tuple(2, 3)
-        ((-2,2),(-2,2),(-2,2))
+        ((-2, 2), (-2, 2), (-2, 2))
     """
     if m <= 0 or not isinstance(m, Integer_t):
         raise ValueError("m must be positive")
     if degree <= 0 or not isinstance(m, Integer_t):
         raise ValueError("degree must be positive")
     return ((-m, m),) * degree
-
 
 
 def unit_relations(m: Integer_t, space: 'HilbertMaassFormSpace'):
@@ -531,7 +530,7 @@ def unit_relations(m: Integer_t, space: 'HilbertMaassFormSpace'):
     u = UnitGroup(space.number_field()).gens_values()[1]
     unit = u**2
     temp = []
-    while (store != []):
+    while store != []:
         r = store[0]
         r_element = dual_ideal_element(r, ideala, as_nf_element=True)
         d = r
@@ -547,14 +546,14 @@ def unit_relations(m: Integer_t, space: 'HilbertMaassFormSpace'):
             x = x + 1
         use = r_element * unit ** (-1)
         d = ideal_coordinates(dual_ideala, use)
-        while (abs(d[0]) <=m and abs(d[1])<= m):
+        while abs(d[0]) <=m and abs(d[1])<= m:
             kemp.append(d)
             use = use * unit ** (-1)
-            if (d in store):
+            if d in store:
                 store.remove((d[0], d[1]))
             d = ideal_coordinates(dual_ideala, use)
             x = x + 1
-        if (x <= 1):
+        if x <= 1:
             kemp.pop()
         else:
             temp.append(kemp)
@@ -588,7 +587,7 @@ def hecke_relations_coprime(m: Integer_t, space: 'HilbertMaassFormSpace'):
     store1 = cartesian_product_from_M(((-m, m), (-m, m)))
     store = []
     for r in store1:
-        if (abs(r[0])<=m and abs(r[1])<=m):
+        if abs(r[0])<=m and abs(r[1])<=m:
             store.append(r)
     store.remove((0, 0))
     temp = []
@@ -598,10 +597,10 @@ def hecke_relations_coprime(m: Integer_t, space: 'HilbertMaassFormSpace'):
             r_ideal = space.number_field().ideal(r_element)
             s_element = (dual_ideal_element(s, ideala, as_nf_element=True) / t)
             s_ideal = space.number_field().ideal(s_element)
-            if (r != s and r_ideal != ideala and s_ideal != ideala and r_ideal + s_ideal == ideala):
+            if r != s and r_ideal != ideala and s_ideal != ideala and r_ideal + s_ideal == ideala:
                 y = t * r_element * s_element
                 d = ideal_coordinates(dual_ideala, y)
-                if ((d[0], d[1]) in store):
+                if (d[0], d[1]) in store:
                     temp.append([r, s, d])
     return temp
 
@@ -644,12 +643,12 @@ def hecke_relations_prime_power(m: Integer_t, space: 'HilbertMaassFormSpace'):
     for r in store:
         r_element = (dual_ideal_element(r, ideala, as_nf_element=True) / t)
         r_ideal = space.number_field().ideal(r_element)
-        if (r_ideal.is_prime()):
+        if r_ideal.is_prime():
             a = r_element
             x = 1
             d = r
             kemp = []
-            while ((d[0], d[1]) in store):
+            while (d[0], d[1]) in store:
                 kemp.append((x, d))
                 a = a * r_element
                 y = a * t
@@ -703,7 +702,7 @@ def symmetric_relations(space: 'HilbertMaassFormSpace'):
     t = ideal_generator(dual_ideala)
     u = UnitGroup(space.number_field()).gens_values()[1]
     ideala = space.number_field().ideal(1)
-    if (u > 0):
+    if u > 0:
         u = -u
     set_check = [t, t * u ** -1, -t * u ** -1]
     kemp = []
@@ -711,3 +710,13 @@ def symmetric_relations(space: 'HilbertMaassFormSpace'):
         d = ideal_coordinates(dual_ideala, use)
         kemp.append(d)
     return (kemp)
+
+def ideal_factors(ida):
+    prime_factors = [x[0] for x in factor(ida)]
+    exponents = [range(x[1]+1) for x in factor(ida)]
+    new_exponents = list(cartesian_product(exponents))
+    factors = []
+    for ex in new_exponents:
+        idb = prod([p**ex[i] for i, p in enumerate(prime_factors)])
+        factors.append(idb)
+    return factors
