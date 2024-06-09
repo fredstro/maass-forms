@@ -20,6 +20,8 @@ from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import Matrix, Vector
+from sage.rings.number_field.unit_group import UnitGroup
+
 try:
     from comp_manager.decorators import mongo_cache
 except ModuleNotFoundError:
@@ -318,12 +320,15 @@ def ideal_generator(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractional
 
 
     """
-    narrow_class_number = ideala.number_field().narrow_class_group().order()
-    if narrow_class_number == 1:
-        x, y = ideala.gens_two()
+    narrow_class_number=ideala.number_field().narrow_class_group().order()
+    if (narrow_class_number==1):
+        u = UnitGroup(space.number_field()).gens_values()[1]
+        x = ideala.gens_reduced()[0]
+        #f = space.number_field().galois_group()
+        test =[x,  x*u, -x*u]
         delta = None
-        for delta_test in [x + y, x - y, -x - y, -x + y]:
-            if not delta_test.is_totally_positive():
+        for delta_test in test:
+            if not (delta_test).is_totally_positive():
                 continue
             if ideala != ideala.number_field().fractional_ideal(delta_test):
                 continue
@@ -332,8 +337,9 @@ def ideal_generator(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractional
         if not delta:
             raise ArithmeticError(f"Cannot find a totally positive generator for {ideala}")
     else:
-        delta = ideala.gens_reduced()[0]
+        delta= ideala.gens_reduced()[0]
     return delta
+
 
 def complex_number_to_json(s: ComplexNumber) -> dict:
     """
@@ -491,6 +497,219 @@ def integer_to_bounds_tuple(m: Integer_t, degree: Integer_t) -> tuple[tuple[Inte
         raise ValueError("degree must be positive")
     return ((-m, m),) * degree
 
+
+def unit_relations(m: Integer_t, space: 'HilbertMaassFormSpace'):
+    """
+        produce the sets of integer lattice points which are related by the
+        automorphy a(unit^2 v)=a(v) for the quadratic real fields.
+
+        INPUT:
+
+        -``m`` -- positive integer
+        -``space`` -- HilbertMaassFormSpace
+
+        EXAMPLES::
+
+            sage: from hilbert_maass.modform.utils import unit_relations
+            sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+            sage: unit_relations(6, space)
+            [[(-6, -6), (-6, 6)],
+             [(-5, -6), (-3, 2)],
+             [(-5, -5), (-5, 5)],
+             [(-5, 6), (-3, -2)],
+            [(-4, -6), (0, -2), (4, -6)],......]
+        """
+    ideala = space.number_field().ideal(1)
+    dual_ideala = dual_ideal(ideala)
+    store1 = cartesian_product_from_M(((-m, m), (-m, m)))
+    store = []
+    for r in store1:
+        if (abs(r[0]) <=m and abs(r[1]) <=m):
+            store.append(r)
+    store.remove((0, 0))
+    u = UnitGroup(space.number_field()).gens_values()[1]
+    unit = u**2
+    temp = []
+    while store != []:
+        r = store[0]
+        r_element = dual_ideal_element(r, ideala, as_nf_element=True)
+        d = r
+        x = 0
+        use = r_element
+        kemp = []
+        while (abs(d[0])<=m and abs(d[1])<=m):
+            kemp.append(tuple(d))
+            if (d in store):
+                store.remove(tuple(d))
+            use = use * unit
+            d = ideal_coordinates(dual_ideala, use)
+            x = x + 1
+        use = r_element * unit ** (-1)
+        d = ideal_coordinates(dual_ideala, use)
+        while abs(d[0]) <=m and abs(d[1])<= m:
+            kemp.append(d)
+            use = use * unit ** (-1)
+            if d in store:
+                store.remove((d[0], d[1]))
+            d = ideal_coordinates(dual_ideala, use)
+            x = x + 1
+        if x <= 1:
+            kemp.pop()
+        else:
+            temp.append(kemp)
+    return temp
+
+
+def hecke_relations_coprime(m: Integer_t, space: 'HilbertMaassFormSpace'):
+    """
+            produce the sets of integer lattice points which are related by the
+            the Hecke relation of the form a(\delta m)a(\delta n)=a(\delta mn), where \delta is a generator of
+            dual ideal
+
+            INPUT:
+
+            -``m`` -- positive integer
+            -``space`` -- HilbertMaassFormSpace
+
+            EXAMPLES::
+
+                sage: from hilbert_maass.modform.utils import hecke_relations_coprime
+                sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+                sage: hecke_relations_coprime(6, space)
+                [[(-6, 6), (-1, -1), (6, 6)],
+                 [(-6, 6), (-1, 0), (6, 0)],
+                 [(-6, 6), (1, 0), (-6, 0)],
+                 [(-6, 6), (1, 1), (-6, -6)],......]
+            """
+    ideala = space.number_field().ideal(1)
+    dual_ideala = dual_ideal(ideala)
+    t = ideal_generator(dual_ideala)
+    store1 = cartesian_product_from_M(((-m, m), (-m, m)))
+    store = []
+    for r in store1:
+        if abs(r[0])<=m and abs(r[1])<=m:
+            store.append(r)
+    store.remove((0, 0))
+    temp = []
+    for r in store:
+        for s in store:
+            r_element = (dual_ideal_element(r, ideala, as_nf_element=True) / t)
+            r_ideal = space.number_field().ideal(r_element)
+            s_element = (dual_ideal_element(s, ideala, as_nf_element=True) / t)
+            s_ideal = space.number_field().ideal(s_element)
+            if r != s and r_ideal != ideala and s_ideal != ideala and r_ideal + s_ideal == ideala:
+                y = t * r_element * s_element
+                d = ideal_coordinates(dual_ideala, y)
+                if (d[0], d[1]) in store:
+                    temp.append([r, s, d])
+    return temp
+
+
+
+def hecke_relations_prime_power(m: Integer_t, space: 'HilbertMaassFormSpace'):
+    """
+        produce the sets of integer lattice points which are related by the
+        the Hecke relation of the form a(\delta p^n)=a(\delta p)a(\delta p^{n-1})-a(\delta p^{n-2}), where \delta is a generator of
+        dual ideal
+
+        INPUT:
+
+        -``m`` -- positive integer
+        -``space`` -- HilbertMaassFormSpace
+
+        EXAMPLES::
+
+            sage: from hilbert_maass.modform.utils import hecke_relations_prime_power
+            sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+            sage: hecke_relations_prime_power(6, space)
+            [[(1, (-3, 5)), (2, (5, -5))],
+            [(1, (-2, 1)), (2, (3, 4))],
+            [(1, (-2, 2)), (2, (4, -4))],
+            [(1, (-2, 4)), (2, (0, 4))],
+            [(1, (-1, 0)), (2, (0, 5))],
+            [(1, (1, 0)), (2, (0, 5))],..........]
+        """
+    ideala = space.number_field().ideal(1)
+    dual_ideala = dual_ideal(ideala)
+    t = ideal_generator(dual_ideala)
+    f = space.number_field().galois_group()
+    store1 = cartesian_product_from_M(((-m, m), (-m, m)))
+    store = []
+    for r in store1:
+        if (abs(r[0])<=6 and abs(r[1])<=6):
+            store.append(r)
+    store.remove((0, 0))
+    temp = []
+    for r in store:
+        r_element = (dual_ideal_element(r, ideala, as_nf_element=True) / t)
+        r_ideal = space.number_field().ideal(r_element)
+        if r_ideal.is_prime():
+            a = r_element
+            x = 1
+            d = r
+            kemp = []
+            while (d[0], d[1]) in store:
+                kemp.append((x, d))
+                a = a * r_element
+                y = a * t
+                d = ideal_coordinates(dual_ideala, y)
+                x = x + 1
+            if (x <= 2):
+                kemp.pop()
+            else:
+                temp.append(kemp)
+    return temp
+
+
+def symmetric_relations(space: 'HilbertMaassFormSpace'):
+    """
+            produces a set of integer lattice points which are related by
+            reflection relation (flipping operators) a(u_p v)=ta(v), where u is a unit which is neagtive
+            at the place (prime) p and positive at other places.
+
+            INPUT:
+
+            -``space`` -- HilbertMaassFormSpace
+
+            EXAMPLES::
+
+                sage: from hilbert_maass.modform.utils import symmetric_relations
+                sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+                sage: symmetric_relations(space)
+                [(1, 1), (0, -1), (0, 1)]
+
+                Comment: The first element in the output represents the positive generator of the dual ideal.
+                These three elements are non-zero for a hilbert Maass form.
+
+                sage: space = HilbertMaassFormSpace(QuadraticField(5), cuspidal=True)
+                sage: symmetric_relations(space)
+                [(1, -1), (1, -2), (-1, 2)]
+
+                sage: space = HilbertMaassFormSpace(QuadraticField(17), cuspidal=True)
+                sage: symmetric_relations(space)
+                [(5, -8), (1, -2), (-1, 2)]
+
+                sage: space = HilbertMaassFormSpace(QuadraticField(41), cuspidal=True)
+                sage: symmetric_relations(space)
+                [(37, -64), (1, -2), (-1, 2)]
+
+                Comments: For QuadraticField with bigger discriminant we have to choose the smallest of these
+                3 and assign the value 1 for constructing object using hejhal' algorithm.
+
+            """
+    ideala = space.number_field().ideal(1)
+    dual_ideala = dual_ideal(ideala)
+    t = ideal_generator(dual_ideala)
+    u = UnitGroup(space.number_field()).gens_values()[1]
+    ideala = space.number_field().ideal(1)
+    if u > 0:
+        u = -u
+    set_check = [t, t * u ** -1, -t * u ** -1]
+    kemp = []
+    for use in set_check:
+        d = ideal_coordinates(dual_ideala, use)
+        kemp.append(d)
+    return (kemp)
 
 def ideal_factors(ida):
     prime_factors = [x[0] for x in factor(ida)]
