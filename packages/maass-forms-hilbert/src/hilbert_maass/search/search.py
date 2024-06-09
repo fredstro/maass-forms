@@ -8,7 +8,7 @@ import mongoengine
 import numpy
 from comp_manager.utils import insert_object, load_object
 from hilbert_maass.database.models import HilbertMaassFormDB
-from hilbert_maass.modform.coefficients import get_pb_pts_set_params
+from hilbert_maass.modform.compute_coefficients import get_pb_pts_set_params, find_max_y
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, Real_t, Complex_t,\
