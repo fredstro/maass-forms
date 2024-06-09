@@ -1,5 +1,5 @@
 import json
-from typing import Iterable
+from typing import Iterable, Any
 import logging
 
 from hilbert_modgroup.pullback import HilbertPullback
@@ -320,12 +320,12 @@ def ideal_generator(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractional
 
 
     """
-    narrow_class_number=ideala.number_field().narrow_class_group().order()
-    if (narrow_class_number==1):
-        u = UnitGroup(space.number_field()).gens_values()[1]
+    narrow_class_number = ideala.number_field().narrow_class_group().order()
+    if narrow_class_number == 1:
+        u = UnitGroup(ideala.number_field()).gens_values()[1]
         x = ideala.gens_reduced()[0]
-        #f = space.number_field().galois_group()
-        test =[x,  x*u, -x*u]
+        # f = space.number_field().galois_group()
+        test = [x,  x*u, -x*u]
         delta = None
         for delta_test in test:
             if not (delta_test).is_totally_positive():
@@ -337,7 +337,7 @@ def ideal_generator(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractional
         if not delta:
             raise ArithmeticError(f"Cannot find a totally positive generator for {ideala}")
     else:
-        delta= ideala.gens_reduced()[0]
+        delta = ideala.gens_reduced()[0]
     return delta
 
 
@@ -356,7 +356,7 @@ def complex_number_to_json(s: ComplexNumber) -> dict:
     return {'prec': s.parent().prec(), 'val': str(s)}
 
 
-def is_json_number(data: dict | str) -> bool:
+def is_json_number(data: dict | str | Any) -> bool:
     return isinstance(data, dict) and 'prec' in data and 'val' in data and len(dict.keys())==2
 
 def complex_number_from_json(json_complex: dict | str) -> ComplexNumber:
