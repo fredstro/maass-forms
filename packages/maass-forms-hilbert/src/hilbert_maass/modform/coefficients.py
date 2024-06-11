@@ -193,7 +193,7 @@ class HilbertMaassCoefficients(SageObject):
             space=HilbertMaassFormSpace.from_json(data['space']),
             Y=Y,
             set_coefficients=coefficient_dict_from_json(data['set_coefficients']),
-            index_tuples=data['index_tuples']
+            index_tuples=data.get('index_tuples', [])
         )
 
     def __hash__(self):
