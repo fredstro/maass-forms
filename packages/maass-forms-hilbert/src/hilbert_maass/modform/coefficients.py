@@ -180,7 +180,7 @@ class HilbertMaassCoefficients(SageObject):
             data = json.loads(data)
         existing_keys = {'prec', 'coefficients', 'M', 'Y', 'spectral_parameter', 'index_tuples',
             'space', 'set_coefficients'}
-        if existing_keys.difference(data.keys()) not in [{}, {'index_tuples'}]:
+        if existing_keys.difference(data.keys()) not in [set({}), {'index_tuples'}]:
             raise ValueError("Not a valid JSON representation of HilbertMaassCoefficients")
         CF = ComplexField(data['prec'])
         coefficients = matrix(CF, data['coefficients'])
