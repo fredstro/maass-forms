@@ -396,6 +396,7 @@ class HilbertMaassForm_Element(ModuleElement):
             return res[0]
         return res
 
+
 def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or NumberField_class,
                      spectral_parameter: tuple[ComplexNumber | RealNumber_class],
                      **kwargs: P.kwargs) -> HilbertMaassForm_Element:

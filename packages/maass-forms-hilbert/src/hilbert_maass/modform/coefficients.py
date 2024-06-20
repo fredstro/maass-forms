@@ -178,9 +178,9 @@ class HilbertMaassCoefficients(SageObject):
         """
         if isinstance(data, str):
             data = json.loads(data)
-        if set(data.keys()) != \
-           {'prec', 'coefficients', 'M', 'Y', 'spectral_parameter', 'index_tuples',
-            'space', 'set_coefficients'}:
+        existing_keys = {'prec', 'coefficients', 'M', 'Y', 'spectral_parameter', 'index_tuples',
+            'space', 'set_coefficients'}
+        if existing_keys.difference(data.keys()) not in [set({}), {'index_tuples'}]:
             raise ValueError("Not a valid JSON representation of HilbertMaassCoefficients")
         CF = ComplexField(data['prec'])
         coefficients = matrix(CF, data['coefficients'])
@@ -193,7 +193,7 @@ class HilbertMaassCoefficients(SageObject):
             space=HilbertMaassFormSpace.from_json(data['space']),
             Y=Y,
             set_coefficients=coefficient_dict_from_json(data['set_coefficients']),
-            index_tuples=data['index_tuples']
+            index_tuples=data.get('index_tuples', [])
         )
 
     def __hash__(self):
