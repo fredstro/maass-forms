@@ -498,7 +498,7 @@ def integer_to_bounds_tuple(m: Integer_t, degree: Integer_t) -> tuple[tuple[Inte
     return ((-m, m),) * degree
 
 
-def unit_relations(m: Integer_t, space: 'HilbertMaassFormSpace'):
+def unit_relations(space: 'HilbertMaassFormSpace', m: Integer_t=6):
     """
         produce the sets of integer lattice points which are related by the
         automorphy a(unit^2 v)=a(v) for the quadratic real fields.
@@ -512,7 +512,7 @@ def unit_relations(m: Integer_t, space: 'HilbertMaassFormSpace'):
 
             sage: from hilbert_maass.modform.utils import unit_relations
             sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-            sage: unit_relations(6, space)
+            sage: unit_relations(space, 6)
             [[(-6, -6), (-6, 6)],
              [(-5, -6), (-3, 2)],
              [(-5, -5), (-5, 5)],
@@ -560,10 +560,10 @@ def unit_relations(m: Integer_t, space: 'HilbertMaassFormSpace'):
     return temp
 
 
-def hecke_relations_coprime(m: Integer_t, space: 'HilbertMaassFormSpace'):
+def hecke_relations_coprime(space: 'HilbertMaassFormSpace', m: Integer_t=6):
     """
             produce the sets of integer lattice points which are related by the
-            the Hecke relation of the form a(\delta m)a(\delta n)=a(\delta mn), where \delta is a generator of
+            the Hecke relation of the form a(delta m)a(delta n)=a(delta mn), where delta is a generator of
             dual ideal
 
             INPUT:
@@ -575,7 +575,7 @@ def hecke_relations_coprime(m: Integer_t, space: 'HilbertMaassFormSpace'):
 
                 sage: from hilbert_maass.modform.utils import hecke_relations_coprime
                 sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-                sage: hecke_relations_coprime(6, space)
+                sage: hecke_relations_coprime(space, 6)
                 [[(-6, 6), (-1, -1), (6, 6)],
                  [(-6, 6), (-1, 0), (6, 0)],
                  [(-6, 6), (1, 0), (-6, 0)],
@@ -606,10 +606,10 @@ def hecke_relations_coprime(m: Integer_t, space: 'HilbertMaassFormSpace'):
 
 
 
-def hecke_relations_prime_power(m: Integer_t, space: 'HilbertMaassFormSpace'):
+def hecke_relations_prime_power(space: 'HilbertMaassFormSpace', m: Integer_t=6):
     """
         produce the sets of integer lattice points which are related by the
-        the Hecke relation of the form a(\delta p^n)=a(\delta p)a(\delta p^{n-1})-a(\delta p^{n-2}), where \delta is a generator of
+        the Hecke relation of the form a(delta p^n)=a(delta p)a(delta p^{n-1})-a(delta p^{n-2}), where delta is a generator of
         dual ideal
 
         INPUT:
@@ -621,7 +621,7 @@ def hecke_relations_prime_power(m: Integer_t, space: 'HilbertMaassFormSpace'):
 
             sage: from hilbert_maass.modform.utils import hecke_relations_prime_power
             sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-            sage: hecke_relations_prime_power(6, space)
+            sage: hecke_relations_prime_power(space, 6)
             [[(1, (-3, 5)), (2, (5, -5))],
             [(1, (-2, 1)), (2, (3, 4))],
             [(1, (-2, 2)), (2, (4, -4))],
@@ -632,11 +632,11 @@ def hecke_relations_prime_power(m: Integer_t, space: 'HilbertMaassFormSpace'):
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
     t = ideal_generator(dual_ideala)
-    f = space.number_field().galois_group()
+    # f = space.number_field().galois_group()
     store1 = cartesian_product_from_M(((-m, m), (-m, m)))
     store = []
     for r in store1:
-        if (abs(r[0])<=6 and abs(r[1])<=6):
+        if (abs(r[0]) <= m and abs(r[1]) <= m):
             store.append(r)
     store.remove((0, 0))
     temp = []
@@ -648,13 +648,13 @@ def hecke_relations_prime_power(m: Integer_t, space: 'HilbertMaassFormSpace'):
             x = 1
             d = r
             kemp = []
-            while (d[0], d[1]) in store:
-                kemp.append((x, d))
+            while ((d[0], d[1]) in store):
+                kemp.append(d)
                 a = a * r_element
                 y = a * t
                 d = ideal_coordinates(dual_ideala, y)
                 x = x + 1
-            if (x <= 2):
+            if x <= 2:
                 kemp.pop()
             else:
                 temp.append(kemp)
@@ -702,14 +702,90 @@ def symmetric_relations(space: 'HilbertMaassFormSpace'):
     t = ideal_generator(dual_ideala)
     u = UnitGroup(space.number_field()).gens_values()[1]
     ideala = space.number_field().ideal(1)
-    if u > 0:
+    if (u > 0):
         u = -u
     set_check = [t, t * u ** -1, -t * u ** -1]
     kemp = []
     for use in set_check:
         d = ideal_coordinates(dual_ideala, use)
-        kemp.append(d)
+        kemp.append([d])
     return (kemp)
+
+
+def bilinear_form(space: 'HilbertMaassFormSpace',x: 'NumberFieldElement', y: 'NumberFieldElement'):
+    """
+            produce the value of bilinear forms f(x, y)=x_1y_1+...+x_ny_n
+
+            INPUT:
+            -``space`` -- HilbertMaassFormSpace
+            -``x, y``  ---NumberFieldElement, NumberFieldElement
+            EXAMPLES:
+
+                sage: from hilbert_maass.modform.utils import bilinear_form
+                sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+                sage: a=space.number_field().gen()
+                sage: bilinear_form(space, a, a)
+                4
+
+            """
+    f = space.number_field().galois_group()
+    t = len(f)
+    kep = 0
+    for r in range(0, t):
+        s = f[r](x) * f[r](y)
+        kep = kep + s
+    return (kep)
+
+def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t,
+                        check: '{coprime, prime_power, unit}'='unit', epsilon:Integer_t=25):
+    """
+                produce the best hecke relation in the sense those with smallest bilinear norm value
+                less then epsilon.
+
+                INPUT:
+                -``space`` -- HilbertMaassFormSpace
+                -``m ``  --Integer_t  ( bound)
+                -``check`` --'{coprime, prime_power, unit}' Enter one value out of these three
+                -``epsilon`` --Integer_t=25
+                EXAMPLES:
+
+                    sage: from hilbert_maass.modform.utils import bilinear_form
+                    sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+                    sage: best_hecke_relation(space, 6, 'coprime')
+                    [[(-2, 2), (-1, 0), (2, 0)],
+                    [(-2, 2), (1, 0), (-2, 0)],
+                    [(-1, 0), (-2, 2), (2, 0)],....,]
+
+
+                """
+
+    if check == 'coprime':
+        ak = hecke_relations_coprime(space, m)
+    elif check == 'prime_power':
+        ak = hecke_relations_prime_power(space, m)
+    elif check == 'unit':
+        ak = unit_relations(space, m)
+    elif check == 'symmetric':
+        ak = symmetric_relations(space)
+
+    def custom_function(x, space):
+        total = 0
+        ideala = space.number_field().ideal(1)
+        for r in x:
+            t = dual_ideal_element(r, ideala, as_nf_element=True)
+            total = total + bilinear_form(space, t, t)
+        return total
+
+    paired_elements = [(x, custom_function(x, space)) for x in ak]
+    sorted_paired_elements = sorted(paired_elements, key=lambda pair: pair[1])
+    value_sorted_paired_elements = []
+    for pair in sorted_paired_elements:
+        x, value = pair
+        if value < epsilon:
+            value_sorted_paired_elements.append(pair)
+
+    sorted_elements = [pair[0] for pair in value_sorted_paired_elements]
+    return sorted_elements
 
 def ideal_factors(ida):
     prime_factors = [x[0] for x in factor(ida)]
