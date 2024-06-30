@@ -72,13 +72,7 @@ extensions = cythonize(
 setuptools.setup(
     ext_modules=extensions,
     create_extension=create_extension,
-    packages=['hilbert_maass',
-              'hilbert_maass.functions',
-              'hilbert_maass.functions.bessel',
-              'hilbert_maass.modform',
-              'hilbert_maass.database',
-              'hilbert_maass.search'
-              ]
+    packages=setuptools.find_packages('src', exclude=['tests', 'examples'])
 )
     # dependency_links=['https://github.com/fredstro/hilbertmodgroup.git/#egg=package-1.0'],
     # setup_requires=['cython'],
