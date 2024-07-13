@@ -74,9 +74,13 @@ def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFrac
     zmpb = []
     zm = []
     log.info(f"Computing pullback for Q = {Q}, Y = {Y} idealamatrix={ideala_matrix}")
-    half_vector = vector([CF(1)/CF(2)] * n)
+    if use_symmetry:
+        half_vector = vector([CF(1)/CF(2)] * n)
     for m in cartesian_product(Q_combination):
-        xm = basis_matrix_m * (vector(m) - half_vector)
+        if use_symmetry:
+            xm = basis_matrix_m * (vector(m) - half_vector)
+        else:
+            xm = basis_matrix_m * vector(m)
         zm_elt = UpperHalfPlaneProductElement([(xm[i], Y[i]) for i in range(n)])
         zm.append(zm_elt)
         pbpt = P.reduce(zm_elt)
