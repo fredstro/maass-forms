@@ -16,6 +16,7 @@ from sage.arith.srange import xsrange
 # from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from sage.functions.other import real, imag
 from sage.matrix.constructor import matrix
+from sage.plot.animate import animate, Animation
 from sage.plot.misc import setup_for_eval_on_grid
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
@@ -324,6 +325,27 @@ class HilbertMaassForm_Element(ModuleElement):
         self._coefficients = C
         return C
 
+    def animation(self, num_steps: Integer_t = 100,
+                  y_start: Real_t = 0, y_stop: Real_t = 1,
+                  x_start: Real_t = 0, x_stop: Real_t = 0,
+                  **kwargs: P.kwargs) -> Animation:
+        """
+        Create an animation of the Hilbert Maass form.
+
+        INPUT:
+
+
+        - kwargs:
+        """
+        num_steps = kwargs.get('num_steps', 100)
+        h = (y_stop - y_start) / num_steps
+        glist = []
+        for i in range(num_steps):
+            g = self.plot(yset=[y_start + h * (i+1)], **kwargs)
+            g.save_image = g.savefig
+            glist.append(g)
+        return animate(glist)
+
     def plot(self, **kwargs):
         """
         Density plot of self along one copy of the hyperbolic upper half-plane with
@@ -368,7 +390,7 @@ class HilbertMaassForm_Element(ModuleElement):
         plot_points_y = kwargs.get("plot_points_y", 50)
         cmap = kwargs.get('cmap', ['jet'])
         # Create grid points
-        fixed_zs = [CC(x,y) for x, y in zip(xset, yset)]
+        fixed_zs = [CC(x, y) for x, y in zip(xset, yset)]
 
         def function_to_eval(x, y):
             return abs(self(fixed_zs + [CC(x, y)]))
@@ -395,6 +417,7 @@ class HilbertMaassForm_Element(ModuleElement):
         if len(res) == 1:
             return res[0]
         return res
+
 
 def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or NumberField_class,
                      spectral_parameter: tuple[ComplexNumber | RealNumber_class],

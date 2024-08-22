@@ -24,7 +24,8 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
                           Y: tuple = None,
                           smax: float | RealNumber = None,
                           ideala: NumberFieldFractionalIdeal = None,
-                          use_symmetry: bool = False) -> tuple:
+                          use_symmetry: bool = False,
+                          use_shift: bool = False) -> tuple:
     spectral_parameter = spectral_parameter or (ComplexField(53)(0.5, 10), )
     CF = spectral_parameter[0].parent()
     if not spectral_parameter and not smax:
@@ -46,7 +47,7 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
     Y = find_max_y(space, M, Qs=Qs, starting_Y=Y)
     # We try with given Y and if it doesn't work we keep decreasing Y until it does.
     try:
-        zpb, zm = get_pb_pts(space, Qs, ideala, Y, use_symmetry=use_symmetry,
+        zpb, zm = get_pb_pts(space, Qs, ideala, Y, use_symmetry=use_symmetry, use_shift=use_shift,
                              prec=CF.prec())
     except ArithmeticError as e:
         msg = f"Could not find good pullback points. Error: {e}"
@@ -58,7 +59,8 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
 @mongo_cache()
 def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFractionalIdeal,
                Y: tuple, prec: int = 53, check: bool = True,
-               use_symmetry: bool = False) -> tuple:
+               use_symmetry: bool = False,
+               use_shift: bool = False) -> tuple:
     """
     Get the list of points in the scaled lattice together with the corresponding pullbacks.
     """
@@ -74,9 +76,15 @@ def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFrac
     zmpb = []
     zm = []
     log.info(f"Computing pullback for Q = {Q}, Y = {Y} idealamatrix={ideala_matrix}")
-    half_vector = vector([CF(1)/CF(2)] * n)
+    if use_symmetry:
+        use_shift = True
+    if use_shift:
+        half_vector = vector([CF(1)/CF(2)] * n)
     for m in cartesian_product(Q_combination):
-        xm = basis_matrix_m * (vector(m) - half_vector)
+        if use_shift:
+            xm = basis_matrix_m * (vector(m) - half_vector)
+        else:
+            xm = basis_matrix_m * vector(m)
         zm_elt = UpperHalfPlaneProductElement([(xm[i], Y[i]) for i in range(n)])
         zm.append(zm_elt)
         pbpt = P.reduce(zm_elt)
@@ -94,6 +102,7 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
                          Y: tuple[float | RealNumber] = None,
                          returnV: bool = False,
                          set_coefficients: dict = None,
+                         use_shift: bool = False,
                          ncpus: int = 1) -> 'HilbertMaassCoefficients':
     r"""
 
@@ -123,11 +132,27 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
         sage: X[(1,1)] == 1
         True
         sage: X[(1,0)] # tol 1e-10
+        0.00654975205802000 + 0.00184390378622509*I
+        sage: X = compute_coefficients(H, s, Y=(0.32, 0.32),M = 2, use_shift=True)
+        sage: X[(0,0)] == 0
+        True
+        sage: X[(1,1)] == 1
+        True
+        sage: X[(1,0)] # tol 1e-10
         0.0108081473409434 + 3.77227326182247e-19*I
         sage: s = CC(0.5, 4.893781291438), CC(0.5, 4.893781291438)
         sage: H = HilbertMaassFormSpace(QuadraticField(5), cuspidal=True)
         sage: X = compute_coefficients(H, s, Y=(0.55, 0.55),M = 5); X
         Coefficients of a Hilbert Maass form with M=((-5, 5), (-5, 5)) and 1 cusp
+        sage: X[(0,0)] == 0
+        True
+        sage: X[(1,-1)] == 1
+        True
+        sage: X[(0,-1)] # tol 1e-10
+        1.00534532976766 + 0.00101842933371968*I
+        sage: X[(0,1)] # tol 1e-10
+        1.03235237817036 + 0.00125533100149703*I
+        sage: X = compute_coefficients(H, s, Y=(0.55, 0.55),M = 5, use_shift=True)
         sage: X[(0,0)] == 0
         True
         sage: X[(1,-1)] == 1
@@ -145,7 +170,8 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
     idealb = idealb or space.number_field().ideal(1)
     smax = max(ceil(abs(s0)) for s0 in spectral_parameter)
     zpb, zm, Qs, M, Y = get_pb_pts_set_params(space, smax=smax,
-                                              M=M, Y=Y, ideala=ideala)
+                                              M=M, Y=Y, ideala=ideala,
+                                              use_shift=use_shift)
     log.debug(f"M = {M}, Y = {Y}, Qs = {Qs}")
     use_iR = all(real(s - 0.5) == 0 for s in spectral_parameter)
     matrixV = {}

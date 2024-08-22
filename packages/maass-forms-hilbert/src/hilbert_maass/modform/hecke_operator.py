@@ -27,14 +27,11 @@ class HeckeOperator(Element):
             sage: from hilbert_maass.modform.hecke_operator import HeckeOperator
             sage: form = HilbertMaassForm(QuadraticField(2), (1, 1))
             sage: HeckeOperator(form.parent(), form.parent().number_field().ideal(2))
-            Hecke operator of index Fractional ideal (2) acting on HilbertMaassFormSpace(Hilbert
-            Modular Group PSL(2) over Maximal Order in Number Field in a with defining polynomial x^2 - 2 with a = 1.414213562373095?)
+            Hecke operator of index Fractional ideal (2) acting on HilbertMaassFormSpace(Hilbert...
             sage: HeckeOperator(form.parent(), 2)
-            Hecke operator of index Fractional ideal (2) acting on HilbertMaassFormSpace(Hilbert
-            Modular Group PSL(2) over Maximal Order in Number Field in a with defining polynomial x^2 - 2 with a = 1.414213562373095?)
+            Hecke operator of index Fractional ideal (2) acting on HilbertMaassFormSpace(Hilbert...
             sage: HeckeOperator(form.parent(), 3)
-            Hecke operator of index Fractional ideal (3) acting on HilbertMaassFormSpace(Hilbert
-            Modular Group PSL(2) over Maximal Order in Number Field in a with defining polynomial x^2 - 2 with a = 1.414213562373095?)
+            Hecke operator of index Fractional ideal (3) acting on HilbertMaassFormSpace(Hilbert...
         """
         if space.number_field().narrow_class_group().order() > 1:
             raise NotImplementedError("Only narrow class number 1 supported")

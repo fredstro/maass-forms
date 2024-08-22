@@ -7,7 +7,7 @@ ifeq (,$(DOCKER)$(shell which sage))
 endif
 # Command line arguments:
 # Set to 0 to use local source instead of GIT
-REMOTE_SRC=1
+REMOTE_SRC=0
 # Set to desired git branch
 GIT_BRANCH=main
 # Port for notebook
@@ -49,25 +49,25 @@ tox:
 	sage --python -m tox src -c tox.ini -e $(TOX_ARGS)
 
 docker:
-	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) -t fqm_weil-$(TAG) .
+	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) -t hilbert_maass-$(TAG) .
 
 docker-rebuild:
-	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) --no-cache -t fqm_weil-$(TAG) .
+	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) --no-cache -t hilbert_maass-$(TAG) .
 
 docker-test: docker
-	docker run -it --init fqm_weil-$(GIT_BRANCH) test
+	docker run -it hilbert_maass-$(TAG) test
 
 docker-examples: docker
-	docker run -p $(NBPORT):$(NBPORT) -it -e GIT_BRANCH=$(GIT_BRANCH) -e NBPORT=$(NBPORT) --init fqm_weil-$(TAG) examples $(EXAMPLES_ARGS)
+	docker run -p $(NBPORT):$(NBPORT) -it -e GIT_BRANCH=$(GIT_BRANCH) -e NBPORT=$(NBPORT) --init hilbert_maass-$(TAG) examples $(EXAMPLES_ARGS)
 
 docker-tox: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) -e TOX_ARGS=$(TOX_ARGS) --init fqm_weil-$(TAG) tox
+	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) -e TOX_ARGS=$(TOX_ARGS) --init hilbert_maass-$(TAG) tox
 
 docker-shell: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init fqm_weil-$(TAG) shell
+	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init hilbert_maass-$(TAG) shell
 
 docker-sage: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init fqm_weil-$(TAG) run
+	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init hilbert_maass-$(TAG) run
 
 
 clean:

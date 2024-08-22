@@ -510,6 +510,7 @@ def unit_relations(space: 'HilbertMaassFormSpace', m: Integer_t=6):
 
         EXAMPLES::
 
+            sage: from hilbert_maass.all import HilbertMaassFormSpace
             sage: from hilbert_maass.modform.utils import unit_relations
             sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
             sage: unit_relations(space, 6)
@@ -517,14 +518,15 @@ def unit_relations(space: 'HilbertMaassFormSpace', m: Integer_t=6):
              [(-5, -6), (-3, 2)],
              [(-5, -5), (-5, 5)],
              [(-5, 6), (-3, -2)],
-            [(-4, -6), (0, -2), (4, -6)],......]
+             [(-4, -6), (0, -2), (4, -6)],
+            ...
         """
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
     store1 = cartesian_product_from_M(((-m, m), (-m, m)))
     store = []
     for r in store1:
-        if (abs(r[0]) <=m and abs(r[1]) <=m):
+        if abs(r[0]) <= m and abs(r[1]) <= m:
             store.append(r)
     store.remove((0, 0))
     u = UnitGroup(space.number_field()).gens_values()[1]
@@ -537,16 +539,16 @@ def unit_relations(space: 'HilbertMaassFormSpace', m: Integer_t=6):
         x = 0
         use = r_element
         kemp = []
-        while (abs(d[0])<=m and abs(d[1])<=m):
+        while abs(d[0]) <= m and abs(d[1]) <= m:
             kemp.append(tuple(d))
-            if (d in store):
+            if d in store:
                 store.remove(tuple(d))
             use = use * unit
             d = ideal_coordinates(dual_ideala, use)
             x = x + 1
         use = r_element * unit ** (-1)
         d = ideal_coordinates(dual_ideala, use)
-        while abs(d[0]) <=m and abs(d[1])<= m:
+        while abs(d[0]) <= m and abs(d[1]) <= m:
             kemp.append(d)
             use = use * unit ** (-1)
             if d in store:
@@ -573,13 +575,16 @@ def hecke_relations_coprime(space: 'HilbertMaassFormSpace', m: Integer_t=6):
 
             EXAMPLES::
 
+                sage: from hilbert_maass.all import HilbertMaassFormSpace
                 sage: from hilbert_maass.modform.utils import hecke_relations_coprime
                 sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
                 sage: hecke_relations_coprime(space, 6)
                 [[(-6, 6), (-1, -1), (6, 6)],
                  [(-6, 6), (-1, 0), (6, 0)],
                  [(-6, 6), (1, 0), (-6, 0)],
-                 [(-6, 6), (1, 1), (-6, -6)],......]
+                 [(-6, 6), (1, 1), (-6, -6)],
+                ...
+                 [(5, 5), (1, 0), (5, 0)]]
             """
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
@@ -587,7 +592,7 @@ def hecke_relations_coprime(space: 'HilbertMaassFormSpace', m: Integer_t=6):
     store1 = cartesian_product_from_M(((-m, m), (-m, m)))
     store = []
     for r in store1:
-        if abs(r[0])<=m and abs(r[1])<=m:
+        if abs(r[0]) <= m and abs(r[1]) <= m:
             store.append(r)
     store.remove((0, 0))
     temp = []
@@ -619,15 +624,18 @@ def hecke_relations_prime_power(space: 'HilbertMaassFormSpace', m: Integer_t=6):
 
         EXAMPLES::
 
+            sage: from hilbert_maass.all import HilbertMaassFormSpace
             sage: from hilbert_maass.modform.utils import hecke_relations_prime_power
             sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
             sage: hecke_relations_prime_power(space, 6)
-            [[(1, (-3, 5)), (2, (5, -5))],
-            [(1, (-2, 1)), (2, (3, 4))],
-            [(1, (-2, 2)), (2, (4, -4))],
-            [(1, (-2, 4)), (2, (0, 4))],
-            [(1, (-1, 0)), (2, (0, 5))],
-            [(1, (1, 0)), (2, (0, 5))],..........]
+            [[(-2, -1), (5, -1)],
+             [(-1, -3), (5, 1)],
+             [(-1, -2), (2, 2), (-2, -4), (4, 4)],
+             [(-1, 0), (2, -2)],
+             [(1, 0), (2, -2)],
+             [(1, 2), (2, 2), (2, 4), (4, 4)],
+             [(1, 3), (5, 1)],
+             [(2, 1), (5, -1)]]
         """
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
@@ -673,6 +681,7 @@ def symmetric_relations(space: 'HilbertMaassFormSpace'):
 
             EXAMPLES::
 
+                sage: from hilbert_maass.all import HilbertMaassFormSpace
                 sage: from hilbert_maass.modform.utils import symmetric_relations
                 sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
                 sage: symmetric_relations(space)
@@ -708,11 +717,11 @@ def symmetric_relations(space: 'HilbertMaassFormSpace'):
     kemp = []
     for use in set_check:
         d = ideal_coordinates(dual_ideala, use)
-        kemp.append([d])
+        kemp.append(d)
     return (kemp)
 
 
-def bilinear_form(space: 'HilbertMaassFormSpace',x: 'NumberFieldElement', y: 'NumberFieldElement'):
+def bilinear_form(space: 'HilbertMaassFormSpace', x: 'NumberFieldElement', y: 'NumberFieldElement'):
     """
             produce the value of bilinear forms f(x, y)=x_1y_1+...+x_ny_n
 
@@ -722,6 +731,7 @@ def bilinear_form(space: 'HilbertMaassFormSpace',x: 'NumberFieldElement', y: 'Nu
             EXAMPLES:
 
                 sage: from hilbert_maass.modform.utils import bilinear_form
+                sage: from hilbert_maass.all import HilbertMaassFormSpace
                 sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
                 sage: a=space.number_field().gen()
                 sage: bilinear_form(space, a, a)
@@ -736,11 +746,12 @@ def bilinear_form(space: 'HilbertMaassFormSpace',x: 'NumberFieldElement', y: 'Nu
         kep = kep + s
     return (kep)
 
+
 def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t,
-                        check: '{coprime, prime_power, unit}'='unit', epsilon:Integer_t=25):
+                        check: '{coprime, prime_power, unit}' = 'unit', epsilon:Integer_t=25):
     """
                 produce the best hecke relation in the sense those with smallest bilinear norm value
-                less then epsilon.
+                less than epsilon.
 
                 INPUT:
                 -``space`` -- HilbertMaassFormSpace
@@ -749,14 +760,15 @@ def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t,
                 -``epsilon`` --Integer_t=25
                 EXAMPLES:
 
-                    sage: from hilbert_maass.modform.utils import bilinear_form
+                    sage: from hilbert_maass.modform.utils import best_hecke_relation
+                    sage: from hilbert_maass.all import HilbertMaassFormSpace
                     sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
                     sage: best_hecke_relation(space, 6, 'coprime')
-                    [[(-2, 2), (-1, 0), (2, 0)],
-                    [(-2, 2), (1, 0), (-2, 0)],
-                    [(-1, 0), (-2, 2), (2, 0)],....,]
-
-
+                     [[(-1, -3), (-1, 0), (-1, 4)],
+                      [(-1, -3), (1, 0), (1, -4)],
+                      [(-1, 0), (-1, -3), (-1, 4)],
+                     ...
+                      [(3, 5), (2, -2), (-2, 6)]]
                 """
 
     if check == 'coprime':
@@ -767,6 +779,8 @@ def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t,
         ak = unit_relations(space, m)
     elif check == 'symmetric':
         ak = symmetric_relations(space)
+    else:
+        raise ValueError("Enter one value out of 'coprime', 'prime_power', 'unit', 'symmetric'")
 
     def custom_function(x, space):
         total = 0
@@ -787,12 +801,17 @@ def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t,
     sorted_elements = [pair[0] for pair in value_sorted_paired_elements]
     return sorted_elements
 
+
 def ideal_factors(ida):
+    """
+    Find all factors of an ideal.
+
+    """
     prime_factors = [x[0] for x in factor(ida)]
-    exponents = [range(x[1]+1) for x in factor(ida)]
+    exponents = [range(x[1] + 1) for x in factor(ida)]
     new_exponents = list(cartesian_product(exponents))
     factors = []
     for ex in new_exponents:
-        idb = prod([p**ex[i] for i, p in enumerate(prime_factors)])
+        idb = prod([p ** ex[i] for i, p in enumerate(prime_factors)])
         factors.append(idb)
     return factors
