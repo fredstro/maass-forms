@@ -579,12 +579,12 @@ def hecke_relations_coprime(space: 'HilbertMaassFormSpace', m: Integer_t=6):
                 sage: from hilbert_maass.modform.utils import hecke_relations_coprime
                 sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
                 sage: hecke_relations_coprime(space, 6)
-                [[(-6, 6), (-1, -1), (6, 6)],
-                 [(-6, 6), (-1, 0), (6, 0)],
-                 [(-6, 6), (1, 0), (-6, 0)],
-                 [(-6, 6), (1, 1), (-6, -6)],
+                  [[(-5, -5), (-1, 0), (5, 0)],
+                   [(-5, -5), (1, 0), (-5, 0)],
+                   [(-5, 5), (-3, -4), (5, 0)],
+                   [(-5, 5), (3, 4), (-5, 0)],
                 ...
-                 [(5, 5), (1, 0), (5, 0)]]
+                   [(5, 5), (1, 0), (5, 0)]]
             """
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
