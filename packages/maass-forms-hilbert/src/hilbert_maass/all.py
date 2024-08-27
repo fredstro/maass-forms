@@ -7,7 +7,7 @@ from .modform.hilbert_maass_space import HilbertMaassFormSpace
 from .modform.hilbert_maass_element import HilbertMaassForm_Element, HilbertMaassForm
 from .modform.coefficients import HilbertMaassCoefficients
 from .modform.compute_coefficients import get_pb_pts, compute_coefficients
-from .search.search import compute_on_grid, create_grid, compute_one_spectral_parameter
+from .search.search import compute_on_non_circular_grid, create_grid_non_circular, compute_one_spectral_parameter
 try:
     from .database.models import HilbertMaassFormDB
 except ImportError as e:
