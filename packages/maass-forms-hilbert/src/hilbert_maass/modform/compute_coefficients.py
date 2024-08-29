@@ -138,8 +138,8 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
         True
         sage: X[(1,1)] == 1
         True
-        sage: X[(1,0)] # tol 1e-10
-        0.0108081473409434 + 3.77227326182247e-19*I
+        sage: X[(1,0)] # abs tol 1e-10
+        0.0108081473409434 + 4.77227326182247e-19*I
         sage: s = CC(0.5, 4.893781291438), CC(0.5, 4.893781291438)
         sage: H = HilbertMaassFormSpace(QuadraticField(5), cuspidal=True)
         sage: X = compute_coefficients(H, s, Y=(0.55, 0.55),M = 5); X
