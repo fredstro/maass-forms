@@ -579,12 +579,12 @@ def hecke_relations_coprime(space: 'HilbertMaassFormSpace', m: Integer_t=6):
                 sage: from hilbert_maass.modform.utils import hecke_relations_coprime
                 sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
                 sage: hecke_relations_coprime(space, 6)
-                  [[(-5, -5), (-1, 0), (5, 0)],
-                   [(-5, -5), (1, 0), (-5, 0)],
-                   [(-5, 5), (-3, -4), (5, 0)],
-                   [(-5, 5), (3, 4), (-5, 0)],
-                ...
-                   [(5, 5), (1, 0), (5, 0)]]
+                 [[(-5, -5), (-1, 0), (5, 0)],
+                  [(-5, -5), (1, 0), (-5, 0)],
+                  [(-5, 5), (-3, -4), (5, 0)],
+                  [(-5, 5), (3, 4), (-5, 0)],
+                 ...
+                  [(5, 5), (1, 0), (5, 0)]]
             """
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
@@ -747,8 +747,9 @@ def bilinear_form(space: 'HilbertMaassFormSpace', x: 'NumberFieldElement', y: 'N
     return (kep)
 
 
-def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t,
-                        check: '{coprime, prime_power, unit}' = 'unit', epsilon:Integer_t=25):
+def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t = 6,
+                        check: '{coprime, prime_power, unit}' = 'unit',
+                        epsilon:Integer_t=25, same_norm: bool = False):
     """
                 produce the best hecke relation in the sense those with smallest bilinear norm value
                 less than epsilon.
@@ -758,17 +759,24 @@ def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t,
                 -``m ``  --Integer_t  ( bound)
                 -``check`` --'{coprime, prime_power, unit}' Enter one value out of these three
                 -``epsilon`` --Integer_t=25
+                -`` same_norm`` bool (produces the hecke relation of same norm if it set to True)
                 EXAMPLES:
 
                     sage: from hilbert_maass.modform.utils import best_hecke_relation
                     sage: from hilbert_maass.all import HilbertMaassFormSpace
                     sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-                    sage: best_hecke_relation(space, 6, 'coprime')
+                    sage: best_hecke_relation(space = space, check = 'coprime', same_norm = True)
                      [[(-1, -3), (-1, 0), (-1, 4)],
                       [(-1, -3), (1, 0), (1, -4)],
                       [(-1, 0), (-1, -3), (-1, 4)],
                      ...
                       [(3, 5), (2, -2), (-2, 6)]]
+                    sage: best_hecke_relation(space = space, check = 'coprime')
+                     [[(-1, -3), (-1, 0), (-1, 4)],
+                      [(-2, -1), (-1, -2), (1, 4)],
+                      [(-1, -3), (-1, -2), (3, 2)],
+                     ...
+                      [(-3, -5), (-2, 2), (-2, 6)]]
                 """
 
     if check == 'coprime':
@@ -793,11 +801,22 @@ def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t,
     paired_elements = [(x, custom_function(x, space)) for x in ak]
     sorted_paired_elements = sorted(paired_elements, key=lambda pair: pair[1])
     value_sorted_paired_elements = []
-    for pair in sorted_paired_elements:
-        x, value = pair
-        if value < epsilon:
-            value_sorted_paired_elements.append(pair)
-
+    if same_norm:
+        for pair in sorted_paired_elements:
+            x, value = pair
+            if (value < epsilon):
+                value_sorted_paired_elements.append(pair)
+    else:
+        for pair in sorted_paired_elements:
+            x, value = pair
+            t = 1
+            for pair1 in value_sorted_paired_elements:
+                x1, value1 = pair1
+                if value == value1:
+                    t = 0
+                    break
+            if (value < epsilon and t == 1):
+                value_sorted_paired_elements.append(pair)
     sorted_elements = [pair[0] for pair in value_sorted_paired_elements]
     return sorted_elements
 
