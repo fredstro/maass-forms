@@ -7,8 +7,9 @@ from sage.misc.cachefunc import cached_method
 from sage.misc.misc_c import prod
 from sage.modules.free_module_element import vector
 from sage.rings.complex_mpfr import ComplexNumber, ComplexField
+from sage.rings.infinity import Infinity
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
-from sage.rings.real_mpfr import RealNumber, RealField
+from sage.rings.real_mpfr import RealNumber, RealField, RR
 
 from ..functions.functions import bessel_prod
 from .coefficients import log, HilbertMaassCoefficients
@@ -22,12 +23,17 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
                           spectral_parameter: tuple[ComplexNumber] = None,
                           M: tuple[tuple[Integer_t]] = None,
                           Y: tuple = None,
+                          Q_set: tuple[Integer_t, ...] = None,
                           smax: float | RealNumber = None,
+                          prec: Integer_t = None,
                           ideala: NumberFieldFractionalIdeal = None,
                           use_symmetry: bool = False,
                           use_shift: bool = False) -> tuple:
-    spectral_parameter = spectral_parameter or (ComplexField(53)(0.5, 10), )
-    CF = spectral_parameter[0].parent()
+    if isinstance(spectral_parameter, tuple) and hasattr(spectral_parameter[0], 'parent'):
+        prec = spectral_parameter[0].parent().prec()
+    elif not prec:
+        prec = 53
+
     if not spectral_parameter and not smax:
         raise ValueError("Need either spectral parameter or smax set.")
     if spectral_parameter and not smax:
@@ -41,14 +47,18 @@ def get_pb_pts_set_params(space: 'HilbertMaassFormSpace',
     if use_symmetry and M[0][0] != 0:
         raise ValueError("If use_symmetry is True, M[0][0] must be 0")
     if not ideala:
-        ideala = space.pullback().number_field().ideal(1)
+        ideala = space.group().pullback().number_field().ideal(1)
     Qs = get_Q_from_bounds(space.pullback(), M)
+    if Q_set and min(Q_set) >= max(Qs):
+        log.debug(f"Q_set {Q_set} is used instead of Qs={Qs}")
+        Qs = Q_set
     # Try to find best value of Y
     Y = find_max_y(space, M, Qs=Qs, starting_Y=Y)
+    Y = tuple([RealField(prec)(y) for y in Y])
     # We try with given Y and if it doesn't work we keep decreasing Y until it does.
     try:
         zpb, zm = get_pb_pts(space, Qs, ideala, Y, use_symmetry=use_symmetry, use_shift=use_shift,
-                             prec=CF.prec())
+                             prec=prec)
     except ArithmeticError as e:
         msg = f"Could not find good pullback points. Error: {e}"
         log.debug(msg)
@@ -63,11 +73,38 @@ def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFrac
                use_shift: bool = False) -> tuple:
     """
     Get the list of points in the scaled lattice together with the corresponding pullbacks.
+
+    INPUT:
+
+    - ``space`` -- Hilbert Maass form space
+    - ``Q`` -- tuple of integers
+    - ``ideala`` -- ideal
+    - ``Y`` -- tuple of integers
+    - ``prec`` -- precision
+    - ``check`` -- if True, check that the points are in the lattice
+    - ``use_symmetry`` -- if True, use symmetry
+    - ``use_shift`` -- if True, use shift
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.modform.compute_coefficients import get_pb_pts
+        sage: space = HilbertMaassFormSpace(QuadraticField(5))
+        sage: zpb, zm, Qs, M, Y = get_pb_pts(space, (1,1), space.number_field().ideal(1),
+        ....:     (0.55,0.55))
+        None
+        sage: RF = RealField(103)
+        sage: zpb, zm, Qs, M, Y = get_pb_pts(space, (1,), space.number_field().ideal(1),
+        ....:   (RF(0.55), RF(0.55)), prec=103)
+        sage: len(zpb) == len(zm) == 2
+        sage: zm[0].prec()
+        103
+        sage: zpb[0][0].prec()
+        103
     """
     P = space.pullback()
     n = P.number_field().degree()
-    CF = RealField(prec+10)
-    ideala_matrix = matrix(P.basis_matrix_ideal(ideala))
+    CF = RealField(prec)
+    ideala_matrix = matrix(P.basis_matrix_ideal(ideala, prec=prec))
     basis_matrix_m = ideala_matrix * diagonal_matrix([CF(1) / CF(2 * q) for q in Q])
     if use_symmetry:
         Q_combination = [range(1, Q[0] + 1)] + [range(1 - q, q + 1) for q in Q[1:]]
@@ -85,7 +122,7 @@ def get_pb_pts(space: 'HilbertMaassFormSpace', Q: tuple, ideala: NumberFieldFrac
             xm = basis_matrix_m * (vector(m) - half_vector)
         else:
             xm = basis_matrix_m * vector(m)
-        zm_elt = UpperHalfPlaneProductElement([(xm[i], Y[i]) for i in range(n)])
+        zm_elt = UpperHalfPlaneProductElement([(xm[i], Y[i]) for i in range(n)], prec=prec)
         zm.append(zm_elt)
         pbpt = P.reduce(zm_elt)
         if check and any(y <= Y[i] for i, y in enumerate(pbpt.imag())):
@@ -100,6 +137,7 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
                          idealb: NumberFieldFractionalIdeal = None,
                          M: tuple[Integer_t] = None,
                          Y: tuple[float | RealNumber] = None,
+                         Q: tuple[Integer_t] = None,
                          returnV: bool = False,
                          set_coefficients: dict = None,
                          use_shift: bool = False,
@@ -132,14 +170,14 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
         sage: X[(1,1)] == 1
         True
         sage: X[(1,0)] # tol 1e-10
-        0.00654975205802000 + 0.00184390378622509*I
+        0.00668105443812956 + 0.000984857618044578*I
         sage: X = compute_coefficients(H, s, Y=(0.32, 0.32),M = 2, use_shift=True)
         sage: X[(0,0)] == 0
         True
         sage: X[(1,1)] == 1
         True
         sage: X[(1,0)] # abs tol 1e-10
-        0.0108081473409434 + 4.77227326182247e-19*I
+        0.0101057799420066 - 2.31806971807535e-19*I
         sage: s = CC(0.5, 4.893781291438), CC(0.5, 4.893781291438)
         sage: H = HilbertMaassFormSpace(QuadraticField(5), cuspidal=True)
         sage: X = compute_coefficients(H, s, Y=(0.55, 0.55),M = 5); X
@@ -169,8 +207,10 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
     ideala = ideala or space.number_field().ideal(1)
     idealb = idealb or space.number_field().ideal(1)
     smax = max(ceil(abs(s0)) for s0 in spectral_parameter)
+    prec = complex_field.precision()
     zpb, zm, Qs, M, Y = get_pb_pts_set_params(space, smax=smax,
-                                              M=M, Y=Y, ideala=ideala,
+                                              M=M, Y=Y, Q_set=Q, ideala=ideala,
+                                              prec=prec,
                                               use_shift=use_shift)
     log.debug(f"M = {M}, Y = {Y}, Qs = {Qs}")
     use_iR = all(real(s - 0.5) == 0 for s in spectral_parameter)
@@ -281,6 +321,10 @@ def setup_matrix(space: 'HilbertMaassFormSpace',
     xms = [zmi.real() for zmi in zm]
     xpbs = [zpbi.real() for zpbi in zpb]
     ypbs = [zpbi.imag() for zpbi in zpb]
+    if hasattr(spectral_parameter[0], 'parent'):
+        prec = spectral_parameter[0].parent().prec()
+    else:
+        prec = 53
     # Pre-compute dual ideal elements
     dual_ideal_elements = {
         0: {},
@@ -297,7 +341,7 @@ def setup_matrix(space: 'HilbertMaassFormSpace',
                 bes_values[m][W] = 0
                 continue
             w = dual_ideal_elements[1][W]
-            if n == 2:
+            if n == 2 and prec == 53:
                 bes = bessel_prod_dp2(w[0], w[1], ympb[0], ympb[1],
                                       spectral_parameter[0], spectral_parameter[1],
                                       sgn=0)
@@ -630,17 +674,23 @@ def matrix_element(s: tuple, Q: tuple, v: tuple, w: tuple, zpb_v: list, zm_v: li
         summa += term
     return summa / factor
 
+
 @cached_method()
 def find_max_y(space: 'HilbertMaassFormSpace',
                M: tuple[tuple[Integer_t]],
                Qs: tuple[tuple[Integer_t]] = None,
                starting_Y: tuple[RealNumber] = None,
-               max_iterations: int =100) -> tuple[Real_t]:
+               max_iterations: int = 100) -> tuple[Real_t]:
     """
     Find max allowed Y.
 
     EXAMPLES::
 
+        sage: from hilbert_maass.modform.compute_coefficients import find_max_y
+        sage: from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
+        sage: H = HilbertMaassFormSpace(5)
+        sage: find_max_y(H, ((-1, 1),(-1,1)))
+        (0.55, 0.55)
 
     """
     if not starting_Y:
@@ -660,13 +710,47 @@ def find_max_y(space: 'HilbertMaassFormSpace',
         Qs = get_Q_from_bounds(space.pullback(), M)
     log.debug(f"Trying: {Qs, Y}")
     for i in range(max_iterations):
-        try:
-            for id in space.group().ideal_cusp_representatives():
-                get_pb_pts(space, Qs, id, Y)
-        except ArithmeticError:
-            log.debug("Arithmetic error, trying smaller Y")
-            Y = tuple([y * 0.98 for y in Y])
-        else:
-            log.debug(f"Y={Y} is ok")
-            break
-    return Y
+        ok_all_cusps = True
+        for id in space.group().ideal_cusp_representatives():
+            zp, zm = get_pb_pts(space, Qs, id, Y, check=False)
+            miny = min(min(z.imag()) for z in zp)
+            if miny <= Y[0] + 1e-10:
+                log.debug(f"Y={Y} is too large")
+                Y = (miny * 0.99, ) * len(Y)
+                ok_all_cusps = False
+                break
+        if ok_all_cusps:
+            return Y
+    raise ArithmeticError("Could not find max Y")
+
+
+def error_estimate_lattice_sum(space, M: Integer_t, Y: Real_t = None, Q: Integer_t = 100):
+    """
+    Estimate of the truncated lattice sum.
+
+    INPUT:
+
+    - ``space`` - HilbertMaassFormSpace
+    - ``M`` - integer
+    - ``Y`` - real
+    - ``Q`` -  integer
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.modform.compute_coefficients import error_estimate_lattice_sum
+        sage: from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
+        sage: space = HilbertMaassFormSpace(2)
+        sage: error_estimate_lattice_sum(space, 1) # tol = 1e-2
+        0.059
+        sage: space = HilbertMaassFormSpace(5)
+        sage: error_estimate_lattice_sum(space, 10) # tol = 1e-20
+        2e-21
+    """
+    n = space.number_field().absolute_degree()
+    if not Y:
+        Y = find_max_y(space, M)
+    ideala = space.dual_ideals()[0]
+    coordinates = cartesian_product_from_M(((-Q, Q),) * n)
+    return sum(
+        [(-(vector(dual_ideal_element(x, ideala)) * Y[0]).norm(1) * RR.pi() * 2).exp() for x in coordinates if
+         vector(x).norm(Infinity) >= M])
