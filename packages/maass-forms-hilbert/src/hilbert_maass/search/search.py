@@ -84,6 +84,7 @@ def compute_on_non_circular_grid(space: HilbertMaassFormSpace, grid_limits: tupl
                                  grid_numbers: tuple[Integer_t], prec: Integer_t = 53,
                                  bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
                                  y: tuple[Real_t] | None = None,
+                                 Q: tuple[Integer_t] = None,
                                  num_threads: Integer_t = None,
                                  spectral_symmetry: bool = True,
                                  set_coefficients: dict = None,
@@ -144,7 +145,7 @@ def compute_on_non_circular_grid(space: HilbertMaassFormSpace, grid_limits: tupl
             log.debug(f"Skipping spectral parameter {spectral_parameter}")
             continue
 
-        input_params.append((space, spectral_parameter, bound_m, y,
+        input_params.append((space, spectral_parameter, bound_m, y, Q,
                              set_coefficients, use_database))
     if num_threads is not None:
         os.environ['SAGE_NUM_THREADS'] = str(num_threads)
@@ -153,7 +154,7 @@ def compute_on_non_circular_grid(space: HilbertMaassFormSpace, grid_limits: tupl
     for r in input_params:
         smax = max(smax, max([abs(x) for x in r[1]]))
     for si in range(0, ceil(smax) + 1):
-        get_pb_pts_set_params(space, M=input_params[0][2], Y=y, smax=si)
+        get_pb_pts_set_params(space, M=input_params[0][2], Y=y, Q_set=Q, smax=si)
     return compute_one_spectral_parameter(input_params)
 
 
@@ -211,6 +212,7 @@ def compute_on_circumference_grid(space: HilbertMaassFormSpace,
                                   prec: Integer_t = 53,
                                   bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
                                   y: tuple[Real_t] | None = None,
+                                  Q: tuple[Integer_t] = None,
                                   set_coefficients: dict = None,
                                   num_threads: Integer_t = None,
                                   spectral_symmetry: bool = True,
@@ -273,7 +275,7 @@ def compute_on_circumference_grid(space: HilbertMaassFormSpace,
             log.debug(f"Skipping spectral parameter {spectral_parameter}")
             continue
         log.debug(f"Computing spectral parameter {spectral_parameter}")
-        input_params.append((space, spectral_parameter, bound_m, y,
+        input_params.append((space, spectral_parameter, bound_m, y, Q,
                              set_coefficients, use_database))
     if num_threads is not None:
         os.environ['SAGE_NUM_THREADS'] = str(num_threads)
@@ -281,7 +283,7 @@ def compute_on_circumference_grid(space: HilbertMaassFormSpace,
     for r in input_params:
         smax = max(smax, max([abs(x) for x in r[1]]))
     for si in range(0, ceil(smax) + 1):
-        get_pb_pts_set_params(space, M=input_params[0][2], Y=y, smax=si)
+        get_pb_pts_set_params(space, M=input_params[0][2], Y=y, Q_set=Q, smax=si)
     return compute_one_spectral_parameter(input_params)
 
 
@@ -290,6 +292,7 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
                                    spectral_parameter: tuple[Complex_t],
                                    bound_m: tuple[tuple[Integer_t]] | Integer_t,
                                    y: tuple[Real_t] | None = None,
+                                   Q: tuple[Integer_t] = None,
                                    set_coefficients: dict = None,
                                    use_database: bool = True):
     """
@@ -333,7 +336,7 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
         maass_form = HilbertMaassForm(space, spectral_parameter)
     if not maass_form.coefficients():
         maass_form.compute_coefficients(M=bound_m, set_coefficients=set_coefficients,
-                                        Y=y)
+                                        Y=y, Q=Q)
         if use_database:
             insert_object(maass_form)
         log.debug(f"Computed Hilbert Maass form for s={spectral_parameter}")
