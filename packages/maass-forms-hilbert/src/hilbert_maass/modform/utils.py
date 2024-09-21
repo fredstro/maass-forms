@@ -59,17 +59,11 @@ def length_from_M(M: tuple[tuple[Integer_t]]) -> int:
     return prod([m0[1] - m0[0] + 1 for m0 in M])
 
 
-def get_Q_from_bounds(P: HilbertPullback, M: tuple[tuple[Integer_t]]) -> tuple:
+def get_Q_from_bounds(M: tuple[tuple[Integer_t]]) -> tuple:
     """
     Find a bounding box for the cube [-M1,M1]x[-M2,M2],... for the integer coordinates correponding to the box [-b,b]^n in the lattice.
     """
-    C = 1
-    for ida in P.group().ideal_cusp_representatives():
-        t = matrix(P.basis_matrix_ideal(ida)).transpose().norm(Infinity)
-        if t > C:
-            C = t
-    C = ceil(C)
-    C = C * (max(max(abs(b0), abs(b1)) for b0, b1 in M)+1)
+    C = (max(max(abs(b0), abs(b1)) for b0, b1 in M) + 2)
     return (C,) * len(M)
 
 

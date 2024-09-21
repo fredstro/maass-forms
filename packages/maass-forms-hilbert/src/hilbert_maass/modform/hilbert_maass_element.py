@@ -273,6 +273,7 @@ class HilbertMaassForm_Element(ModuleElement):
                              idealb: NumberFieldFractionalIdeal = None,
                              M: tuple[tuple[Integer_t]] = None,
                              Y: tuple = None,
+                             Q: tuple = None,
                              set_coefficients: dict = None,
                              prec: int = 53,
                              sgn: str = '-',
@@ -301,9 +302,9 @@ class HilbertMaassForm_Element(ModuleElement):
             ...
             TypeError: HilbertMaassForm() missing 1 required positional argument: 'spectral...
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
-            sage: C = F.compute_coefficients(spectral_parameter, M = (-1,1))
+            sage: C = F.compute_coefficients(spectral_parameter, M = (-1,1), Q=(10,10))
             sage: C[(0,0)] # abs tol 1e-10
-            0.245812923865781 - 0.592627771502401*I
+            0.245523867043680 - 0.593475166148685*I
             sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
             sage: C = F.compute_coefficients(spectral_parameter, M = (-3,3)) # long time (100s)
             sage: C[(0,0)] # abs tol 1e-10 # long time (100s)
@@ -320,6 +321,7 @@ class HilbertMaassForm_Element(ModuleElement):
                                  idealb=idealb,
                                  M=M,
                                  Y=Y,
+                                 Q=Q,
                                  set_coefficients=set_coefficients
                                  )
         self._coefficients = C
