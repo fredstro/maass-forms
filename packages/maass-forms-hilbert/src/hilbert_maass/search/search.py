@@ -328,14 +328,14 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
                 spectral_parameter=spectral_parameter,
                 bound_m=bound_m,
                 set_coefficients=set_coefficients,
-                y=y)
+                y=y, q=Q)
             maass_form = load_object(maass_form_db)
         except mongoengine.connection.ConnectionFailure:
             log.warning(f"Could not connect to database. Compute locally only")
     if not maass_form:
         maass_form = HilbertMaassForm(space, spectral_parameter)
     if not maass_form.coefficients():
-        maass_form.compute_coefficients(M=bound_m, set_coefficients=set_coefficients,
+        maass_form.compute_coefficients(s=spectral_parameter, M=bound_m, set_coefficients=set_coefficients,
                                         Y=y, Q=Q)
         if use_database:
             insert_object(maass_form)

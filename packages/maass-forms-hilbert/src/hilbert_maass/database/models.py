@@ -142,6 +142,31 @@ class HilbertMaassformQuerySet(QuerySetCompat):
             ]
         return self(__raw__={"$and": conditions}).order_by('-max_m')
 
+    def with_q_precision(self, q: tuple[Integer_t] = None) -> QuerySet:
+        """
+        Find HilbertMaassFormsDB objects with coefficient associted to Q.
+
+        INPUT:
+
+            queryset:
+            min_m:
+
+
+        """
+        if not q:
+            return self
+        conditions = [
+                {
+                    f"coefficients.Q.{i}": {
+                        "$lte": int(q[i]),
+                        "$gte": int(q[i])
+                    }
+                }
+            for i in range(len(q))
+            ]
+        return self(__raw__={"$and": conditions})
+
+
     def with_y_precision(self, y: tuple[Real_t] = None, eps: Real_t = 1e-15) -> QuerySet:
         """
         Find HilbertMaassFormsDB objects with coefficient precision bounded by m_bound.
@@ -195,6 +220,7 @@ class HilbertMaassFormDB(DBObjectBase):
     # coressponding to r-values, only used for cusp forms
     r_values = me.ListField(me.FloatField())
     y_values = me.ListField(me.FloatField())
+    q_values = me.ListField(me.IntField())
     # Describe which coefficients has been set in the normalisation
     set_coefficients = me.DictField()
     coefficients = me.DictField()
@@ -231,6 +257,8 @@ class HilbertMaassFormDB(DBObjectBase):
             self.y_values = [float(y) for y in self.coefficients['Y']]
         if not self.max_m and self.coefficients:
             self.max_m = max(max(m) for m in self.coefficients['M'])
+        if not self.q_values and self.coefficients:
+            self.q_values = [int(q) for q in self.coefficients['Q']]
         super(HilbertMaassFormDB, self).save(**kwargs)
 
     def __str__(self, *args: P.args, **kwargs: P.kwargs) -> str:
@@ -257,6 +285,7 @@ class HilbertMaassFormDB(DBObjectBase):
                        max_distance: Real_t=1e-15,
                        bound_m: tuple[Integer_t] = None,
                        y: tuple[Real_t] = None,
+                       q: tuple[Integer_t] = None,
                        set_coefficients: dict = None) -> 'HilbertMaassFormDB':
         """
         Find or create HilbertMaassFormsDB objects near the given spectral parameter.
@@ -265,11 +294,11 @@ class HilbertMaassFormDB(DBObjectBase):
             parent = parent.to_json()
         maass_form_db = cls.objects(parent=parent).near(spectral_parameter,
                                                         max_distance=max_distance)\
-            .with_m_precision(bound_m).with_y_precision(y).with_set_coefficients(set_coefficients).first()
+            .with_m_precision(bound_m).with_y_precision(y).with_q_precision(q).with_set_coefficients(set_coefficients).first()
         if not maass_form_db:
             log.debug(f"Compute for s,m,y={spectral_parameter, bound_m, y}")
             space = HilbertMaassFormSpace.from_json(parent)
             maass_form = HilbertMaassForm(space, spectral_parameter)
-            maass_form.compute_coefficients(M=bound_m, Y=y, set_coefficients=set_coefficients)
+            maass_form.compute_coefficients(M=bound_m, Y=y, Q=q, set_coefficients=set_coefficients)
             maass_form_db = insert_object(maass_form)
         return maass_form_db

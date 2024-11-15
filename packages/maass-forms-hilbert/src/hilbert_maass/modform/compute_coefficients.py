@@ -320,7 +320,7 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
     return HilbertMaassCoefficients(X, M, spectral_parameter=spectral_parameter,
                                     space=space, coordinate_ideals=space.dual_ideals(),
                                     set_coefficients=set_coefficients_used,
-                                    Y=Y)
+                                    Y=Y, Q=Qs)
 
 
 def setup_matrix(space: 'HilbertMaassFormSpace',
@@ -767,56 +767,3 @@ def error_estimate_lattice_sum(space, M: Integer_t, Y: Real_t = None, Q: Integer
     return sum(
         [(-(vector(dual_ideal_element(x, ideala)) * Y[0]).norm(1) * RR.pi() * 2).exp() for x in coordinates if
          vector(x).norm(Infinity) >= M])
-
-def tail_sum_Quadratic(d: Integer_t, M: Integer_t, Y: Real_t, prec: Integer_t = 108):
-    """
-        Estimate of the truncated lattice sum for Quadratic Field.
-
-        INPUT:
-
-        - ``d`` - positive  integer greater than 1. Associated with Q(sqrt(d))
-        - ``M`` - positive integer
-        - ``Y`` - real
-
-        EXAMPLES::
-
-            sage: from hilbert_maass.modform.compute_coefficients import tail_sum_Quadratic
-            sage: tail_sum_Quadratic(2, 6, 0.31)
-            0.0022626738856987172604506852735540
-            sage: tail_sum_Quadratic(5, 18, 0.55)
-            3.5533827772745264195572751075244e-11
-        """
-    RF = RealField(prec)
-    delta = 2*pi*Y
-    if d % 4 ==1:
-        start1 = int(sqrt(d)*M)+1
-        TS1 = RF(2*(1+sqrt(d))*dexponential_sum(delta, M+1)+4/sqrt(d)*dexponential_sum(delta/sqrt(d), start1)
-                 +2*exponential_sum(delta, M+1)+2*exponential_sum(delta/sqrt(d), start1))
-        start2 = int(2*M/(1+sqrt(d)))+1
-        TS2 = RF(2*(1+sqrt(d))*dexponential_sum(delta, start2, M)+
-                 4/sqrt(d)*dexponential_sum(delta/sqrt(d), M, start1-1)
-                 -4*M*exponential_sum(delta, start2, M)+2*exponential_sum(delta/sqrt(d), M, start1-1))
-        TS = TS1+TS2
-    else:
-        TS1 = RF(4*sqrt(d)*dexponential_sum(delta, M+1)+4/sqrt(d)*dexponential_sum(delta/sqrt(d), M+1)+
-                 2*exponential_sum(delta, M+1)+2*exponential_sum(delta/sqrt(d), M+1))
-        start = int(M/sqrt(d))+1
-        TS2 = RF(4*sqrt(d)*dexponential_sum(delta, start, M)-4*M*exponential_sum(delta, start, M))
-        TS = TS1+TS2
-    return TS
-
-def exponential_sum(x: Real_t, start: Integer_t, end: Integer_t = None, prec: Integer_t = 108):
-    RF = RealField(prec)
-    if end == None:
-        return RF(exp(-x*start)/(1-exp(-x)))
-    else:
-        return RF((exp(-x*start)*(1-exp(-x*(end-start+1))))/(1-exp(-x)))
-
-def dexponential_sum(x: Real_t, start: Integer_t, end: Integer_t = None, prec: Integer_t = 108):
-    RF = RealField(prec)
-    if end == None:
-        return RF((start*exp(-x*start)*(1-exp(-x))+exp(-x)*exp(-x*start))/(1-exp(-x))**2)
-    else:
-        return RF(((start*exp(-x*start)*(1-exp(-x*(end-start+1)))
-                    -(start-end+1)*exp(-x*start)*exp(-x*(end-start+1)))*(1-exp(-x))
-                   -exp(-x)*exp(-x*start)*(1-exp(-x*(end-start+1))))/(1-exp(-x))**2)
