@@ -1,26 +1,19 @@
 import json
-
-from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement
 from sage.matrix.constructor import matrix
-from sage.modules.free_module_element import vector
 from sage.rings.complex_mpfr import ComplexNumber, ComplexField
-from sage.rings.real_mpfr import RealField, RealNumber
+from sage.rings.real_mpfr import RealField
 from typing import ParamSpec
 
 import logging
 from hilbert_maass.modform.utils import ideal_coordinates, map_tuple_to_int, map_int_to_tuple
-from sage.misc.cachefunc import cached_method
 from sage.rings.integer import Integer
 from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
-from sage.structure.element import Matrix, ModuleElement
+from sage.structure.element import Matrix
 from sage.structure.sage_object import SageObject
-
-from ..functions.functions import bessel_prod
-
-from .utils import Integer_t, length_from_M, dual_ideal_element, \
+from .utils import Integer_t, length_from_M, \
     complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal, ideal_generator, \
-    Complex_t, coefficient_dict_to_json, coefficient_dict_from_json, mongo_cache
+    Complex_t, coefficient_dict_to_json, coefficient_dict_from_json
 
 P = ParamSpec('P')
 log = logging.getLogger(__name__)
@@ -35,6 +28,7 @@ class HilbertMaassCoefficients(SageObject):
                  M: tuple[Integer_t | tuple[Integer_t]],
                  spectral_parameter: tuple[Complex_t | Real_t],
                  space: 'HilbertMaassFormSpace', Y: tuple[Real_t] = None,
+                 Q: tuple[Integer_t] = None,
                  coordinate_ideals: tuple[NumberFieldFractionalIdeal] = None,
                  set_coefficients: dict = None,
                  index_tuples: list[list] = None,
@@ -48,6 +42,7 @@ class HilbertMaassCoefficients(SageObject):
         - ``coefficients`` -- matrix of coefficients
         - ``M`` -- tuple of integers giving the limits used to map the indices of the matrix to tuples
         - ``spectral_parameter`` -- tuple of complex or real numbers
+        - `` Q`` - tuple of positive intgers. >= M+2
         - ``space`` -- Hilbert Maass form space
         - ``coordinate_ideals`` -- list of fractional ideals indexing the different components
         - ``check`` -- boolean, if True, check that the coefficients are of the correct dimension.
@@ -59,7 +54,7 @@ class HilbertMaassCoefficients(SageObject):
             sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
             sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
-            sage: Cmat = Matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
+            sage: Cmat = matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
             sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H); C
             Coefficients of a Hilbert Maass form with M=((-1, 1), (-1, 1)) and 1 cusp
 
@@ -88,6 +83,7 @@ class HilbertMaassCoefficients(SageObject):
         self._coefficients.set_immutable()
         self._set_coefficients = set_coefficients
         self._M = M
+        self._Q = Q
         self._spectral_parameter = spectral_parameter
         self._space = space
         self._Y = Y or tuple()
@@ -115,14 +111,16 @@ class HilbertMaassCoefficients(SageObject):
                 sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
                 sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
                 sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
-                sage: Y = (1.0,1.0)
-                sage: Cmat = Matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
-                sage: set_coefficients = {(0,0): 0, (0,1): 1}
-                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H, Y,
-                ....:   set_coefficients=set_coefficients)
+                sage: Y = (0.5, 0.5)
+                sage: Q = (3, 3)
+                sage: Cmat = matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
+                sage: set_coefficients = {(0, 0): 0, (0, 1): 1}
+                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter,
+                ....: H,  Y, Q, set_coefficients=set_coefficients)
                 sage: C.to_json()
                 {'M': ((-1, 1), (-1, 1)),
-                 'Y': (1.0, 1.0),
+                 'Q': (3, 3),
+                 'Y': (0.5, 0.5),
                  'coefficients': [['1.00000000000000'],
                   ['2.00000000000000'],
                   ['3.00000000000000'],
@@ -132,15 +130,15 @@ class HilbertMaassCoefficients(SageObject):
                   ['7.00000000000000'],
                   ['8.00000000000000'],
                   ['9.00000000000000']],
-                  'index_tuples': None,
-                  'prec': 53,
-                  'set_coefficients': {'[0, 0]': {'prec': 53, 'val': '0.000000000000000'},
-                                       '[0, 1]': {'prec': 53, 'val': '1.00000000000000'}},
+                 'index_tuples': None,
+                 'prec': 53,
+                 'set_coefficients': {'[0, 0]': {'prec': 53, 'val': '0.000000000000000'},
+                  '[0, 1]': {'prec': 53, 'val': '1.00000000000000'}},
                  'space': {'cuspidal': False,
                   'number_field': {'names': ['a'], 'polynomial': 'x^2 - 2'}},
                  'spectral_parameter': [{'prec': 53,
-                         'val': '0.500000000000000 + 1.00000000000000*I'},
-                        {'prec': 53, 'val': '0.500000000000000 + 1.00000000000000*I'}]}
+                   'val': '0.500000000000000 + 1.00000000000000*I'},
+                  {'prec': 53, 'val': '0.500000000000000 + 1.00000000000000*I'}]}
         """
         return {
             'M': tuple((int(M0[0]), int(M0[1])) for M0 in self._M),
@@ -150,7 +148,8 @@ class HilbertMaassCoefficients(SageObject):
             'set_coefficients': coefficient_dict_to_json(self._set_coefficients),
             'space': self._space.to_json(),
             'index_tuples': self._index_tuples,
-            'Y': tuple(float(y) for y in self._Y)
+            'Y': tuple(float(y) for y in self._Y),
+            'Q': tuple(int(q) for q in self._Q)
         }
 
     @classmethod
@@ -164,10 +163,11 @@ class HilbertMaassCoefficients(SageObject):
                 sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
                 sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
                 sage: Y = (0.5, 0.5)
-                sage: Cmat = Matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
-                sage: set_coefficients = {(0,0): 0, (0,1): 1}
-                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H, Y,
-                ....:   set_coefficients=set_coefficients)
+                sage: Q = (3, 3)
+                sage: Cmat = matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
+                sage: set_coefficients = {(0, 0): 0, (0, 1): 1}
+                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter,
+                ....: H,  Y, Q, set_coefficients=set_coefficients)
                 sage: HilbertMaassCoefficients.from_json(C.to_json()) == C
                 True
                 sage: import json
@@ -178,7 +178,7 @@ class HilbertMaassCoefficients(SageObject):
         """
         if isinstance(data, str):
             data = json.loads(data)
-        existing_keys = {'prec', 'coefficients', 'M', 'Y', 'spectral_parameter', 'index_tuples',
+        existing_keys = {'prec', 'coefficients', 'M', 'Y', 'Q', 'spectral_parameter', 'index_tuples',
             'space', 'set_coefficients'}
         if existing_keys.difference(data.keys()) not in [set({}), {'index_tuples'}]:
             raise ValueError("Not a valid JSON representation of HilbertMaassCoefficients")
@@ -187,18 +187,20 @@ class HilbertMaassCoefficients(SageObject):
         from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
         M = tuple(tuple(x) for x in data['M'])
         Y = tuple(RealField(data['prec'])(x) for x in data['Y'])
+        Q = tuple(x for x in data['Q'])
         return cls(
             coefficients, M=M,
             spectral_parameter=complex_tuple_from_json(data['spectral_parameter']),
             space=HilbertMaassFormSpace.from_json(data['space']),
             Y=Y,
+            Q=Q,
             set_coefficients=coefficient_dict_from_json(data['set_coefficients']),
             index_tuples=data.get('index_tuples', [])
         )
 
     def __hash__(self):
         self._coefficients.set_immutable()
-        return hash((self._coefficients, self._Y, self._M, str(self._index_tuples),
+        return hash((self._coefficients, self._Y, self._Q, self._M, str(self._index_tuples),
                      self._spectral_parameter, self._space,
                      str(self._set_coefficients)))
 
@@ -207,7 +209,8 @@ class HilbertMaassCoefficients(SageObject):
 
     def Y(self):
         return self._Y
-
+    def Q(self):
+        return self._Q
     def space(self):
         return self._space
 
@@ -227,6 +230,7 @@ class HilbertMaassCoefficients(SageObject):
             self.coefficient_matrix() == other.coefficient_matrix() and \
             self.spectral_parameter() == other.spectral_parameter() and \
             self._Y == other._Y and \
+            self._Q == other._Q and \
             self._M == other._M and \
             self._set_coefficients == other._set_coefficients
 
@@ -239,7 +243,7 @@ class HilbertMaassCoefficients(SageObject):
             sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
             sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
-            sage: Cmat = Matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
+            sage: Cmat = matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
             sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H)
             sage: C.__repr__()
             'Coefficients of a Hilbert Maass form with M=((-1, 1), (-1, 1)) and 1 cusp'
@@ -259,7 +263,7 @@ class HilbertMaassCoefficients(SageObject):
             sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
             sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
-            sage: Cmat = Matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
+            sage: Cmat = matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
             sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter, H)
             sage: C[0]
             1.00000000000000

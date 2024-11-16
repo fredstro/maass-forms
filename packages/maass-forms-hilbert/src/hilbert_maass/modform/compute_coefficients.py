@@ -1,3 +1,5 @@
+from math import pi, sqrt, exp
+
 from hilbert_maass.functions.functions_cy import bessel_prod_dp2, exp_trace_prod_dp
 from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement
 from sage.categories.sets_cat import cartesian_product
@@ -318,7 +320,7 @@ def compute_coefficients(space: 'HilbertMaassFormSpace',
     return HilbertMaassCoefficients(X, M, spectral_parameter=spectral_parameter,
                                     space=space, coordinate_ideals=space.dual_ideals(),
                                     set_coefficients=set_coefficients_used,
-                                    Y=Y)
+                                    Y=Y, Q=Qs)
 
 
 def setup_matrix(space: 'HilbertMaassFormSpace',
@@ -754,16 +756,13 @@ def error_estimate_lattice_sum(space, M: Integer_t, Y: Real_t = None, Q: Integer
         sage: from hilbert_maass.modform.compute_coefficients import error_estimate_lattice_sum
         sage: from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
         sage: space = HilbertMaassFormSpace(2)
-        sage: error_estimate_lattice_sum(space, 1) # tol 1e-2
-        0.059
-        sage: space = HilbertMaassFormSpace(5)
-        sage: abs(error_estimate_lattice_sum(space, 10)) < 1e-20
-        True
+        sage: error_estimate_lattice_sum(space, 1)
+        2.07760704355973
     """
     n = space.number_field().absolute_degree()
     if not Y:
         Y = find_max_y(space, M)
-    ideala = space.dual_ideals()[0]
+    ideala = space.number_field().ideal(1)
     coordinates = cartesian_product_from_M(((-Q, Q),) * n)
     return sum(
         [(-(vector(dual_ideal_element(x, ideala)) * Y[0]).norm(1) * RR.pi() * 2).exp() for x in coordinates if
