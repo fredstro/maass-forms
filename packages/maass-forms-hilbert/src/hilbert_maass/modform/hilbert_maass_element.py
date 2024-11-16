@@ -226,6 +226,7 @@ class HilbertMaassForm_Element(ModuleElement):
         coeffs = HilbertMaassCoefficients(matrix(coefficients),
                                           M=self.coefficients().M(),
                                           Y=self.coefficients().Y(),
+                                          Q=self.coefficients().Q(),
                                           spectral_parameter=self.spectral_parameter(),
                                           space=self.parent(),
                                           coordinate_ideals=self.coefficients().coordinate_ideals(),
@@ -257,6 +258,7 @@ class HilbertMaassForm_Element(ModuleElement):
         coeffs = HilbertMaassCoefficients(matrix(coefficients),
                                           M=self.coefficients().M(),
                                           Y=self.coefficients().Y(),
+                                          Q=self.coefficients().Q(),
                                           spectral_parameter=self.spectral_parameter(),
                                           space=self.parent(),
                                           coordinate_ideals=self.coefficients().coordinate_ideals(),
@@ -301,7 +303,7 @@ class HilbertMaassForm_Element(ModuleElement):
             Traceback (most recent call last):
             ...
             TypeError: HilbertMaassForm() missing 1 required positional argument: 'spectral...
-            sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
+            sage: F = F
             sage: C = F.compute_coefficients(spectral_parameter, M = (-1,1), Q=(10,10))
             sage: C[(0,0)] # abs tol 1e-10
             0.245523867043680 - 0.593475166148685*I
@@ -453,4 +455,3 @@ def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or 
         space = HilbertMaassFormSpace(group, **kwargs)
     return HilbertMaassForm_Element(space, spectral_parameter=spectral_parameter,
                                     coefficients=coefficients)
-
