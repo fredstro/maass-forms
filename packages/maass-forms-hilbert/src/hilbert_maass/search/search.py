@@ -176,13 +176,20 @@ def create_grid_on_circumference_from_r1_to_r2(r1: Real_t,
 
        EXAMPLES::
        sage: from hilbert_maass.search.search import create_grid_on_circumference_from_r1_to_r2
-       sage: grid_points=create_grid_on_circumference_from_r1_to_r2(r1=0.3, r2=0.4, min_distance=0.1)
-       sage: grid_points
+       sage: create_grid_on_circumference_from_r1_to_r2(r1=0.3, r2=0.4, min_distance=0.1)
        [(0.300000000000000, 0.000000000000000),
         (0.294235584120969, 0.0585270966048385),
         (0.277163859753386, 0.114805029709527),
         (0.249440883690764, 0.166671069905881),
         (0.212132034355964, 0.212132034355964)]
+       sage: grid_points = create_grid_on_circumference_from_r1_to_r2(0, 1)
+       sage: len(grid_points)
+       7855
+       sage: create_grid_on_circumference_from_r1_to_r2(0, 0.2, 0.1)
+       [(0, 0),
+        (0.200000000000000, 0.000000000000000),
+        (0.184775906502257, 0.0765366864730180),
+        (0.141421356237310, 0.141421356237310)]
 
      """
 
@@ -533,6 +540,11 @@ def sorting(pts: list, prec=53):
     Example::
     sage: from hilbert_maass.search.search import sorting
     sage: cx = [(0.1, 0.5), (0.1001, 0.50001)]
+
+    The sage command given below are the continuation of the sage command  in the docstring of the function
+    broyden_iteration()
+
+    sage: from hilbert_maass.search.search import sorting
     sage: sorting(cx)
     [(0.100100000000000, 0.500010000000000)]
     """
@@ -554,9 +566,11 @@ def distance_between_points_two(point1: tuple, point2: tuple, prec=53):
     INPUT:
         - ``point1`` -- tuple of Real Number
         - ``point2`` -- tuple of Real Number
-    sage: from hilbert_maass.search.search import distance_between_points_two
-    sage: distance_between_points_two((5.29138359828915, 3.66832128742010),(5.29138359828915, 3.66832128742007))
-    (2.97539770599542e-14, -1.57079632679490)
+
+    EXAMPLES::
+        sage: from hilbert_maass.search.search import distance_between_points_two
+        sage: distance_between_points_two((5.29138359828915, 3.66832128742010),(5.29138359828915, 3.66832128742007))
+        (2.97539770599542e-14, -1.57079632679490)
     """
     x1, y1 = point1
     x2, y2 = point2

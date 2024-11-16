@@ -38,7 +38,8 @@ extra_compile_args = ['-Wno-unused-function',
                       '-Wno-deprecated-declarations',
                       '-Wno-deprecated-register',
                       '-Wno-unreachable-code',
-                      '-Wno-unreachable-code-fallthrough']
+                      '-Wno-unreachable-code-fallthrough',
+                      ]
 ext_modules = [
     Extension('hilbert_maass.functions.bessel.besselk_dp',
               ['src/hilbert_maass/functions/bessel/besselk_dp.pyx'],
