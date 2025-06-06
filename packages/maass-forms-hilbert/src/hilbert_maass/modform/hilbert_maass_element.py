@@ -2,6 +2,7 @@
 Classes For Hilbert-Maass forms
 
 """
+
 import json
 import logging
 from copy import copy, deepcopy
@@ -13,6 +14,7 @@ from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement__clas
 from matplotlib import pyplot as plt
 from sage.all import CC
 from sage.arith.srange import xsrange
+
 # from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from sage.functions.other import real, imag
 from sage.matrix.constructor import matrix
@@ -26,25 +28,34 @@ from sage.structure.element import ModuleElement, Matrix
 
 from .coefficients import HilbertMaassCoefficients
 from .compute_coefficients import compute_coefficients
-from hilbert_maass.modform.utils import Integer_t, complex_tuple_to_json, cartesian_product_from_M, \
-    Complex_t, Real_t, ideal_coordinates
+from hilbert_maass.modform.utils import (
+    Integer_t,
+    complex_tuple_to_json,
+    cartesian_product_from_M,
+    Complex_t,
+    Real_t,
+    ideal_coordinates,
+)
 
-P = ParamSpec('P')
+P = ParamSpec("P")
 log = logging.getLogger(__name__)
 
 
 class HilbertMaassForm_Element(ModuleElement):
-
-    def __init__(self, parent: 'HilbertMaassFormSpace',
-                 spectral_parameter: tuple[ComplexNumber | RealNumber_class],
-                 coefficients: Matrix | HilbertMaassCoefficients = None,
-                 **kwargs: P.kwargs) -> None:
+    def __init__(
+        self,
+        parent: "HilbertMaassFormSpace",
+        spectral_parameter: tuple[ComplexNumber | RealNumber_class],
+        coefficients: Matrix | HilbertMaassCoefficients = None,
+        **kwargs: P.kwargs,
+    ) -> None:
         super(HilbertMaassForm_Element, self).__init__(parent, **kwargs)
         self.cuspidal = parent.is_cuspidal()
         self._spectral_parameter = spectral_parameter
         self._number_field = parent.number_field()
-        if hasattr(self._spectral_parameter[0], 'parent') and \
-                hasattr(self._spectral_parameter[0].parent(), 'prec'):
+        if hasattr(self._spectral_parameter[0], "parent") and hasattr(
+            self._spectral_parameter[0].parent(), "prec"
+        ):
             self._complex_field = self._spectral_parameter[0].parent()
         else:
             self._complex_field = ComplexField(prec=53)
@@ -55,19 +66,25 @@ class HilbertMaassForm_Element(ModuleElement):
         elif isinstance(coefficients, HilbertMaassCoefficients):
             self._coefficients = coefficients
         else:
-            self._coefficients = HilbertMaassCoefficients(coefficients, self.parent().group())
+            self._coefficients = HilbertMaassCoefficients(
+                coefficients, self.parent().group()
+            )
 
     def __reduce__(self):
-        return self.__class__, (self.parent(), self.spectral_parameter(), self._coefficients)
+        return self.__class__, (
+            self.parent(),
+            self.spectral_parameter(),
+            self._coefficients,
+        )
 
     def __hash__(self):
-        return hash((self.parent(),
-                    self.spectral_parameter(),
-                    self.coefficients()))
+        return hash((self.parent(), self.spectral_parameter(), self.coefficients()))
 
     def __repr__(self):
-        return f"Hilbert Maass form for {self.parent()} with spectral parameter" \
-               f" {self.spectral_parameter()}"
+        return (
+            f"Hilbert Maass form for {self.parent()} with spectral parameter"
+            f" {self.spectral_parameter()}"
+        )
 
     def to_json(self):
         """
@@ -93,22 +110,26 @@ class HilbertMaassForm_Element(ModuleElement):
             True
         """
         return {
-            'parent': self.parent().to_json(),
-            'spectral_parameter': complex_tuple_to_json(self.spectral_parameter()),
-            'coefficients': self.coefficients().to_json() if self.coefficients() else {}
+            "parent": self.parent().to_json(),
+            "spectral_parameter": complex_tuple_to_json(self.spectral_parameter()),
+            "coefficients": self.coefficients().to_json()
+            if self.coefficients()
+            else {},
         }
 
     @classmethod
     def from_json(cls, data):
         from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
+
         if isinstance(data, str):
             data = json.loads(data)
-        parent = HilbertMaassFormSpace.from_json(data=data['parent'])
-        spectral_parameter = tuple(ComplexField(x['prec'])(x['val'])
-                                   for x in data['spectral_parameter'])
-        if not data['coefficients']:
+        parent = HilbertMaassFormSpace.from_json(data=data["parent"])
+        spectral_parameter = tuple(
+            ComplexField(x["prec"])(x["val"]) for x in data["spectral_parameter"]
+        )
+        if not data["coefficients"]:
             return cls(parent, spectral_parameter)
-        coefficients = HilbertMaassCoefficients.from_json(data['coefficients'])
+        coefficients = HilbertMaassCoefficients.from_json(data["coefficients"])
         return cls(parent, spectral_parameter, coefficients)
 
     def is_cuspidal(self):
@@ -117,9 +138,11 @@ class HilbertMaassForm_Element(ModuleElement):
     def __eq__(self, other):
         if not isinstance(other, HilbertMaassForm_Element):
             return False
-        return self.parent() == other.parent() and \
-            self.spectral_parameter() == other.spectral_parameter() and \
-            self.coefficients() == other.coefficients()
+        return (
+            self.parent() == other.parent()
+            and self.spectral_parameter() == other.spectral_parameter()
+            and self.coefficients() == other.coefficients()
+        )
 
     def __call__(self, z: list | tuple, **kwargs: P.kwargs) -> ComplexNumber:
         if self._coefficients is None:
@@ -157,10 +180,11 @@ class HilbertMaassForm_Element(ModuleElement):
         return self._coefficients
 
     def __mul__(self, other):
-        """
-        """
+        """ """
         if not isinstance(other, (Real_t, Complex_t, Integer_t)):
-            raise ValueError("Multiplication is only defined for real or complex numbers")
+            raise ValueError(
+                "Multiplication is only defined for real or complex numbers"
+            )
         result = copy(self)
         result._coefficients._coefficients = other * result._coefficients._coefficients
         return result
@@ -170,22 +194,26 @@ class HilbertMaassForm_Element(ModuleElement):
         return self.__class__(self.parent(), self._spectral_parameter, coefficients)
 
     def _lmul_(self, other):
-        """
-        """
+        """ """
         if not isinstance(other, (Real_t, Complex_t, Integer_t)):
-            raise ValueError("Multiplication is only defined for real or complex numbers")
+            raise ValueError(
+                "Multiplication is only defined for real or complex numbers"
+            )
         result = copy(self)
         result._coefficients._coefficients = other * result._coefficients._coefficients
         return result
 
     def _add_(self, other):
-        """
-        """
+        """ """
         if not isinstance(other, self.__class__):
-            raise ValueError("Addition is only defined for HilbertMaassForms_Elements objects")
+            raise ValueError(
+                "Addition is only defined for HilbertMaassForms_Elements objects"
+            )
         if other.parent() != self.parent():
-            raise ValueError("Addition is only defined for HilbertMaassForms_Elements objects "
-                             "with the same parent")
+            raise ValueError(
+                "Addition is only defined for HilbertMaassForms_Elements objects "
+                "with the same parent"
+            )
         # Note that the sum will be supported on the intersection
         # of the indices of the individual forms.
         result = copy(self)
@@ -202,8 +230,7 @@ class HilbertMaassForm_Element(ModuleElement):
         return result
 
     def _sub_(self, other):
-        """
-        """
+        """ """
         return self + other * -1
 
     def galois_conjugate(self, i):
@@ -223,20 +250,21 @@ class HilbertMaassForm_Element(ModuleElement):
             indices_used.append(coordinates_mapped)
             coefficients.append((self._coefficients[k],))
 
-        coeffs = HilbertMaassCoefficients(matrix(coefficients),
-                                          M=self.coefficients().M(),
-                                          Y=self.coefficients().Y(),
-                                          Q=self.coefficients().Q(),
-                                          spectral_parameter=self.spectral_parameter(),
-                                          space=self.parent(),
-                                          coordinate_ideals=self.coefficients().coordinate_ideals(),
-                                          set_coefficients=self.coefficients().set_coefficients(),
-                                          index_tuples=[indices_used],
-                                          check=False)
-        return HilbertMaassForm(self.parent(),
-                                self.spectral_parameter(),
-                                coefficients=coeffs)
-
+        coeffs = HilbertMaassCoefficients(
+            matrix(coefficients),
+            M=self.coefficients().M(),
+            Y=self.coefficients().Y(),
+            Q=self.coefficients().Q(),
+            spectral_parameter=self.spectral_parameter(),
+            space=self.parent(),
+            coordinate_ideals=self.coefficients().coordinate_ideals(),
+            set_coefficients=self.coefficients().set_coefficients(),
+            index_tuples=[indices_used],
+            check=False,
+        )
+        return HilbertMaassForm(
+            self.parent(), self.spectral_parameter(), coefficients=coeffs
+        )
 
     def action_by_unit(self, u):
         r"""
@@ -255,31 +283,35 @@ class HilbertMaassForm_Element(ModuleElement):
             indices_used.append(coordinates_mapped)
             coefficients.append((self._coefficients[k],))
 
-        coeffs = HilbertMaassCoefficients(matrix(coefficients),
-                                          M=self.coefficients().M(),
-                                          Y=self.coefficients().Y(),
-                                          Q=self.coefficients().Q(),
-                                          spectral_parameter=self.spectral_parameter(),
-                                          space=self.parent(),
-                                          coordinate_ideals=self.coefficients().coordinate_ideals(),
-                                          set_coefficients=self.coefficients().set_coefficients(),
-                                          index_tuples=[indices_used],
-                                          check=False)
-        return HilbertMaassForm(self.parent(),
-                                self.spectral_parameter(),
-                                coefficients=coeffs)
+        coeffs = HilbertMaassCoefficients(
+            matrix(coefficients),
+            M=self.coefficients().M(),
+            Y=self.coefficients().Y(),
+            Q=self.coefficients().Q(),
+            spectral_parameter=self.spectral_parameter(),
+            space=self.parent(),
+            coordinate_ideals=self.coefficients().coordinate_ideals(),
+            set_coefficients=self.coefficients().set_coefficients(),
+            index_tuples=[indices_used],
+            check=False,
+        )
+        return HilbertMaassForm(
+            self.parent(), self.spectral_parameter(), coefficients=coeffs
+        )
 
-
-    def compute_coefficients(self, s: tuple = None,
-                             ideala: NumberFieldFractionalIdeal = None,
-                             idealb: NumberFieldFractionalIdeal = None,
-                             M: tuple[tuple[Integer_t]] = None,
-                             Y: tuple = None,
-                             Q: tuple = None,
-                             set_coefficients: dict = None,
-                             prec: int = 53,
-                             sgn: str = '-',
-                             returnV: bool = False) -> 'HilbertMaassCoefficients' or tuple:
+    def compute_coefficients(
+        self,
+        s: tuple = None,
+        ideala: NumberFieldFractionalIdeal = None,
+        idealb: NumberFieldFractionalIdeal = None,
+        M: tuple[tuple[Integer_t]] = None,
+        Y: tuple = None,
+        Q: tuple = None,
+        set_coefficients: dict = None,
+        prec: int = 53,
+        sgn: str = "-",
+        returnV: bool = False,
+    ) -> "HilbertMaassCoefficients" or tuple:
         r"""
 
         INPUT:
@@ -310,24 +342,32 @@ class HilbertMaassForm_Element(ModuleElement):
         """
         s = s or self.spectral_parameter()
         if not s:
-            raise ValueError("Spectral parameter must be set in the HilbertMaassForm or "
-                             "passed as parameter")
-        C = compute_coefficients(space=self.parent(),
-                                 spectral_parameter=s,
-                                 ideala=ideala,
-                                 idealb=idealb,
-                                 M=M,
-                                 Y=Y,
-                                 Q=Q,
-                                 set_coefficients=set_coefficients
-                                 )
+            raise ValueError(
+                "Spectral parameter must be set in the HilbertMaassForm or "
+                "passed as parameter"
+            )
+        C = compute_coefficients(
+            space=self.parent(),
+            spectral_parameter=s,
+            ideala=ideala,
+            idealb=idealb,
+            M=M,
+            Y=Y,
+            Q=Q,
+            set_coefficients=set_coefficients,
+        )
         self._coefficients = C
         return C
 
-    def animation(self, num_steps: Integer_t = 100,
-                  y_start: Real_t = 0, y_stop: Real_t = 1,
-                  x_start: Real_t = 0, x_stop: Real_t = 0,
-                  **kwargs: P.kwargs) -> Animation:
+    def animation(
+        self,
+        num_steps: Integer_t = 100,
+        y_start: Real_t = 0,
+        y_stop: Real_t = 1,
+        x_start: Real_t = 0,
+        x_stop: Real_t = 0,
+        **kwargs: P.kwargs,
+    ) -> Animation:
         """
         Create an animation of the Hilbert Maass form.
 
@@ -336,11 +376,11 @@ class HilbertMaassForm_Element(ModuleElement):
 
         - kwargs:
         """
-        num_steps = kwargs.get('num_steps', 100)
+        num_steps = kwargs.get("num_steps", 100)
         h = (y_stop - y_start) / num_steps
         glist = []
         for i in range(num_steps):
-            g = self.plot(yset=[y_start + h * (i+1)], **kwargs)
+            g = self.plot(yset=[y_start + h * (i + 1)], **kwargs)
             g.save_image = g.savefig
             glist.append(g)
         return animate(glist)
@@ -387,27 +427,34 @@ class HilbertMaassForm_Element(ModuleElement):
         show_axis = kwargs.get("show_axis", False)
         plot_points_x = kwargs.get("plot_points_x", 50)
         plot_points_y = kwargs.get("plot_points_y", 50)
-        cmap = kwargs.get('cmap', ['jet'])
+        cmap = kwargs.get("cmap", ["jet"])
         # Create grid points
         fixed_zs = [CC(x, y) for x, y in zip(xset, yset)]
 
         def function_to_eval(x, y):
             return abs(self(fixed_zs + [CC(x, y)]))
 
-        g, ranges = setup_for_eval_on_grid([function_to_eval],
-                                           [[xmin, xmax], [ymin, ymax]],
-                                           [plot_points_x, plot_points_y])
+        g, ranges = setup_for_eval_on_grid(
+            [function_to_eval],
+            [[xmin, xmax], [ymin, ymax]],
+            [plot_points_x, plot_points_y],
+        )
         g = g[0]
-        xy_data_array = [[g(x, y) for x in xsrange(*ranges[0], include_endpoint=True)] for y in
-                         xsrange(*ranges[1], include_endpoint=True)]
+        xy_data_array = [
+            [g(x, y) for x in xsrange(*ranges[0], include_endpoint=True)]
+            for y in xsrange(*ranges[1], include_endpoint=True)
+        ]
         res = []
         for cmapi in cmap:
             g = plt.figure(figsize=(xmax - xmin, ymax - ymin))
             ax = g.add_subplot(111)
-            t = ax.imshow(xy_data_array, origin='lower',
-                      cmap=cmapi,
-                      extent=(xmin, xmax, ymin, ymax),
-                      interpolation='catrom')
+            t = ax.imshow(
+                xy_data_array,
+                origin="lower",
+                cmap=cmapi,
+                extent=(xmin, xmax, ymin, ymax),
+                interpolation="catrom",
+            )
             if not show_axis:
                 ax.set_frame_on(False)
                 ax.get_xaxis().set_visible(False)
@@ -418,9 +465,11 @@ class HilbertMaassForm_Element(ModuleElement):
         return res
 
 
-def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or NumberField_class,
-                     spectral_parameter: tuple[ComplexNumber | RealNumber_class],
-                     **kwargs: P.kwargs) -> HilbertMaassForm_Element:
+def HilbertMaassForm(
+    group: "HilbertModularGroup" or "HilbertMaassFormSpace" or NumberField_class,
+    spectral_parameter: tuple[ComplexNumber | RealNumber_class],
+    **kwargs: P.kwargs,
+) -> HilbertMaassForm_Element:
     """
     Create a Hilbert Maass form
 
@@ -443,10 +492,12 @@ def HilbertMaassForm(group: 'HilbertModularGroup' or 'HilbertMaassFormSpace' or 
 
     """
     from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-    coefficients = kwargs.pop('coefficients', None)
+
+    coefficients = kwargs.pop("coefficients", None)
     if isinstance(group, HilbertMaassFormSpace):
         space = group
     else:
         space = HilbertMaassFormSpace(group, **kwargs)
-    return HilbertMaassForm_Element(space, spectral_parameter=spectral_parameter,
-                                    coefficients=coefficients)
+    return HilbertMaassForm_Element(
+        space, spectral_parameter=spectral_parameter, coefficients=coefficients
+    )

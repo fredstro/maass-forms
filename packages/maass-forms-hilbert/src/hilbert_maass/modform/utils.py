@@ -3,9 +3,10 @@ from typing import Iterable, Any
 import logging
 
 from hilbert_modgroup.pullback import HilbertPullback
-from sage.all import ZZ, CC
+from sage.all import CC
 from sage.arith.misc import factor
 from sage.categories.sets_cat import cartesian_product
+from sage.rings.integer_ring import ZZ
 from sage.functions.other import ceil
 from sage.misc.functional import round
 from sage.matrix.constructor import matrix
@@ -23,13 +24,15 @@ from sage.structure.element import Matrix, Vector
 from sage.rings.number_field.unit_group import UnitGroup
 
 try:
-    from comp_manager.decorators import mongo_cache
+    from comp_manager.core.decorators import mongo_cache
 except ModuleNotFoundError:
     # Handle the case when comp_manager is not installed
     def mongo_cache(*args, **kwargs):
         def decorator(func):
             return func
+
         return decorator
+
 
 log = logging.getLogger(__name__)
 # User defined type for either Python int or Sage Integer
@@ -37,18 +40,19 @@ Integer_t = Integer | int
 Real_t = RealNumber_class | float
 Complex_t = ComplexNumber | complex
 
+
 @cached_function
 def cartesian_product_from_M(M: tuple[tuple[Integer_t]]) -> Iterable[Vector]:
-    return [v for v in
-            cartesian_product([range(m0[0], m0[1] + 1) for m0 in M])]
+    return [v for v in cartesian_product([range(m0[0], m0[1] + 1) for m0 in M])]
 
 
 def is_tuple_zero(t: tuple[Integer_t]) -> bool:
     return all(t0 == 0 for t0 in t)
 
+
 def length_from_M(M: tuple[tuple[Integer_t]]) -> int:
     """
-    
+
     INPUT:
 
     - ``M`` -- tuple of tuples of integers
@@ -63,20 +67,21 @@ def get_Q_from_bounds(M: tuple[tuple[Integer_t]]) -> tuple:
     """
     Find a bounding box for the cube [-M1,M1]x[-M2,M2],... for the integer coordinates correponding to the box [-b,b]^n in the lattice.
     """
-    C = (max(max(abs(b0), abs(b1)) for b0, b1 in M) + 2)
+    C = max(max(abs(b0), abs(b1)) for b0, b1 in M) + 2
     return (C,) * len(M)
 
 
 @cached_function
-def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
-                     tuple_len: int = None) -> int:
+def map_tuple_to_int(
+    index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]], tuple_len: int = None
+) -> int:
     r"""
     Map a tuple (a0,a1,...,a[n-1]) with min_i < ai < max_i to an integer
      $\sum_i=0^(n-1) (max_i - min_i + 1)**(n - 1 - i)*(ai - min_i)$
 
     NOTE: This function together with `map_int_to_tuple` provides an isomorphism between
             [min_0,...,max_0] x [min_1,...,max_1] x ... x [min_{n-1},...,max_{n-1}]
-             and [0,...,N] where N = prod(max_i - min_i + 1).
+             and [0,...,N-1] where N = prod(max_i - min_i + 1).
 
     INPUT:
 
@@ -84,9 +89,12 @@ def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
     - ``tuple_limits`` -- tuple of tuples
     - ``tuple_len`` -- integer: number of tuples (default: None) if positive then the tuple_limits
                        are duplicated that number of times.
+
     EXAMPLES::
 
         sage: from hilbert_maass.modform.utils import map_tuple_to_int
+        sage: map_tuple_to_int((0,1), ((-5, 5),(-5,5)), 2)
+        71
         sage: map_tuple_to_int((-1,), ((-1, 1),), 1)
         0
         sage: map_tuple_to_int((-1, -1),((-1, 1),), 2)
@@ -126,24 +134,41 @@ def map_tuple_to_int(index_tuple: tuple, tuple_limits: tuple[tuple[Integer_t]],
     """
     if not isinstance(index_tuple, tuple) or not isinstance(tuple_limits, tuple):
         raise ValueError("Call with tuples!")
-    if len(tuple_limits) == 1 and isinstance(tuple_len, (Integer, int)) and tuple_len > 1:
+    if (
+        len(tuple_limits) == 1
+        and isinstance(tuple_len, (Integer, int))
+        and tuple_len > 1
+    ):
         tuple_limits = tuple_limits * tuple_len
     if len(index_tuple) != len(tuple_limits):
         raise ValueError(f"lengths differ: {len(index_tuple)} != {len(tuple_limits)}")
     if any(x[1] - x[0] + 1 <= 0 for x in tuple_limits):
-        raise ValueError(f"tuple_limits {tuple_limits} do not give positive length intervals")
-    if any(index_tuple[i] < min_tix or index_tuple[i] > max_tix
-           for i, (min_tix, max_tix) in enumerate(tuple_limits)):
+        raise ValueError(
+            f"tuple_limits {tuple_limits} do not give positive length intervals"
+        )
+    if any(
+        index_tuple[i] < min_tix or index_tuple[i] > max_tix
+        for i, (min_tix, max_tix) in enumerate(tuple_limits)
+    ):
         raise IndexError(f"Tuple element {index_tuple} is out of bounds!")
     n = len(index_tuple)
     # Calculate the index of the tuple
-    return int(sum((tuple_limits[i-1][1] - tuple_limits[i-1][0] + 1)**i*(index_tuple[i] - min_tix)
-               for i, (min_tix, max_tix) in enumerate(tuple_limits)))
+    return int(
+        sum(
+            (tuple_limits[i - 1][1] - tuple_limits[i - 1][0] + 1) ** i
+            * (index_tuple[i] - min_tix)
+            for i, (min_tix, max_tix) in enumerate(tuple_limits)
+        )
+    )
 
 
 @cached_function
-def map_int_to_tuple(index: Integer_t, tuple_limits: tuple[tuple[Integer_t]],
-                     tuple_len: Integer_t = None) -> tuple:
+def map_int_to_tuple(
+    index: Integer_t,
+    tuple_limits: tuple[tuple[Integer_t]],
+    tuple_len: Integer_t = None,
+    order: str = "r_l",
+) -> tuple:
     r"""
     Map integer to tuple (the inverse of map_tuple_to_int) by modding recursively
     modulo the lengths of the integer intervals.
@@ -153,7 +178,7 @@ def map_int_to_tuple(index: Integer_t, tuple_limits: tuple[tuple[Integer_t]],
     - ``index`` -- integer
     - ``tuple_limits`` -- tuple of tuples of limits
     - ``tuple_len`` -- integer (number of tuples - duplicates the input tuple_limits)
-
+    - ``order`` -- string: 'l_r' or 'r_l' (default: 'l_r') - If 'l_r' then the tuples run through the first cordinate first
 
     EXAMPLES::
 
@@ -191,19 +216,29 @@ def map_int_to_tuple(index: Integer_t, tuple_limits: tuple[tuple[Integer_t]],
         raise ValueError("Call with tuple!")
     if not isinstance(index, (int, Integer)):
         raise ValueError("Call with integer!")
-    if len(tuple_limits) == 1 and isinstance(tuple_len, (Integer, int)) and tuple_len > 1:
+    if (
+        len(tuple_limits) == 1
+        and isinstance(tuple_len, (Integer, int))
+        and tuple_len > 1
+    ):
         tuple_limits = tuple_limits * tuple_len
     if any(x[1] - x[0] + 1 <= 0 for x in tuple_limits):
-        raise ValueError(f"tuple_limits {tuple_limits} do not give positive length intervals")
+        raise ValueError(
+            f"tuple_limits {tuple_limits} do not give positive length intervals"
+        )
     if index < 0 or index >= prod(x[1] - x[0] + 1 for x in tuple_limits):
         raise IndexError(f"Index {index} is out of bounds!")
     ix_t = []
     for min_tix, max_tix in tuple_limits:
         range_tix = max_tix - min_tix + 1
         t = index % range_tix
-        ix_t.append(t + min_tix)
+        if order == "r_l":
+            ix_t = ix_t + [t + min_tix]
+        else:
+            ix_t = [t + min_tix] + ix_t
         index = (index - t) / range_tix
     return tuple(ix_t)
+
 
 @cached_function()
 def number_field_basis_matrix(number_field: NumberField, prec: int = 53) -> Matrix:
@@ -213,9 +248,7 @@ def number_field_basis_matrix(number_field: NumberField, prec: int = 53) -> Matr
     Note: number_field_basis_matrix(nf, prec)*elt.vector() == elt.complex_embeddings(prec)
     """
     V, f, _ = number_field.vector_space()
-    return matrix([
-        f(b).complex_embeddings(prec) for b in V.basis()
-    ]).transpose()
+    return matrix([f(b).complex_embeddings(prec) for b in V.basis()]).transpose()
 
 
 def ideal_basis_matrix(ideal: NumberFieldFractionalIdeal, prec: int = 53) -> Matrix:
@@ -224,29 +257,32 @@ def ideal_basis_matrix(ideal: NumberFieldFractionalIdeal, prec: int = 53) -> Mat
     :param prec:
     :return:
     """
-    return matrix([
-                   b.complex_embeddings(prec)
-                   for b in ideal.integral_basis()
-                   ]).transpose()
+    return matrix(
+        [b.complex_embeddings(prec) for b in ideal.integral_basis()]
+    ).transpose()
+
 
 @cached_function()
 def dual_ideal(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractionalIdeal:
-    return ideala ** -1 * ideala.number_field().different() ** -1
+    return ideala**-1 * ideala.number_field().different() ** -1
+
 
 @cached_function()
-def dual_ideal_basis_matrix(ideal: NumberFieldFractionalIdeal, prec: int = 53) -> Matrix:
+def dual_ideal_basis_matrix(
+    ideal: NumberFieldFractionalIdeal, prec: int = 53
+) -> Matrix:
     """
     :param number_field:
     :param prec:
     :return:
     """
-    dual = ideal ** -1 * ideal.number_field().different() ** -1
+    dual = ideal**-1 * ideal.number_field().different() ** -1
     return ideal_basis_matrix(dual, prec)
 
 
-def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
-                      element: NumberFieldElement,
-                      check: bool = False):
+def ideal_coordinates(
+    ideala: NumberFieldFractionalIdeal, element: NumberFieldElement, check: bool = False
+):
     """
     Find the coordinates of an ideal element with respect to an integral basis of that element.
 
@@ -261,8 +297,11 @@ def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
         ....:   ideal_coordinates, number_field_basis_matrix, ideal_basis_matrix)
         sage: ideala_dual = dual_ideal(QuadraticField(3).ideal(1))
         sage: delta = ideal_generator(ideala_dual)
-        sage: ideal_coordinates(ideala_dual, delta, check=True)
-        (0, -1)
+        sage: coords = ideal_coordinates(ideala_dual, delta, check=True)
+        sage: coords
+        (0, 1)
+        sage: sum([c * ideala_dual.integral_basis()[i] for i, c in enumerate(coords)]) == delta
+        True
         sage: ideala_dual = dual_ideal(QuadraticField(5).ideal(1))
         sage: delta = ideal_generator(ideala_dual)
         sage: ideal_coordinates(ideala_dual, delta, check=True)
@@ -274,24 +313,32 @@ def ideal_coordinates(ideala: NumberFieldFractionalIdeal,
         element = nf(element)
     if element not in ideala:
         raise ValueError(f"Element {element} not in ideal: {ideala}")
-    basis_change_matrix = ideal_basis_matrix(ideala) ** -1 * number_field_basis_matrix(nf)
+    basis_change_matrix = ideal_basis_matrix(ideala) ** -1 * number_field_basis_matrix(
+        nf
+    )
     coordinates = basis_change_matrix * element.vector()
-    eps = basis_change_matrix.base_ring().epsilon() * 2 ** 3
+    eps = basis_change_matrix.base_ring().epsilon() * 2**3
     coordinates_int = tuple(round(c.real()) for c in coordinates if abs(c.imag()) < eps)
     if len(coordinates_int) != len(coordinates):
-        raise ArithmeticError(f"Can not find lattice coordinates for delta={element}."
-                              f" coordinates={coordinates}"
-                              f" coordinates_int={coordinates_int}")
+        raise ArithmeticError(
+            f"Can not find lattice coordinates for delta={element}."
+            f" coordinates={coordinates}"
+            f" coordinates_int={coordinates_int}"
+        )
     if check:
-        assert sum([c * ideala.integral_basis()[i]
-                    for i, c in enumerate(coordinates_int)]) == element
+        assert (
+            sum([c * ideala.integral_basis()[i] for i, c in enumerate(coordinates_int)])
+            == element
+        )
     return coordinates_int
 
 
 @cached_function()
-def dual_ideal_element(coordinates: tuple[Integer_t] or vector,
-                       ideal: NumberFieldFractionalIdeal,
-                       as_nf_element=False):
+def dual_ideal_element(
+    coordinates: tuple[Integer_t] or vector,
+    ideal: NumberFieldFractionalIdeal,
+    as_nf_element=False,
+):
     """
     Element in dual ideal given by coordinates.
 
@@ -300,9 +347,10 @@ def dual_ideal_element(coordinates: tuple[Integer_t] or vector,
     - `
     """
     if not as_nf_element:
-        return dual_ideal_basis_matrix(ideal)*vector(coordinates)
-    dual = ideal ** -1 * ideal.number_field().different() ** -1
+        return dual_ideal_basis_matrix(ideal) * vector(coordinates)
+    dual = ideal**-1 * ideal.number_field().different() ** -1
     return sum([c * dual.integral_basis()[i] for i, c in enumerate(coordinates)])
+
 
 def ideal_generator(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractionalIdeal:
     """
@@ -319,7 +367,7 @@ def ideal_generator(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractional
         u = UnitGroup(ideala.number_field()).gens_values()[1]
         x = ideala.gens_reduced()[0]
         # f = space.number_field().galois_group()
-        test = [x,  x*u, -x*u]
+        test = [x, x * u, -x * u]
         delta = None
         for delta_test in test:
             if not (delta_test).is_totally_positive():
@@ -329,7 +377,9 @@ def ideal_generator(ideala: NumberFieldFractionalIdeal) -> NumberFieldFractional
             delta = delta_test
             break
         if not delta:
-            raise ArithmeticError(f"Cannot find a totally positive generator for {ideala}")
+            raise ArithmeticError(
+                f"Cannot find a totally positive generator for {ideala}"
+            )
     else:
         delta = ideala.gens_reduced()[0]
     return delta
@@ -347,11 +397,17 @@ def complex_number_to_json(s: ComplexNumber) -> dict:
         return s
     if not isinstance(s, ComplexNumber):
         s = CC(s)
-    return {'prec': s.parent().prec(), 'val': str(s)}
+    return {"prec": s.parent().prec(), "val": str(s)}
 
 
 def is_json_number(data: dict | str | Any) -> bool:
-    return isinstance(data, dict) and 'prec' in data and 'val' in data and len(dict.keys())==2
+    return (
+        isinstance(data, dict)
+        and "prec" in data
+        and "val" in data
+        and len(dict.keys()) == 2
+    )
+
 
 def complex_number_from_json(json_complex: dict | str) -> ComplexNumber:
     """
@@ -364,7 +420,7 @@ def complex_number_from_json(json_complex: dict | str) -> ComplexNumber:
     if isinstance(json_complex, str):
         json_complex = json.loads(json_complex)
     try:
-        return ComplexField(json_complex['prec'])(json_complex['val'])
+        return ComplexField(json_complex["prec"])(json_complex["val"])
     except TypeError:
         return ComplexField(json_complex)
 
@@ -392,7 +448,7 @@ def number_field_to_json(nf: NumberField) -> dict:
     NOTE: Any information about embeddings is ignored.
 
     """
-    return {'polynomial': str(nf.polynomial()), 'names': list(nf._names)}
+    return {"polynomial": str(nf.polynomial()), "names": list(nf._names)}
 
 
 def number_field_from_json(data: dict | str) -> NumberField:
@@ -402,7 +458,7 @@ def number_field_from_json(data: dict | str) -> NumberField:
     """
     if isinstance(data, str):
         data = json.loads(data)
-    return NumberField(ZZ['x'](data['polynomial']), names=tuple(data['names']))
+    return NumberField(ZZ["x"](data["polynomial"]), names=tuple(data["names"]))
 
 
 def coefficient_dict_to_json(coeff_dict: dict) -> dict:
@@ -434,7 +490,10 @@ def coefficient_dict_to_json(coeff_dict: dict) -> dict:
         return {}
     if all(isinstance(x, str) and is_json_number(x) for x in coeff_dict.items()):
         return coeff_dict
-    return {json.dumps([int(ki) for ki in k]): complex_number_to_json(v) for k,v in coeff_dict.items() }
+    return {
+        json.dumps([int(ki) for ki in k]): complex_number_to_json(v)
+        for k, v in coeff_dict.items()
+    }
 
 
 def coefficient_dict_from_json(data: dict | str) -> dict:
@@ -465,7 +524,7 @@ def coefficient_dict_from_json(data: dict | str) -> dict:
     """
     if isinstance(data, str):
         data = json.loads(data)
-    return { tuple(json.loads(k)): complex_number_from_json(v) for k,v in data.items() }
+    return {tuple(json.loads(k)): complex_number_from_json(v) for k, v in data.items()}
 
 
 def integer_to_bounds_tuple(m: Integer_t, degree: Integer_t) -> tuple[tuple[Integer_t]]:
@@ -492,29 +551,29 @@ def integer_to_bounds_tuple(m: Integer_t, degree: Integer_t) -> tuple[tuple[Inte
     return ((-m, m),) * degree
 
 
-def unit_relations(space: 'HilbertMaassFormSpace', m: Integer_t=6):
+def unit_relations(space: "HilbertMaassFormSpace", m: Integer_t = 6):
     """
-        produce the sets of integer lattice points which are related by the
-        automorphy a(unit^2 v)=a(v) for the quadratic real fields.
+    produce the sets of integer lattice points which are related by the
+    automorphy a(unit^2 v)=a(v) for the quadratic real fields.
 
-        INPUT:
+    INPUT:
 
-        -``m`` -- positive integer
-        -``space`` -- HilbertMaassFormSpace
+    -``m`` -- positive integer
+    -``space`` -- HilbertMaassFormSpace
 
-        EXAMPLES::
+    EXAMPLES::
 
-            sage: from hilbert_maass.all import HilbertMaassFormSpace
-            sage: from hilbert_maass.modform.utils import unit_relations
-            sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-            sage: unit_relations(space, 6)
-            [[(-6, -6), (-6, 6)],
-             [(-5, -6), (-3, 2)],
-             [(-5, -5), (-5, 5)],
-             [(-5, 6), (-3, -2)],
-             [(-4, -6), (0, -2), (4, -6)],
-            ...
-        """
+        sage: from hilbert_maass.all import HilbertMaassFormSpace
+        sage: from hilbert_maass.modform.utils import unit_relations
+        sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+        sage: unit_relations(space, 6)
+        [[(-6, -6), (-6, 6)],
+         [(-5, -6), (-3, 2)],
+         [(-5, -5), (-5, 5)],
+         [(-5, 6), (-3, -2)],
+         [(-4, -6), (0, -2), (4, -6)],
+        ...
+    """
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
     store1 = cartesian_product_from_M(((-m, m), (-m, m)))
@@ -556,30 +615,30 @@ def unit_relations(space: 'HilbertMaassFormSpace', m: Integer_t=6):
     return temp
 
 
-def hecke_relations_coprime(space: 'HilbertMaassFormSpace', m: Integer_t=6):
+def hecke_relations_coprime(space: "HilbertMaassFormSpace", m: Integer_t = 6):
     """
-            produce the sets of integer lattice points which are related by the
-            the Hecke relation of the form a(delta m)a(delta n)=a(delta mn), where delta is a generator of
-            dual ideal
+    produce the sets of integer lattice points which are related by the
+    the Hecke relation of the form a(delta m)a(delta n)=a(delta mn), where delta is a generator of
+    dual ideal
 
-            INPUT:
+    INPUT:
 
-            -``m`` -- positive integer
-            -``space`` -- HilbertMaassFormSpace
+    -``m`` -- positive integer
+    -``space`` -- HilbertMaassFormSpace
 
-            EXAMPLES::
+    EXAMPLES::
 
-                sage: from hilbert_maass.all import HilbertMaassFormSpace
-                sage: from hilbert_maass.modform.utils import hecke_relations_coprime
-                sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-                sage: hecke_relations_coprime(space, 6)
-                  [[(-5, -5), (-1, 0), (5, 0)],
-                   [(-5, -5), (1, 0), (-5, 0)],
-                   [(-5, 5), (-3, -4), (5, 0)],
-                   [(-5, 5), (3, 4), (-5, 0)],
-                ...
-                   [(5, 5), (1, 0), (5, 0)]]
-            """
+        sage: from hilbert_maass.all import HilbertMaassFormSpace
+        sage: from hilbert_maass.modform.utils import hecke_relations_coprime
+        sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+        sage: hecke_relations_coprime(space, 6) # long time
+          [[(-5, -5), (-1, 0), (5, 0)],
+           [(-5, -5), (1, 0), (-5, 0)],
+           [(-5, 5), (-3, -4), (5, 0)],
+           [(-5, 5), (3, 4), (-5, 0)],
+        ...
+           [(5, 5), (1, 0), (5, 0)]]
+    """
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
     t = ideal_generator(dual_ideala)
@@ -592,11 +651,16 @@ def hecke_relations_coprime(space: 'HilbertMaassFormSpace', m: Integer_t=6):
     temp = []
     for r in store:
         for s in store:
-            r_element = (dual_ideal_element(r, ideala, as_nf_element=True) / t)
+            r_element = dual_ideal_element(r, ideala, as_nf_element=True) / t
             r_ideal = space.number_field().ideal(r_element)
-            s_element = (dual_ideal_element(s, ideala, as_nf_element=True) / t)
+            s_element = dual_ideal_element(s, ideala, as_nf_element=True) / t
             s_ideal = space.number_field().ideal(s_element)
-            if r != s and r_ideal != ideala and s_ideal != ideala and r_ideal + s_ideal == ideala:
+            if (
+                r != s
+                and r_ideal != ideala
+                and s_ideal != ideala
+                and r_ideal + s_ideal == ideala
+            ):
                 y = t * r_element * s_element
                 d = ideal_coordinates(dual_ideala, y)
                 if (d[0], d[1]) in store:
@@ -604,33 +668,32 @@ def hecke_relations_coprime(space: 'HilbertMaassFormSpace', m: Integer_t=6):
     return temp
 
 
-
-def hecke_relations_prime_power(space: 'HilbertMaassFormSpace', m: Integer_t=6):
+def hecke_relations_prime_power(space: "HilbertMaassFormSpace", m: Integer_t = 6):
     """
-        produce the sets of integer lattice points which are related by the
-        the Hecke relation of the form a(delta p^n)=a(delta p)a(delta p^{n-1})-a(delta p^{n-2}), where delta is a generator of
-        dual ideal
+    produce the sets of integer lattice points which are related by the
+    the Hecke relation of the form a(delta p^n)=a(delta p)a(delta p^{n-1})-a(delta p^{n-2}), where delta is a generator of
+    dual ideal
 
-        INPUT:
+    INPUT:
 
-        -``m`` -- positive integer
-        -``space`` -- HilbertMaassFormSpace
+    -``m`` -- positive integer
+    -``space`` -- HilbertMaassFormSpace
 
-        EXAMPLES::
+    EXAMPLES::
 
-            sage: from hilbert_maass.all import HilbertMaassFormSpace
-            sage: from hilbert_maass.modform.utils import hecke_relations_prime_power
-            sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-            sage: hecke_relations_prime_power(space, 6)
-            [[(-2, -1), (5, -1)],
-             [(-1, -3), (5, 1)],
-             [(-1, -2), (2, 2), (-2, -4), (4, 4)],
-             [(-1, 0), (2, -2)],
-             [(1, 0), (2, -2)],
-             [(1, 2), (2, 2), (2, 4), (4, 4)],
-             [(1, 3), (5, 1)],
-             [(2, 1), (5, -1)]]
-        """
+        sage: from hilbert_maass.all import HilbertMaassFormSpace
+        sage: from hilbert_maass.modform.utils import hecke_relations_prime_power
+        sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+        sage: hecke_relations_prime_power(space, 6)
+        [[(-2, -1), (5, -1)],
+         [(-1, -3), (5, 1)],
+         [(-1, -2), (2, 2), (-2, -4), (4, 4)],
+         [(-1, 0), (2, -2)],
+         [(1, 0), (2, -2)],
+         [(1, 2), (2, 2), (2, 4), (4, 4)],
+         [(1, 3), (5, 1)],
+         [(2, 1), (5, -1)]]
+    """
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
     t = ideal_generator(dual_ideala)
@@ -638,19 +701,19 @@ def hecke_relations_prime_power(space: 'HilbertMaassFormSpace', m: Integer_t=6):
     store1 = cartesian_product_from_M(((-m, m), (-m, m)))
     store = []
     for r in store1:
-        if (abs(r[0]) <= m and abs(r[1]) <= m):
+        if abs(r[0]) <= m and abs(r[1]) <= m:
             store.append(r)
     store.remove((0, 0))
     temp = []
     for r in store:
-        r_element = (dual_ideal_element(r, ideala, as_nf_element=True) / t)
+        r_element = dual_ideal_element(r, ideala, as_nf_element=True) / t
         r_ideal = space.number_field().ideal(r_element)
         if r_ideal.is_prime():
             a = r_element
             x = 1
             d = r
             kemp = []
-            while ((d[0], d[1]) in store):
+            while (d[0], d[1]) in store:
                 kemp.append(d)
                 a = a * r_element
                 y = a * t
@@ -663,126 +726,134 @@ def hecke_relations_prime_power(space: 'HilbertMaassFormSpace', m: Integer_t=6):
     return temp
 
 
-def symmetric_relations(space: 'HilbertMaassFormSpace'):
+def symmetric_relations(space: "HilbertMaassFormSpace"):
     """
-            produces a set of integer lattice points which are related by
-            reflection relation (flipping operators) a(u_p v)=ta(v), where u is a unit which is neagtive
-            at the place (prime) p and positive at other places.
+    produces a set of integer lattice points which are related by
+    reflection relation (flipping operators) a(u_p v)=ta(v), where u is a unit which is neagtive
+    at the place (prime) p and positive at other places.
 
-            INPUT:
+    INPUT:
 
-            -``space`` -- HilbertMaassFormSpace
+    -``space`` -- HilbertMaassFormSpace
 
-            EXAMPLES::
+    EXAMPLES::
 
-                sage: from hilbert_maass.all import HilbertMaassFormSpace
-                sage: from hilbert_maass.modform.utils import symmetric_relations
-                sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-                sage: symmetric_relations(space)
-                [(1, 1), (0, -1), (0, 1)]
+        sage: from hilbert_maass.all import HilbertMaassFormSpace
+        sage: from hilbert_maass.modform.utils import symmetric_relations
+        sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+        sage: symmetric_relations(space)
+        [(1, 1), (0, -1), (0, 1)]
 
-                Comment: The first element in the output represents the positive generator of the dual ideal.
-                These three elements are non-zero for a hilbert Maass form.
+        Comment: The first element in the output represents the positive generator of the dual ideal.
+        These three elements are non-zero for a hilbert Maass form.
 
-                sage: space = HilbertMaassFormSpace(QuadraticField(5), cuspidal=True)
-                sage: symmetric_relations(space)
-                [(1, -1), (1, -2), (-1, 2)]
+        sage: space = HilbertMaassFormSpace(QuadraticField(5), cuspidal=True)
+        sage: symmetric_relations(space)
+        [(1, -1), (1, -2), (-1, 2)]
 
-                sage: space = HilbertMaassFormSpace(QuadraticField(17), cuspidal=True)
-                sage: symmetric_relations(space)
-                [(5, -8), (1, -2), (-1, 2)]
+        sage: space = HilbertMaassFormSpace(QuadraticField(17), cuspidal=True)
+        sage: symmetric_relations(space)
+        [(5, -8), (1, -2), (-1, 2)]
 
-                sage: space = HilbertMaassFormSpace(QuadraticField(41), cuspidal=True)
-                sage: symmetric_relations(space)
-                [(37, -64), (1, -2), (-1, 2)]
+        sage: space = HilbertMaassFormSpace(QuadraticField(41), cuspidal=True)
+        sage: symmetric_relations(space)
+        [(37, -64), (1, -2), (-1, 2)]
 
-                Comments: For QuadraticField with bigger discriminant we have to choose the smallest of these
-                3 and assign the value 1 for constructing object using hejhal' algorithm.
+        Comments: For QuadraticField with bigger discriminant we have to choose the smallest of these
+        3 and assign the value 1 for constructing object using hejhal' algorithm.
 
-            """
+    """
     ideala = space.number_field().ideal(1)
     dual_ideala = dual_ideal(ideala)
     t = ideal_generator(dual_ideala)
     u = UnitGroup(space.number_field()).gens_values()[1]
     ideala = space.number_field().ideal(1)
-    if (u > 0):
+    if u > 0:
         u = -u
-    set_check = [t, t * u ** -1, -t * u ** -1]
+    set_check = [t, t * u**-1, -t * u**-1]
     kemp = []
     for use in set_check:
         d = ideal_coordinates(dual_ideala, use)
         kemp.append(d)
-    return (kemp)
+    return kemp
 
 
-def bilinear_form(space: 'HilbertMaassFormSpace', x: 'NumberFieldElement', y: 'NumberFieldElement'):
+def bilinear_form(
+    space: "HilbertMaassFormSpace", x: "NumberFieldElement", y: "NumberFieldElement"
+):
     """
-            produce the value of bilinear forms f(x, y)=x_1y_1+...+x_ny_n
+    produce the value of bilinear forms f(x, y)=x_1y_1+...+x_ny_n
 
-            INPUT:
-            -``space`` -- HilbertMaassFormSpace
-            -``x, y``  ---NumberFieldElement, NumberFieldElement
-            EXAMPLES:
+    INPUT:
+    -``space`` -- HilbertMaassFormSpace
+    -``x, y``  ---NumberFieldElement, NumberFieldElement
+    EXAMPLES:
 
-                sage: from hilbert_maass.modform.utils import bilinear_form
-                sage: from hilbert_maass.all import HilbertMaassFormSpace
-                sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-                sage: a=space.number_field().gen()
-                sage: bilinear_form(space, a, a)
-                4
+        sage: from hilbert_maass.modform.utils import bilinear_form
+        sage: from hilbert_maass.all import HilbertMaassFormSpace
+        sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+        sage: a=space.number_field().gen()
+        sage: bilinear_form(space, a, a)
+        4
 
-            """
+    """
     f = space.number_field().galois_group()
     t = len(f)
     kep = 0
     for r in range(0, t):
         s = f[r](x) * f[r](y)
         kep = kep + s
-    return (kep)
+    return kep
 
 
-def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t = 6,
-                        check: '{coprime, prime_power, unit}' = 'unit',
-                        epsilon:Integer_t=25, same_norm: bool = False):
+def best_hecke_relation(
+    space: "HilbertMaassFormSpace",
+    m: Integer_t = 6,
+    check: "{coprime, prime_power, unit}" = "unit",
+    epsilon: Integer_t = 25,
+    same_norm: bool = False,
+):
     """
-                produce the best hecke relation in the sense those with smallest bilinear norm value
-                less than epsilon.
+    produce the best hecke relation in the sense those with smallest bilinear norm value
+    less than epsilon.
 
-                INPUT:
-                -``space`` -- HilbertMaassFormSpace
-                -``m ``  --Integer_t  ( bound)
-                -``check`` --'{coprime, prime_power, unit}' Enter one value out of these three
-                -``epsilon`` --Integer_t=25
-                -`` same_norm`` bool (produces the hecke relation of same norm if it set to True)
-                EXAMPLES:
+    INPUT:
+    -``space`` -- HilbertMaassFormSpace
+    -``m ``  --Integer_t  ( bound)
+    -``check`` --'{coprime, prime_power, unit}' Enter one value out of these three
+    -``epsilon`` --Integer_t=25
+    -`` same_norm`` bool (produces the hecke relation of same norm if it set to True)
+    EXAMPLES:
 
-                    sage: from hilbert_maass.modform.utils import best_hecke_relation
-                    sage: from hilbert_maass.all import HilbertMaassFormSpace
-                    sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
-                    sage: best_hecke_relation(space = space, check = 'coprime', same_norm = True)
-                     [[(-1, -3), (-1, 0), (-1, 4)],
-                      [(-1, -3), (1, 0), (1, -4)],
-                      [(-1, 0), (-1, -3), (-1, 4)],
-                     ...
-                      [(3, 5), (2, -2), (-2, 6)]]
-                    sage: best_hecke_relation(space = space, check = 'coprime')
-                     [[(-1, -3), (-1, 0), (-1, 4)],
-                      [(-2, -1), (-1, -2), (1, 4)],
-                      [(-1, -3), (-1, -2), (3, 2)],
-                     ...
-                      [(-3, -5), (-2, 2), (-2, 6)]]
-                """
+        sage: from hilbert_maass.modform.utils import best_hecke_relation
+        sage: from hilbert_maass.all import HilbertMaassFormSpace
+        sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=True)
+        sage: best_hecke_relation(space = space, check = 'coprime', same_norm = True)
+         [[(-1, -3), (-1, 0), (-1, 4)],
+          [(-1, -3), (1, 0), (1, -4)],
+          [(-1, 0), (-1, -3), (-1, 4)],
+         ...
+          [(3, 5), (2, -2), (-2, 6)]]
+        sage: best_hecke_relation(space = space, check = 'coprime')
+         [[(-1, -3), (-1, 0), (-1, 4)],
+          [(-2, -1), (-1, -2), (1, 4)],
+          [(-1, -3), (-1, -2), (3, 2)],
+         ...
+          [(-3, -5), (-2, 2), (-2, 6)]]
+    """
 
-    if check == 'coprime':
+    if check == "coprime":
         ak = hecke_relations_coprime(space, m)
-    elif check == 'prime_power':
+    elif check == "prime_power":
         ak = hecke_relations_prime_power(space, m)
-    elif check == 'unit':
+    elif check == "unit":
         ak = unit_relations(space, m)
-    elif check == 'symmetric':
+    elif check == "symmetric":
         ak = symmetric_relations(space)
     else:
-        raise ValueError("Enter one value out of 'coprime', 'prime_power', 'unit', 'symmetric'")
+        raise ValueError(
+            "Enter one value out of 'coprime', 'prime_power', 'unit', 'symmetric'"
+        )
 
     def custom_function(x, space):
         total = 0
@@ -798,7 +869,7 @@ def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t = 6,
     if same_norm:
         for pair in sorted_paired_elements:
             x, value = pair
-            if (value < epsilon):
+            if value < epsilon:
                 value_sorted_paired_elements.append(pair)
     else:
         for pair in sorted_paired_elements:
@@ -809,7 +880,7 @@ def best_hecke_relation(space: 'HilbertMaassFormSpace', m: Integer_t = 6,
                 if value == value1:
                     t = 0
                     break
-            if (value < epsilon and t == 1):
+            if value < epsilon and t == 1:
                 value_sorted_paired_elements.append(pair)
     sorted_elements = [pair[0] for pair in value_sorted_paired_elements]
     return sorted_elements

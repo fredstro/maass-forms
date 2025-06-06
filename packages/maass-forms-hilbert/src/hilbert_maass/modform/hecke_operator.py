@@ -1,10 +1,14 @@
 """
 Hecke operators acting on Hilbert Maass forms.
 """
+
 from copy import copy
 
 from hilbert_maass.modform.coefficients import HilbertMaassCoefficients
-from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm, HilbertMaassForm_Element
+from hilbert_maass.modform.hilbert_maass_element import (
+    HilbertMaassForm,
+    HilbertMaassForm_Element,
+)
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.utils import ideal_coordinates, ideal_factors, Integer_t
 from sage.matrix.constructor import matrix
@@ -16,6 +20,7 @@ class HeckeOperator(Element):
     """
     Hecke operators acting on Hilbert Maass forms.
     """
+
     def __init__(self, space: HilbertMaassFormSpace, n: NumberFieldIdeal) -> None:
         """
         Initialize ``self``.
@@ -90,7 +95,7 @@ class HeckeOperator(Element):
                 for d in divisors:
                     if v / d not in x.coefficients()._coordinate_ideals[0]:
                         continue
-                    w = v * self.ideal_gen / d ** 2
+                    w = v * self.ideal_gen / d**2
                     new_coeff += x.coefficients()[w]
                     w_used.append(w)
                 new_coeffs.append(new_coeff)
@@ -101,18 +106,18 @@ class HeckeOperator(Element):
                 continue
         xcoeffs = x.coefficients()
         new_coeffs = matrix([[new_coeff] for new_coeff in new_coeffs])
-        coeffs = HilbertMaassCoefficients(new_coeffs,
-                                          xcoeffs.M,
-                                          spectral_parameter=x.spectral_parameter(),
-                                          space=x.parent(),
-                                          coordinate_ideals=xcoeffs._coordinate_ideals,
-                                          set_coefficients=xcoeffs._set_coefficients,
-                                          index_tuples=[list_of_coordinates],
-                                          check=False,
-                                          Y=xcoeffs.Y())
+        coeffs = HilbertMaassCoefficients(
+            new_coeffs,
+            xcoeffs.M,
+            spectral_parameter=x.spectral_parameter(),
+            space=x.parent(),
+            coordinate_ideals=xcoeffs._coordinate_ideals,
+            set_coefficients=xcoeffs._set_coefficients,
+            index_tuples=[list_of_coordinates],
+            check=False,
+            Y=xcoeffs.Y(),
+        )
         result = copy(x)
         result._coefficients = coeffs
         return result
         # return HilbertMaassForm_Element(self.space, self.ideal, new_coeffs)
-
-

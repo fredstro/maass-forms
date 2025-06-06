@@ -1,18 +1,15 @@
 """
 Routines to search for Hilbert Maass forms
 """
+
 import logging
 import os
-from cmath import asin
-
-import mongoengine
 import numpy
-
+from cmath import asin
 from hilbert_maass.modform.hilbert_maass_element import HilbertMaassForm
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
 from hilbert_maass.modform.compute_coefficients import get_pb_pts_set_params
 from hilbert_maass.modform.utils import Integer_t, Real_t, Complex_t
-from comp_manager.utils import insert_object, load_object
 from hilbert_maass.database.models import HilbertMaassFormDB
 from sage.all import sin, cos, pi
 from sage.functions.other import ceil
@@ -44,8 +41,9 @@ def create_parallel_grid(grid_limits: tuple[Real_t], grid_number: Integer_t):
 
 # Method 1
 # For creating the grid points. It will work for real field of any degree.
-def create_grid_non_circular(grid_limits: tuple[tuple[Real_t]],
-                             grid_numbers: tuple[Integer_t]):
+def create_grid_non_circular(
+    grid_limits: tuple[tuple[Real_t]], grid_numbers: tuple[Integer_t]
+):
     """
     Create non-circular grid points.
 
@@ -62,13 +60,13 @@ def create_grid_non_circular(grid_limits: tuple[tuple[Real_t]],
         sage: from hilbert_maass.search.search import compute_on_non_circular_grid
         sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
         sage: create_grid_non_circular(((0, 1),(0,1)), (2,2))
-        ([array([[0., 1.],
-                 [0., 1.]]),
-          array([[0., 0.],
-                 [1., 1.]])],
-         The Cartesian product of ({0, 1}, {0, 1}))
+        ((array([[0., 1.],
+             [0., 1.]]),
+        array([[0., 0.],
+             [1., 1.]])),
+        The Cartesian product of ({0, 1}, {0, 1}))
     """
-    # Check that sizes match
+    # Check that size match
     if len(grid_limits) != len(grid_numbers):
         raise ValueError("Number of grid limits does not match number of grid numbers")
 
@@ -77,19 +75,25 @@ def create_grid_non_circular(grid_limits: tuple[tuple[Real_t]],
     for i in range(0, len(grid_limits)):
         st.append(create_parallel_grid(grid_limits[i], grid_numbers[i]))
     grids = numpy.meshgrid(*(st[i] for i in range(len(st))))
-    return grids, cartesian_product([range(grids[0].shape[i]) for i in range(len(grids[0].shape))])
+    return grids, cartesian_product(
+        [range(grids[0].shape[i]) for i in range(len(grids[0].shape))]
+    )
 
 
-def compute_on_non_circular_grid(space: HilbertMaassFormSpace, grid_limits: tuple[tuple[Real_t]],
-                                 grid_numbers: tuple[Integer_t], prec: Integer_t = 53,
-                                 bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
-                                 y: tuple[Real_t] | None = None,
-                                 Q: tuple[Integer_t] = None,
-                                 num_threads: Integer_t = None,
-                                 spectral_symmetry: bool = True,
-                                 set_coefficients: dict = None,
-                                 use_database: bool = True,
-                                 spectral_epsilon: Real_t = 1e-2):
+def compute_on_non_circular_grid(
+    space: HilbertMaassFormSpace,
+    grid_limits: tuple[tuple[Real_t]],
+    grid_numbers: tuple[Integer_t],
+    prec: Integer_t = 53,
+    bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
+    y: tuple[Real_t] | None = None,
+    Q: tuple[Integer_t] = None,
+    num_threads: Integer_t = None,
+    spectral_symmetry: bool = True,
+    set_coefficients: dict = None,
+    use_database: bool = True,
+    spectral_epsilon: Real_t = 1e-2,
+):
     """
     Compute a Hilbert Maass form on the non-circular grid.
 
@@ -129,7 +133,9 @@ def compute_on_non_circular_grid(space: HilbertMaassFormSpace, grid_limits: tupl
     if len(grid_limits) != len(grid_numbers):
         raise ValueError("Number of grid limits does not match number of grid numbers")
     if len(grid_numbers) != space.number_field().absolute_degree():
-        raise ValueError("Number of number of grid points does not match number field degree")
+        raise ValueError(
+            "Number of number of grid points does not match number field degree"
+        )
     if isinstance(bound_m, (Integer, int)):
         bound_m = tuple([(-bound_m, bound_m)] * space.number_field().absolute_degree())
     grids, grid_indices = create_grid_non_circular(grid_limits, grid_numbers)
@@ -139,16 +145,21 @@ def compute_on_non_circular_grid(space: HilbertMaassFormSpace, grid_limits: tupl
         spectral_parameter = tuple(CF(0.5, grid[tuple(m)]) for grid in grids)
         log.debug(f"Computing spectral parameter {spectral_parameter}")
         log.debug(
-            f"Ineqs:{[spectral_parameter[i + 1].imag() > spectral_parameter[i].imag() + spectral_epsilon for i in range(len(spectral_parameter) - 1)]}")
-        if spectral_symmetry and any(spectral_parameter[i + 1].imag() > spectral_parameter[i].imag() +
-                                     spectral_epsilon for i in range(len(spectral_parameter) - 1)):
+            f"Ineqs:{[spectral_parameter[i + 1].imag() > spectral_parameter[i].imag() + spectral_epsilon for i in range(len(spectral_parameter) - 1)]}"
+        )
+        if spectral_symmetry and any(
+            spectral_parameter[i + 1].imag()
+            > spectral_parameter[i].imag() + spectral_epsilon
+            for i in range(len(spectral_parameter) - 1)
+        ):
             log.debug(f"Skipping spectral parameter {spectral_parameter}")
             continue
 
-        input_params.append((space, spectral_parameter, bound_m, y, Q,
-                             set_coefficients, use_database))
+        input_params.append(
+            (space, spectral_parameter, bound_m, y, Q, set_coefficients, use_database)
+        )
     if num_threads is not None:
-        os.environ['SAGE_NUM_THREADS'] = str(num_threads)
+        os.environ["SAGE_NUM_THREADS"] = str(num_threads)
     # Prepare the cache to avoid race errors
     smax = 0
     for r in input_params:
@@ -160,38 +171,37 @@ def compute_on_non_circular_grid(space: HilbertMaassFormSpace, grid_limits: tupl
 
 # Method 2 for creating grid points.
 # We will work with this one while working with real field of degree 2.
-def create_grid_on_circumference_from_r1_to_r2(r1: Real_t,
-                                               r2: Real_t,
-                                               min_distance: Real_t = 0.01,
-                                               prec: Integer_t = 53):
+def create_grid_on_circumference_from_r1_to_r2(
+    r1: Real_t, r2: Real_t, min_distance: Real_t = 0.01, prec: Integer_t = 53
+):
     r"""
-       Create the grid (tuple) point on the arcs of angle (0, pi/4) and different radiuses r lying between
-       $r1 \le r \le r2$
+    Create the grid (tuple) point on the arcs of angle (0, pi/4) and different radiuses r lying between
+    $r1 \le r \le r2$
 
-        INPUT:
-         - ``r1`` --  Real Number
-         - ``r2`` --  Real Number
-         - ``min_distance`` -- Real Number
-         - ``prec``  --- Integer_t
+     INPUT:
+      - ``r1`` --  Real Number
+      - ``r2`` --  Real Number
+      - ``min_distance`` -- Real Number
+      - ``prec``  --- Integer_t
 
-       EXAMPLES::
-       sage: from hilbert_maass.search.search import create_grid_on_circumference_from_r1_to_r2
-       sage: create_grid_on_circumference_from_r1_to_r2(r1=0.3, r2=0.4, min_distance=0.1)
-       [(0.300000000000000, 0.000000000000000),
-        (0.294235584120969, 0.0585270966048385),
-        (0.277163859753386, 0.114805029709527),
-        (0.249440883690764, 0.166671069905881),
-        (0.212132034355964, 0.212132034355964)]
-       sage: grid_points = create_grid_on_circumference_from_r1_to_r2(0, 1)
-       sage: len(grid_points)
-       7855
-       sage: create_grid_on_circumference_from_r1_to_r2(0, 0.2, 0.1)
-       [(0, 0),
-        (0.200000000000000, 0.000000000000000),
-        (0.184775906502257, 0.0765366864730180),
-        (0.141421356237310, 0.141421356237310)]
+    EXAMPLES::
+    sage: from hilbert_maass.search.search import create_grid_on_circumference_from_r1_to_r2
+    sage: create_grid_on_circumference_from_r1_to_r2(r1=0.3, r2=0.4, min_distance=0.1)
+    [(0.300000000000000, 0.000000000000000),
+     (0.294235584120969, 0.0585270966048385),
+     (0.277163859753386, 0.114805029709527),
+     (0.249440883690764, 0.166671069905881),
+     (0.212132034355964, 0.212132034355964)]
+    sage: grid_points = create_grid_on_circumference_from_r1_to_r2(0, 1)
+    sage: len(grid_points)
+    7855
+    sage: create_grid_on_circumference_from_r1_to_r2(0, 0.2, 0.1)
+    [(0, 0),
+     (0.200000000000000, 0.000000000000000),
+     (0.184775906502257, 0.0765366864730180),
+     (0.141421356237310, 0.141421356237310)]
 
-     """
+    """
 
     CF = ComplexField(prec)
     grid_limits_on_angle = (0, CF(pi / 4))
@@ -206,25 +216,30 @@ def create_grid_on_circumference_from_r1_to_r2(r1: Real_t,
             grid_points.append(grid)
         else:
             grid_numbers_on_angle = int(round(float(pi * r / (2 * min_distance))))
-            grids_on_angle = create_parallel_grid(grid_limits_on_angle, grid_numbers_on_angle)
+            grids_on_angle = create_parallel_grid(
+                grid_limits_on_angle, grid_numbers_on_angle
+            )
             for m in grids_on_angle:
                 grid = (CF(center[0] + r * cos(m)), CF(center[1] + r * sin(m)))
                 grid_points.append(grid)
     return grid_points
 
 
-def compute_on_circumference_grid(space: HilbertMaassFormSpace,
-                                  r1: Real_t, r2: Real_t,
-                                  min_distance: Real_t = 0.01,
-                                  prec: Integer_t = 53,
-                                  bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
-                                  y: tuple[Real_t] | None = None,
-                                  Q: tuple[Integer_t] = None,
-                                  set_coefficients: dict = None,
-                                  num_threads: Integer_t = None,
-                                  spectral_symmetry: bool = True,
-                                  use_database: bool = True,
-                                  spectral_epsilon: Real_t = 1e-2):
+def compute_on_circumference_grid(
+    space: HilbertMaassFormSpace,
+    r1: Real_t,
+    r2: Real_t,
+    min_distance: Real_t = 0.01,
+    prec: Integer_t = 53,
+    bound_m: tuple[tuple[Integer_t]] | Integer_t = 2,
+    y: tuple[Real_t] | None = None,
+    Q: tuple[Integer_t] = None,
+    set_coefficients: dict = None,
+    num_threads: Integer_t = None,
+    spectral_symmetry: bool = True,
+    use_database: bool = True,
+    spectral_epsilon: Real_t = 1e-2,
+):
     """
     Compute Hilbert Maass form type objects on grid points.
 
@@ -277,15 +292,19 @@ def compute_on_circumference_grid(space: HilbertMaassFormSpace,
     CF = ComplexField(prec)
     for r in grid_points:
         spectral_parameter = (CF(0.5, r[0]), CF(0.5, r[1]))
-        if spectral_symmetry and any(spectral_parameter[i + 1].imag() > spectral_parameter[i].imag() +
-                                     spectral_epsilon for i in range(len(spectral_parameter) - 1)):
+        if spectral_symmetry and any(
+            spectral_parameter[i + 1].imag()
+            > spectral_parameter[i].imag() + spectral_epsilon
+            for i in range(len(spectral_parameter) - 1)
+        ):
             log.debug(f"Skipping spectral parameter {spectral_parameter}")
             continue
         log.debug(f"Computing spectral parameter {spectral_parameter}")
-        input_params.append((space, spectral_parameter, bound_m, y, Q,
-                             set_coefficients, use_database))
+        input_params.append(
+            (space, spectral_parameter, bound_m, y, Q, set_coefficients, use_database)
+        )
     if num_threads is not None:
-        os.environ['SAGE_NUM_THREADS'] = str(num_threads)
+        os.environ["SAGE_NUM_THREADS"] = str(num_threads)
     smax = 0
     for r in input_params:
         smax = max(smax, max([abs(x) for x in r[1]]))
@@ -295,13 +314,15 @@ def compute_on_circumference_grid(space: HilbertMaassFormSpace,
 
 
 @parallel()
-def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
-                                   spectral_parameter: tuple[Complex_t],
-                                   bound_m: tuple[tuple[Integer_t]] | Integer_t,
-                                   y: tuple[Real_t] | None = None,
-                                   Q: tuple[Integer_t] = None,
-                                   set_coefficients: dict = None,
-                                   use_database: bool = True):
+def compute_one_spectral_parameter(
+    space: HilbertMaassFormSpace,
+    spectral_parameter: tuple[Complex_t],
+    bound_m: tuple[tuple[Integer_t]] | Integer_t,
+    y: tuple[Real_t] | None = None,
+    Q: tuple[Integer_t] = None,
+    set_coefficients: dict = None,
+    use_database: bool = True,
+):
     """
 
     INPUT:
@@ -335,15 +356,18 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
                 spectral_parameter=spectral_parameter,
                 bound_m=bound_m,
                 set_coefficients=set_coefficients,
-                y=y, q=Q)
+                y=y,
+                q=Q,
+            )
             maass_form = load_object(maass_form_db)
         except mongoengine.connection.ConnectionFailure:
             log.warning(f"Could not connect to database. Compute locally only")
     if not maass_form:
         maass_form = HilbertMaassForm(space, spectral_parameter)
     if not maass_form.coefficients():
-        maass_form.compute_coefficients(s=spectral_parameter, M=bound_m, set_coefficients=set_coefficients,
-                                        Y=y, Q=Q)
+        maass_form.compute_coefficients(
+            s=spectral_parameter, M=bound_m, set_coefficients=set_coefficients, Y=y, Q=Q
+        )
         if use_database:
             insert_object(maass_form)
         log.debug(f"Computed Hilbert Maass form for s={spectral_parameter}")
@@ -351,12 +375,14 @@ def compute_one_spectral_parameter(space: HilbertMaassFormSpace,
 
 
 @parallel
-def check_coefficients_of_computed_object(space: HilbertMaassFormSpace,
-                                          check_rel: list,
-                                          cvalue: Real_t,
-                                          spectral_parameter: tuple[Complex_t],
-                                          bound_m: tuple[tuple[Integer_t]],
-                                          y: tuple[Real_t] | None = None):
+def check_coefficients_of_computed_object(
+    space: HilbertMaassFormSpace,
+    check_rel: list,
+    cvalue: Real_t,
+    spectral_parameter: tuple[Complex_t],
+    bound_m: tuple[tuple[Integer_t]],
+    y: tuple[Real_t] | None = None,
+):
     """
     After computing object in the database, we use this function to check the object which are near to
     an eigenvalue. We need to do this as Broyden method work fine if the initial point is close to
@@ -385,8 +411,14 @@ def check_coefficients_of_computed_object(space: HilbertMaassFormSpace,
     sp = [result1[x][1] for x in range(len(result1))]
     [None, None, None, None, (0.212132034355964, 0.212132034355964)]
     """
-    f = load_object(list(HilbertMaassFormDB.objects.space(space).with_m_precision(bound_m)
-                         .near(spectral_parameter).with_y_precision(y))[0])
+    f = load_object(
+        list(
+            HilbertMaassFormDB.objects.space(space)
+            .with_m_precision(bound_m)
+            .near(spectral_parameter)
+            .with_y_precision(y)
+        )[0]
+    )
     t = abs((f.coefficients()[check_rel[1]] - f.coefficients()[check_rel[0]]).real())
     if t <= cvalue:
         print(tuple((spectral_parameter[0].imag(), spectral_parameter[1].imag())), t)
@@ -394,17 +426,20 @@ def check_coefficients_of_computed_object(space: HilbertMaassFormSpace,
 
 
 @parallel()
-def broyden_iteration(space: HilbertMaassFormSpace, r_1: tuple,
-                      relation: dict,
-                      bound_m: tuple[tuple[Integer_t]],
-                      y: tuple[Real_t] | None = None,
-                      set_coefficients: dict | None = None,
-                      count: Integer_t = 0,
-                      prec=53,
-                      r_0: tuple = None,
-                      f_1: tuple = None,
-                      f_0: tuple = None,
-                      J_0: matrix = None):
+def broyden_iteration(
+    space: HilbertMaassFormSpace,
+    r_1: tuple,
+    relation: dict,
+    bound_m: tuple[tuple[Integer_t]],
+    y: tuple[Real_t] | None = None,
+    set_coefficients: dict | None = None,
+    count: Integer_t = 0,
+    prec=53,
+    r_0: tuple = None,
+    f_1: tuple = None,
+    f_0: tuple = None,
+    J_0: matrix = None,
+):
     """
 
     NOTE: See https://en.wikipedia.org/wiki/Broyden%27s_method for more information.
@@ -426,53 +461,70 @@ def broyden_iteration(space: HilbertMaassFormSpace, r_1: tuple,
     (2.21206924454105, 2.19603006584595)
     """
     CF = ComplexField(prec)
-    if (r_0 is None):
+    if r_0 is None:
         r_0 = vector(r_1) - vector((CF(0.0000001), CF(0.0000001)))
         f_0 = coeff_diff_fun(space, relation, r_0, bound_m, y, set_coefficients)
-    if (f_1 is None):
+    if f_1 is None:
         f_1 = coeff_diff_fun(space, relation, r_1, bound_m, y, set_coefficients)
     delta__r_1 = vector([CF(r_1[0]) - CF(r_0[0]), CF(r_1[1]) - CF(r_0[1])])
     delta__f_1 = vector([CF(f_1[0]) - CF(f_0[0]), CF(f_1[1]) - CF(f_0[1])])
-    if (J_0 is None):
+    if J_0 is None:
         if delta__r_1[0] == 0 or delta__r_1[1] == 0:
-            s = 'Zero divisor'
+            s = "Zero divisor"
             raise ValueError("J_0 became zero. Try with some other entry.")
-        J_0 = matrix([[delta__f_1[0] / delta__r_1[0], 0], [0, delta__f_1[1] / delta__r_1[1]]])
-    delta__J = ((delta__f_1 - J_0 * delta__r_1) / delta__r_1.norm(2) ** 2).column() * (delta__r_1).row()
+        J_0 = matrix(
+            [[delta__f_1[0] / delta__r_1[0], 0], [0, delta__f_1[1] / delta__r_1[1]]]
+        )
+    delta__J = ((delta__f_1 - J_0 * delta__r_1) / delta__r_1.norm(2) ** 2).column() * (
+        delta__r_1
+    ).row()
     J_1 = J_0 + delta__J
-    if (J_1.det() == 0):
+    if J_1.det() == 0:
         raise ValueError("J_1 became zero. Try with some other entry.")
     r_1 = vector(r_1)
     f_1 = vector(f_1)
     r_new = r_1 - J_1 ** (-1) * f_1  # It should be  r_new = r1 - J1**(-1) * f1.
-    if (r_new[0] < 0 or r_new[1] < 0):
+    if r_new[0] < 0 or r_new[1] < 0:
         return None
-    elif ((r_new[0] ** 2 + r_new[1] ** 2) > 100):
+    elif (r_new[0] ** 2 + r_new[1] ** 2) > 100:
         return None
     q = coeff_diff_fun(space, relation, r_new, bound_m, y, set_coefficients)
-    print('r_new=', r_new, 'value=', q)
-    if (abs(q[0]) < 1e-12 and abs(q[1]) < 1e-12):
+    print("r_new=", r_new, "value=", q)
+    if abs(q[0]) < 1e-12 and abs(q[1]) < 1e-12:
         return r_new
-    elif (count >= 20 and (abs(q[0]) > 1)):
+    elif count >= 20 and (abs(q[0]) > 1):
         return None
-    elif (count >= 25 and (abs(q[0]) > 0.1)):
+    elif count >= 25 and (abs(q[0]) > 0.1):
         return None
-    elif (count >= 30 and (abs(q[0]) > 0.01 or abs(q[1]) > 0.01)):
+    elif count >= 30 and (abs(q[0]) > 0.01 or abs(q[1]) > 0.01):
         return None
-    elif (count > 40):
+    elif count > 40:
         return None
     else:
-        return broyden_iteration(space=space, r_1=r_new, relation=relation, bound_m=bound_m, y=y,
-                                 set_coefficients=set_coefficients, count=count + 1, r_0=r_1, f_1=q,
-                                 f_0=f_1, J_0=J_1)
+        return broyden_iteration(
+            space=space,
+            r_1=r_new,
+            relation=relation,
+            bound_m=bound_m,
+            y=y,
+            set_coefficients=set_coefficients,
+            count=count + 1,
+            r_0=r_1,
+            f_1=q,
+            f_0=f_1,
+            J_0=J_1,
+        )
 
 
-def coeff_diff_fun(space, relation: dict,
-                   r: tuple,
-                   bound_m: tuple[tuple[Integer_t]] | Integer_t = None,
-                   y: tuple[Real_t] | None = None,
-                   set_coefficients: dict | None = None,
-                   prec=53):
+def coeff_diff_fun(
+    space,
+    relation: dict,
+    r: tuple,
+    bound_m: tuple[tuple[Integer_t]] | Integer_t = None,
+    y: tuple[Real_t] | None = None,
+    set_coefficients: dict | None = None,
+    prec=53,
+):
     """
     INPUT:
         - ``space`` -- HilbertMaassFormSpace
@@ -499,35 +551,83 @@ def coeff_diff_fun(space, relation: dict,
 
     CF = ComplexField(prec)
     spectral_parameter = (CF(0.5, r[0]), CF(0.5, r[1]))
-    t = len(list(HilbertMaassFormDB.objects.with_m_precision(bound_m)
-                 .with_y_precision(y).near(spectral_parameter)))
-    if (t == 1):
-        f = load_object(list(HilbertMaassFormDB.objects.near(spectral_parameter)
-                             .with_m_precision(bound_m).with_y_precision(y))[0])
+    t = len(
+        list(
+            HilbertMaassFormDB.objects.with_m_precision(bound_m)
+            .with_y_precision(y)
+            .near(spectral_parameter)
+        )
+    )
+    if t == 1:
+        f = load_object(
+            list(
+                HilbertMaassFormDB.objects.near(spectral_parameter)
+                .with_m_precision(bound_m)
+                .with_y_precision(y)
+            )[0]
+        )
     else:
-        result1 = list(compute_one_spectral_parameter([(space, spectral_parameter,
-                                                        bound_m, y, set_coefficients)]))
-        f = load_object(list(HilbertMaassFormDB.objects.near(spectral_parameter)
-                             .with_m_precision(bound_m).with_y_precision(y))[0])
-    if 'unit' in relation:
-        u = relation['unit']
+        result1 = list(
+            compute_one_spectral_parameter(
+                [(space, spectral_parameter, bound_m, y, set_coefficients)]
+            )
+        )
+        f = load_object(
+            list(
+                HilbertMaassFormDB.objects.near(spectral_parameter)
+                .with_m_precision(bound_m)
+                .with_y_precision(y)
+            )[0]
+        )
+    if "unit" in relation:
+        u = relation["unit"]
         coef1 = abs((f.coefficients()[u[1]] - f.coefficients()[u[0]]).real())
         coef2 = abs((f.coefficients()[u[1]] - f.coefficients()[u[0]]).imag())
-    elif 'coprime' in relation:
-        c = relation['coprime']
-        coef1 = abs((f.coefficients()[c[2]] - f.coefficients()[c[1]] * f.coefficients()[c[0]]).real())
-        coef2 = abs((f.coefficients()[c[2]] - f.coefficients()[c[1]] * f.coefficients()[c[0]]).imag())
+    elif "coprime" in relation:
+        c = relation["coprime"]
+        coef1 = abs(
+            (
+                f.coefficients()[c[2]] - f.coefficients()[c[1]] * f.coefficients()[c[0]]
+            ).real()
+        )
+        coef2 = abs(
+            (
+                f.coefficients()[c[2]] - f.coefficients()[c[1]] * f.coefficients()[c[0]]
+            ).imag()
+        )
     else:
-        c = relation['prime_power']
+        c = relation["prime_power"]
         t = len(c)
         if t == 2:
-            coef1 = abs((f.coefficients()[c[1]] - f.coefficients()[c[0]] * f.coefficients()[c[0]] - 1).real())
-            coef2 = abs((f.coefficients()[c[1]] - f.coefficients()[c[0]] * f.coefficients()[c[0]] - 1).imag())
+            coef1 = abs(
+                (
+                    f.coefficients()[c[1]]
+                    - f.coefficients()[c[0]] * f.coefficients()[c[0]]
+                    - 1
+                ).real()
+            )
+            coef2 = abs(
+                (
+                    f.coefficients()[c[1]]
+                    - f.coefficients()[c[0]] * f.coefficients()[c[0]]
+                    - 1
+                ).imag()
+            )
         else:
-            coef1 = abs((f.coefficients()[c[t - 1]] - f.coefficients()[c[0]] * f.coefficients()[c[t - 2]]
-                         + f.coefficients()[c[t - 3]]).real())
-            coef2 = abs((f.coefficients()[c[t - 1]] - f.coefficients()[c[0]] * f.coefficients()[c[t - 2]]
-                         + f.coefficients()[c[t - 3]]).imag())
+            coef1 = abs(
+                (
+                    f.coefficients()[c[t - 1]]
+                    - f.coefficients()[c[0]] * f.coefficients()[c[t - 2]]
+                    + f.coefficients()[c[t - 3]]
+                ).real()
+            )
+            coef2 = abs(
+                (
+                    f.coefficients()[c[t - 1]]
+                    - f.coefficients()[c[0]] * f.coefficients()[c[t - 2]]
+                    + f.coefficients()[c[t - 3]]
+                ).imag()
+            )
 
     return tuple((coef1, coef2))
 

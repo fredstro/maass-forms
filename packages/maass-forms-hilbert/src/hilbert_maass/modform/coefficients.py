@@ -5,17 +5,30 @@ from sage.rings.real_mpfr import RealField
 from typing import ParamSpec
 
 import logging
-from hilbert_maass.modform.utils import ideal_coordinates, map_tuple_to_int, map_int_to_tuple
+from hilbert_maass.modform.utils import (
+    ideal_coordinates,
+    map_tuple_to_int,
+    map_int_to_tuple,
+)
 from sage.rings.integer import Integer
 from sage.rings.number_field.number_field_element import NumberFieldElement
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.structure.element import Matrix
 from sage.structure.sage_object import SageObject
-from .utils import Integer_t, length_from_M, \
-    complex_tuple_to_json, complex_tuple_from_json, Real_t, dual_ideal, ideal_generator, \
-    Complex_t, coefficient_dict_to_json, coefficient_dict_from_json
+from .utils import (
+    Integer_t,
+    length_from_M,
+    complex_tuple_to_json,
+    complex_tuple_from_json,
+    Real_t,
+    dual_ideal,
+    ideal_generator,
+    Complex_t,
+    coefficient_dict_to_json,
+    coefficient_dict_from_json,
+)
 
-P = ParamSpec('P')
+P = ParamSpec("P")
 log = logging.getLogger(__name__)
 
 
@@ -24,16 +37,22 @@ class HilbertMaassCoefficients(SageObject):
     Coefficients of Hilbert Maass Forms
 
     """
-    def __init__(self, coefficients: Matrix,
-                 M: tuple[Integer_t | tuple[Integer_t]],
-                 spectral_parameter: tuple[Complex_t | Real_t],
-                 space: 'HilbertMaassFormSpace', Y: tuple[Real_t] = None,
-                 Q: tuple[Integer_t] = None,
-                 coordinate_ideals: tuple[NumberFieldFractionalIdeal] = None,
-                 set_coefficients: dict = None,
-                 index_tuples: list[list] = None,
-                 check: bool = True,
-                 **kwargs: P.kwargs) -> None:
+
+    def __init__(
+        self,
+        coefficients: Matrix,
+        M: tuple[Integer_t | tuple[Integer_t]],
+        spectral_parameter: tuple[Complex_t | Real_t],
+        space: "HilbertMaassFormSpace",
+        Y: tuple[Real_t] = None,
+        Q: tuple[Integer_t] = None,
+        coordinate_ideals: tuple[NumberFieldFractionalIdeal] = None,
+        set_coefficients: dict = None,
+        index_tuples: list[list] = None,
+        check: bool = True,
+        error_est: float = None,
+        **kwargs: P.kwargs,
+    ) -> None:
         r"""
         Init self.
 
@@ -67,15 +86,24 @@ class HilbertMaassCoefficients(SageObject):
             raise NotImplementedError("Only one cusp supported for now")
         if check:
             if any(M0 == M1 == 0 for M0, M1 in M):
-                raise ValueError('M must be non-zero')
+                raise ValueError("M must be non-zero")
             if coefficients.nrows() != length_from_M(M):
-                raise ValueError(f'coefficients has wrong number of rows: {coefficients.nrows()}'
-                                 f' != {length_from_M(M)}')
+                raise ValueError(
+                    f"coefficients has wrong number of rows: {coefficients.nrows()}"
+                    f" != {length_from_M(M)}"
+                )
             if coefficients.ncols() != len(coordinate_ideals):
-                raise ValueError('coefficients has number of cols: {coefficients.ncols()}'
-                                 f' != {len(coordinate_ideals)}')
+                raise ValueError(
+                    "coefficients has number of cols: {coefficients.ncols()}"
+                    f" != {len(coordinate_ideals)}"
+                )
         from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-        if not coordinate_ideals and not space or not isinstance(space, HilbertMaassFormSpace):
+
+        if (
+            not coordinate_ideals
+            and not space
+            or not isinstance(space, HilbertMaassFormSpace)
+        ):
             raise ValueError("Need to either specify coordinate ideals or a Maass form")
 
         self._coordinate_ideals = coordinate_ideals
@@ -87,13 +115,16 @@ class HilbertMaassCoefficients(SageObject):
         self._spectral_parameter = spectral_parameter
         self._space = space
         self._Y = Y or tuple()
+        self._error_est = error_est
         if index_tuples:
             if not isinstance(index_tuples, list):
-                raise ValueError('index_tuples must be a dict')
+                raise ValueError("index_tuples must be a dict")
             if len(index_tuples) != len(self._coordinate_ideals):
-                raise ValueError('index_tuples and coordinate_ideals have different lengths')
+                raise ValueError(
+                    "index_tuples and coordinate_ideals have different lengths"
+                )
             if not isinstance(index_tuples[0], list):
-                raise ValueError('index_tuples must be a list of lists')
+                raise ValueError("index_tuples must be a list of lists")
         self._index_tuples = index_tuples
 
     def coordinate_ideals(self):
@@ -104,113 +135,137 @@ class HilbertMaassCoefficients(SageObject):
 
     def to_json(self) -> dict:
         """
-            JSON representation of self.
+        JSON representation of self.
 
-            EXAMPLES::
+        EXAMPLES::
 
-                sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
-                sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
-                sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
-                sage: Y = (0.5, 0.5)
-                sage: Q = (3, 3)
-                sage: Cmat = matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
-                sage: set_coefficients = {(0, 0): 0, (0, 1): 1}
-                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter,
-                ....: H,  Y, Q, set_coefficients=set_coefficients)
-                sage: C.to_json()
-                {'M': ((-1, 1), (-1, 1)),
-                 'Q': (3, 3),
-                 'Y': (0.5, 0.5),
-                 'coefficients': [['1.00000000000000'],
-                  ['2.00000000000000'],
-                  ['3.00000000000000'],
-                  ['4.00000000000000'],
-                  ['5.00000000000000'],
-                  ['6.00000000000000'],
-                  ['7.00000000000000'],
-                  ['8.00000000000000'],
-                  ['9.00000000000000']],
-                 'index_tuples': None,
-                 'prec': 53,
-                 'set_coefficients': {'[0, 0]': {'prec': 53, 'val': '0.000000000000000'},
-                  '[0, 1]': {'prec': 53, 'val': '1.00000000000000'}},
-                 'space': {'cuspidal': False,
-                  'number_field': {'names': ['a'], 'polynomial': 'x^2 - 2'}},
-                 'spectral_parameter': [{'prec': 53,
-                   'val': '0.500000000000000 + 1.00000000000000*I'},
-                  {'prec': 53, 'val': '0.500000000000000 + 1.00000000000000*I'}]}
+            sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
+            sage: Y = (0.5, 0.5)
+            sage: Q = (3, 3)
+            sage: Cmat = matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
+            sage: set_coefficients = {(0, 0): 0, (0, 1): 1}
+            sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter,
+            ....: H,  Y, Q, set_coefficients=set_coefficients)
+            sage: C.to_json()
+            {'M': ((-1, 1), (-1, 1)),
+             'Q': (3, 3),
+             'Y': (0.5, 0.5),
+             'coefficients': [['1.00000000000000'],
+              ['2.00000000000000'],
+              ['3.00000000000000'],
+              ['4.00000000000000'],
+              ['5.00000000000000'],
+              ['6.00000000000000'],
+              ['7.00000000000000'],
+              ['8.00000000000000'],
+              ['9.00000000000000']],
+             'index_tuples': None,
+             'prec': 53,
+             'set_coefficients': {'[0, 0]': {'prec': 53, 'val': '0.000000000000000'},
+              '[0, 1]': {'prec': 53, 'val': '1.00000000000000'}},
+             'space': {'cuspidal': False,
+              'number_field': {'names': ['a'], 'polynomial': 'x^2 - 2'}},
+             'spectral_parameter': [{'prec': 53,
+               'val': '0.500000000000000 + 1.00000000000000*I'},
+              {'prec': 53, 'val': '0.500000000000000 + 1.00000000000000*I'}]}
         """
         return {
-            'M': tuple((int(M0[0]), int(M0[1])) for M0 in self._M),
-            'coefficients': [[str(x) for x in r] for r in self._coefficients],
-            'prec': int(self._coefficients.base_ring().prec()),
-            'spectral_parameter': complex_tuple_to_json(self._spectral_parameter),
-            'set_coefficients': coefficient_dict_to_json(self._set_coefficients),
-            'space': self._space.to_json(),
-            'index_tuples': self._index_tuples,
-            'Y': tuple(float(y) for y in self._Y),
-            'Q': tuple(int(q) for q in self._Q)
+            "M": tuple((int(M0[0]), int(M0[1])) for M0 in self._M),
+            "coefficients": [[str(x) for x in r] for r in self._coefficients],
+            "prec": int(self._coefficients.base_ring().prec()),
+            "spectral_parameter": complex_tuple_to_json(self._spectral_parameter),
+            "set_coefficients": coefficient_dict_to_json(self._set_coefficients),
+            "space": self._space.to_json(),
+            "index_tuples": self._index_tuples,
+            "Y": tuple(float(y) for y in self._Y),
+            "Q": tuple(int(q) for q in self._Q),
         }
 
     @classmethod
-    def from_json(cls, data: str | dict) -> 'HilbertMaassCoefficients':
+    def from_json(cls, data: str | dict) -> "HilbertMaassCoefficients":
         """
-            Create an instance of HilbertMaassCoefficients from json formatted dict or string.
+        Create an instance of HilbertMaassCoefficients from json formatted dict or string.
 
-            EXAMPLES::
+        EXAMPLES::
 
-                sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
-                sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
-                sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
-                sage: Y = (0.5, 0.5)
-                sage: Q = (3, 3)
-                sage: Cmat = matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
-                sage: set_coefficients = {(0, 0): 0, (0, 1): 1}
-                sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter,
-                ....: H,  Y, Q, set_coefficients=set_coefficients)
-                sage: HilbertMaassCoefficients.from_json(C.to_json()) == C
-                True
-                sage: import json
-                sage: json_string = json.dumps(C.to_json())
-                sage: HilbertMaassCoefficients.from_json(json_string) == C
-                True
+            sage: from hilbert_maass.all import HilbertMaassFormSpace, HilbertMaassCoefficients
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
+            sage: Y = (0.5, 0.5)
+            sage: Q = (3, 3)
+            sage: Cmat = matrix(RR, [[1],[2],[3],[4],[5],[6],[7],[8],[9]])
+            sage: set_coefficients = {(0, 0): 0, (0, 1): 1}
+            sage: C = HilbertMaassCoefficients(Cmat, ((-1,1),(-1,1)), spectral_parameter,
+            ....: H,  Y, Q, set_coefficients=set_coefficients)
+            sage: HilbertMaassCoefficients.from_json(C.to_json()) == C
+            True
+            sage: import json
+            sage: json_string = json.dumps(C.to_json())
+            sage: HilbertMaassCoefficients.from_json(json_string) == C
+            True
 
         """
         if isinstance(data, str):
             data = json.loads(data)
-        existing_keys = {'prec', 'coefficients', 'M', 'Y', 'Q', 'spectral_parameter', 'index_tuples',
-            'space', 'set_coefficients'}
-        if existing_keys.difference(data.keys()) not in [set({}), {'index_tuples'}]:
-            raise ValueError("Not a valid JSON representation of HilbertMaassCoefficients")
-        CF = ComplexField(data['prec'])
-        coefficients = matrix(CF, data['coefficients'])
+        existing_keys = {
+            "prec",
+            "coefficients",
+            "M",
+            "Y",
+            "Q",
+            "spectral_parameter",
+            "index_tuples",
+            "space",
+            "set_coefficients",
+        }
+        if existing_keys.difference(data.keys()) not in [set({}), {"index_tuples"}]:
+            raise ValueError(
+                "Not a valid JSON representation of HilbertMaassCoefficients"
+            )
+        CF = ComplexField(data["prec"])
+        coefficients = matrix(CF, data["coefficients"])
         from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
-        M = tuple(tuple(x) for x in data['M'])
-        Y = tuple(RealField(data['prec'])(x) for x in data['Y'])
-        Q = tuple(x for x in data['Q'])
+
+        M = tuple(tuple(x) for x in data["M"])
+        Y = tuple(RealField(data["prec"])(x) for x in data["Y"])
+        Q = tuple(x for x in data["Q"])
         return cls(
-            coefficients, M=M,
-            spectral_parameter=complex_tuple_from_json(data['spectral_parameter']),
-            space=HilbertMaassFormSpace.from_json(data['space']),
+            coefficients,
+            M=M,
+            spectral_parameter=complex_tuple_from_json(data["spectral_parameter"]),
+            space=HilbertMaassFormSpace.from_json(data["space"]),
             Y=Y,
             Q=Q,
-            set_coefficients=coefficient_dict_from_json(data['set_coefficients']),
-            index_tuples=data.get('index_tuples', [])
+            set_coefficients=coefficient_dict_from_json(data["set_coefficients"]),
+            index_tuples=data.get("index_tuples", []),
         )
 
     def __hash__(self):
         self._coefficients.set_immutable()
-        return hash((self._coefficients, self._Y, self._Q, self._M, str(self._index_tuples),
-                     self._spectral_parameter, self._space,
-                     str(self._set_coefficients)))
+        return hash(
+            (
+                self._coefficients,
+                self._Y,
+                self._Q,
+                self._M,
+                str(self._index_tuples),
+                self._spectral_parameter,
+                self._space,
+                str(self._set_coefficients),
+            )
+        )
 
     def M(self):
         return self._M
 
     def Y(self):
         return self._Y
+
     def Q(self):
         return self._Q
+
     def space(self):
         return self._space
 
@@ -226,13 +281,15 @@ class HilbertMaassCoefficients(SageObject):
     def __eq__(self, other):
         if not isinstance(other, HilbertMaassCoefficients):
             return False
-        return self.space() == other.space() and \
-            self.coefficient_matrix() == other.coefficient_matrix() and \
-            self.spectral_parameter() == other.spectral_parameter() and \
-            self._Y == other._Y and \
-            self._Q == other._Q and \
-            self._M == other._M and \
-            self._set_coefficients == other._set_coefficients
+        return (
+            self.space() == other.space()
+            and self.coefficient_matrix() == other.coefficient_matrix()
+            and self.spectral_parameter() == other.spectral_parameter()
+            and self._Y == other._Y
+            and self._Q == other._Q
+            and self._M == other._M
+            and self._set_coefficients == other._set_coefficients
+        )
 
     def __repr__(self):
         """
@@ -251,8 +308,10 @@ class HilbertMaassCoefficients(SageObject):
 
         """
         num_cusps = len(self._coordinate_ideals)
-        return f"Coefficients of a Hilbert Maass form with M={self._M} and" \
-               f" {num_cusps} cusp{'s' if num_cusps > 1 else ''}"
+        return (
+            f"Coefficients of a Hilbert Maass form with M={self._M} and"
+            f" {num_cusps} cusp{'s' if num_cusps > 1 else ''}"
+        )
 
     def __getitem__(self, key: tuple | Integer_t) -> ComplexNumber:
         """
@@ -308,7 +367,7 @@ class HilbertMaassCoefficients(SageObject):
         try:
             return self._coefficients.column(cusp)[v]
         except IndexError:
-            raise ValueError(f'Can not get coefficient for {cusp}:{v}')
+            raise ValueError(f"Can not get coefficient for {cusp}:{v}")
 
     def get_coefficient_index(self, v: tuple, cusp: int = 0) -> int:
         if self._index_tuples:
@@ -320,8 +379,9 @@ class HilbertMaassCoefficients(SageObject):
         if self._index_tuples:
             keys_tuple = self._index_tuples[0]
         else:
-            keys_tuple = [map_int_to_tuple(v, self._M)
-                      for v in range(self._coefficients.nrows())]
+            keys_tuple = [
+                map_int_to_tuple(v, self._M) for v in range(self._coefficients.nrows())
+            ]
             self._index_tuples = [keys_tuple]
         if not as_elements:
             return keys_tuple

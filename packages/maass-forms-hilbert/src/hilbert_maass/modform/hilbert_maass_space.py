@@ -1,6 +1,7 @@
 """
 Class for spaces of Hilbert Maass forms.
 """
+
 from hilbert_modgroup.all import HilbertModularGroup
 from hilbert_modgroup.hilbert_modular_group_class import HilbertModularGroup_class
 from hilbert_modgroup.pullback import HilbertPullback
@@ -20,31 +21,31 @@ from sage.structure.element import ModuleElement
 from .hilbert_maass_element import HilbertMaassForm_Element
 from .utils import number_field_from_json, number_field_to_json, Real_t, Integer_t
 
-P = ParamSpec('P')
+P = ParamSpec("P")
 
 
 class HilbertMaassFormSpace(Module):
-
     Element = HilbertMaassForm_Element
 
-    def __init__(self, group: HilbertModularGroup_class | NumberFieldBase, **kwargs: P.kwargs) -> None:
+    def __init__(
+        self, group: HilbertModularGroup_class | NumberFieldBase, **kwargs: P.kwargs
+    ) -> None:
         if not isinstance(group, HilbertModularGroup_class):
             group = HilbertModularGroup(group)
         self._group = group
-        self._cuspidal = kwargs.pop('cuspidal', False)
+        self._cuspidal = kwargs.pop("cuspidal", False)
         self._number_field = group.base_ring().number_field()
         different = self._number_field.different()
         representatives = self.group().ideal_cusp_representatives()
-        self._dual_ideals = [ideal**-1*different**-1 for ideal in representatives]
+        self._dual_ideals = [ideal**-1 * different**-1 for ideal in representatives]
         self._pullback = None
         self._dual_ideal_basis_matrix = []
         super(HilbertMaassFormSpace, self).__init__(group.base_ring(), **kwargs)
 
     def an_element(self):
-        """
-
-        """
+        """ """
         from .hilbert_maass_element import HilbertMaassForm
+
         spectral_parameter = (ComplexField(53)(0, 0),) * self.number_field().degree()
         return HilbertMaassForm(self, spectral_parameter=spectral_parameter)
 
@@ -61,8 +62,8 @@ class HilbertMaassFormSpace(Module):
 
         """
         return {
-            'number_field': number_field_to_json(self.number_field()),
-            'cuspidal': self._cuspidal
+            "number_field": number_field_to_json(self.number_field()),
+            "cuspidal": self._cuspidal,
         }
 
     @classmethod
@@ -78,9 +79,9 @@ class HilbertMaassFormSpace(Module):
             True
 
         """
-        nf = number_field_from_json(data['number_field'])
+        nf = number_field_from_json(data["number_field"])
         group = HilbertModularGroup(nf)
-        return cls(group, cuspidal=data['cuspidal'])
+        return cls(group, cuspidal=data["cuspidal"])
 
     def __repr__(self):
         return f"HilbertMaassFormSpace({self.group()})"
@@ -166,7 +167,9 @@ class HilbertMaassFormSpace(Module):
         return self._dual_ideals
 
     @cached_method
-    def dual_ideal_basis_matrix(self, ideal: NumberFieldFractionalIdeal | Integer_t = None):
+    def dual_ideal_basis_matrix(
+        self, ideal: NumberFieldFractionalIdeal | Integer_t = None
+    ):
         if ideal is None:
             ideal = 0
         if isinstance(ideal, NumberFieldFractionalIdeal):
@@ -179,8 +182,11 @@ class HilbertMaassFormSpace(Module):
         return self._dual_ideal_basis_matrix[ideal]
 
     @cached_method
-    def dual_ideal_element(self, coordinates: tuple[Integer_t] | ModuleElement,
-                           ideal: NumberFieldFractionalIdeal | Integer_t = None):
+    def dual_ideal_element(
+        self,
+        coordinates: tuple[Integer_t] | ModuleElement,
+        ideal: NumberFieldFractionalIdeal | Integer_t = None,
+    ):
         return self.dual_ideal_basis_matrix(ideal) * vector(coordinates)
 
     def is_cuspidal(self):
@@ -216,8 +222,12 @@ class HilbertMaassFormSpace(Module):
             self._pullback = HilbertPullback(self.group())
         return self._pullback
 
-    def _element_constructor_(self, s: tuple | HilbertMaassForm_Element = None,
-                              check: bool = False, **kwargs: P.kwargs):
+    def _element_constructor_(
+        self,
+        s: tuple | HilbertMaassForm_Element = None,
+        check: bool = False,
+        **kwargs: P.kwargs,
+    ):
         r"""
         Construct an element of this finite quadratic module.
 
@@ -237,16 +247,18 @@ class HilbertMaassFormSpace(Module):
                 s = [s] * self._number_field.degree()
         return self.element_class(self, s, **kwargs)
 
-    def check_interval(self, r_start: Real_t,
-                             r_stop: Real_t,
-                             fixed_params: tuple[Real_t] = None,
-                       nsteps: int = 10,
-                       Y1: Real_t = None,
-                       Y2: Real_t = None,
-                       M: tuple[int] = None,
-                       ideala: NumberFieldFractionalIdeal = None,
-                       coeff: tuple = None
-                       ) -> list:
+    def check_interval(
+        self,
+        r_start: Real_t,
+        r_stop: Real_t,
+        fixed_params: tuple[Real_t] = None,
+        nsteps: int = 10,
+        Y1: Real_t = None,
+        Y2: Real_t = None,
+        M: tuple[int] = None,
+        ideala: NumberFieldFractionalIdeal = None,
+        coeff: tuple = None,
+    ) -> list:
         G = self.an_element()
         CF = ComplexField(r_start.parent().prec())
         ideala = ideala or self._number_field.fractional_ideal(1)
@@ -280,4 +292,3 @@ class HilbertMaassFormSpace(Module):
 
     def functional(self, C1, C2, coeff=(0, 1)):
         return C1[coeff].real() - C2[coeff].real()
-

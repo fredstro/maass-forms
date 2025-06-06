@@ -10,7 +10,7 @@ from typing import NoReturn, ParamSpec
 
 from .utils import Integer_t
 
-P = ParamSpec('P')
+P = ParamSpec("P")
 
 
 class HilbertEisensteinSeries(SageObject):
@@ -18,7 +18,10 @@ class HilbertEisensteinSeries(SageObject):
     Class for non-holomorphic Hilbert Eisenstein series.
 
     """
-    def __init__(self, number_field, ideal, spectral_parameter, **kwargs: P.kwargs) -> NoReturn:
+
+    def __init__(
+        self, number_field, ideal, spectral_parameter, **kwargs: P.kwargs
+    ) -> NoReturn:
         r"""
 
         INPUT:
@@ -31,12 +34,12 @@ class HilbertEisensteinSeries(SageObject):
         self.has_coefficients = False
         self._number_field = number_field
         self._ideal = ideal
-        self._dual_ideal = ideal ** -1 * number_field.different() ** -1
+        self._dual_ideal = ideal**-1 * number_field.different() ** -1
         self._dual_basis = self._dual_ideal.integral_basis()
         self._spectral_parameter = spectral_parameter
         self._complex_field = spectral_parameter[0].parent()
         if self._number_field != QuadraticField(2):
-            raise NotImplementedError(f'not implemented for {self.base_ring}')
+            raise NotImplementedError(f"not implemented for {self.base_ring}")
 
     def number_field(self):
         return self._number_field
@@ -49,7 +52,7 @@ class HilbertEisensteinSeries(SageObject):
             return v
         if isinstance(v, tuple):
             return sum(self._dual_basis[i] * v[i] for i in range(len(v)))
-        raise ValueError(f'Dual element not implemented for {v}')
+        raise ValueError(f"Dual element not implemented for {v}")
 
     def av(self, v: tuple) -> ComplexNumber:
         if all(vi == 0 for vi in v):
@@ -57,11 +60,14 @@ class HilbertEisensteinSeries(SageObject):
         v = self._dual_ideal_element(v)
         half = self.CF()(1) / self.CF()(2)
         s = self._spectral_parameter[0]
-        return 1 / self._number_field.discriminant().sqrt() * \
-            (2 * self.CF().pi() ** s / s.gamma()) ** 2 * \
-            abs(v.norm()) ** (s - half) * \
-            self._sigma_K(v, 1 - 2 * s) / \
-            self._number_field.zeta_function(self.CF().prec())(2 * s)
+        return (
+            1
+            / self._number_field.discriminant().sqrt()
+            * (2 * self.CF().pi() ** s / s.gamma()) ** 2
+            * abs(v.norm()) ** (s - half)
+            * self._sigma_K(v, 1 - 2 * s)
+            / self._number_field.zeta_function(self.CF().prec())(2 * s)
+        )
 
     def a0_minus(self):
         r"""
@@ -72,14 +78,18 @@ class HilbertEisensteinSeries(SageObject):
         s = self._spectral_parameter[0]
         CF = self._complex_field
         s_minus_half = s - CF(1) / CF(2)
-        result = CF.pi() / self.number_field().discriminant().sqrt() * (
-                    s_minus_half.gamma() / s.gamma()) ** 2 * \
-                    self.number_field().zeta_function(CF.prec())(
-            2 * s - 1) / self.number_field().zeta_function(CF.prec())(2 * s)
+        result = (
+            CF.pi()
+            / self.number_field().discriminant().sqrt()
+            * (s_minus_half.gamma() / s.gamma()) ** 2
+            * self.number_field().zeta_function(CF.prec())(2 * s - 1)
+            / self.number_field().zeta_function(CF.prec())(2 * s)
+        )
         return CF(result)
 
-    def _ideals_dividing_vD(self, v: tuple | NumberFieldElement) -> \
-            list[NumberFieldFractionalIdeal]:
+    def _ideals_dividing_vD(
+        self, v: tuple | NumberFieldElement
+    ) -> list[NumberFieldFractionalIdeal]:
         """
         Returns divisors of the ideal v*[different ideal] for v in self._dual_ideal
 
@@ -90,10 +100,14 @@ class HilbertEisensteinSeries(SageObject):
 
         """
         v = self._dual_ideal_element(v)
-        idealv = self.number_field().fractional_ideal(v*self._ideal.number_field().different())
+        idealv = self.number_field().fractional_ideal(
+            v * self._ideal.number_field().different()
+        )
         return divisors(idealv)
 
-    def _sigma_K(self, v: tuple | NumberFieldElement, s: ComplexNumber) -> ComplexNumber:
+    def _sigma_K(
+        self, v: tuple | NumberFieldElement, s: ComplexNumber
+    ) -> ComplexNumber:
         r"""
         Divisor function in number field $\sum_{d | (v)*ideal} N(d)**(-s)$
 
@@ -111,7 +125,7 @@ class HilbertEisensteinSeries(SageObject):
 
     def coefficients(self, M: tuple[tuple[Integer_t]]) -> HilbertMaassCoefficients:
         different = self.number_field().different()
-        dual_ideals = [ideal ** -1 * different ** -1 for ideal in self._dual_ideals]
+        dual_ideals = [ideal**-1 * different**-1 for ideal in self._dual_ideals]
         for V in cartesian_product([range(-m0[0], m0[1] + 1) for m0 in M]):
             for ideala_dual in dual_ideals:
                 v = self.dual_ideal_element(V, self._ideal)
