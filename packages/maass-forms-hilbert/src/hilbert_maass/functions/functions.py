@@ -44,7 +44,6 @@ def bessel_prod(
     CF = ComplexField(prec)
     if n == 2 and use_iR and prec == 53:
         return bessel_prod_dp2(v[0], v[1], y[0], y[1], s[0], s[1], sgn == "+")
-    i = 0
     if all(vi == 0 for vi in v):
         if sgn == "+":
             return prod(CF(y[i] ** s[i]) for i in range(n))

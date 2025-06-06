@@ -277,8 +277,7 @@ def compute_coefficients(
     use_iR = all(real(s - 0.5) == 0 for s in spectral_parameter)
     matrixV = {}
     if ncpus > 1:
-        matrix_arguments = []
-        matrix_keys = []
+        pass
     matrixV = setup_matrix(space, spectral_parameter, ideala, idealb, Y, M, Qs, zpb, zm)
     RHS = {}
     normalisation = {}
@@ -366,6 +365,8 @@ def compute_coefficients(
             * RHSmat.norm(Infinity)
             * abs(M[0]) ** (n / 2)
         )
+    else:
+        err_est = None
     # Recreate the actual used set_coefficients dictionary
     set_coefficients_used = {
         map_int_to_tuple(k, M): v for k, v in normalisation.items()
@@ -379,6 +380,7 @@ def compute_coefficients(
         set_coefficients=set_coefficients_used,
         Y=Y,
         Q=Qs,
+        err_est=err_est
     )
 
 
@@ -572,8 +574,7 @@ def compute_coefficients_symmetric(
     use_iR = all(real(s - 0.5) == 0 for s in spectral_parameter)
     matrixV = {}
     if ncpus > 1:
-        matrix_arguments = []
-        matrix_keys = []
+        pass
     list_of_coordinates_orig = cartesian_product_from_M(M)
     list_of_coordinates = []
     for W in list_of_coordinates_orig:

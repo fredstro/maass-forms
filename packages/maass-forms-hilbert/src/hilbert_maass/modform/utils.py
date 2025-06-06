@@ -148,7 +148,6 @@ def map_tuple_to_int(
         for i, (min_tix, max_tix) in enumerate(tuple_limits)
     ):
         raise IndexError(f"Tuple element {index_tuple} is out of bounds!")
-    n = len(index_tuple)
     # Calculate the index of the tuple
     return int(
         sum(

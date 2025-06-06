@@ -470,7 +470,6 @@ def broyden_iteration(
     delta__f_1 = vector([CF(f_1[0]) - CF(f_0[0]), CF(f_1[1]) - CF(f_0[1])])
     if J_0 is None:
         if delta__r_1[0] == 0 or delta__r_1[1] == 0:
-            s = "Zero divisor"
             raise ValueError("J_0 became zero. Try with some other entry.")
         J_0 = matrix(
             [[delta__f_1[0] / delta__r_1[0], 0], [0, delta__f_1[1] / delta__r_1[1]]]
@@ -567,7 +566,7 @@ def coeff_diff_fun(
             )[0]
         )
     else:
-        result1 = list(
+        list(
             compute_one_spectral_parameter(
                 [(space, spectral_parameter, bound_m, y, set_coefficients)]
             )

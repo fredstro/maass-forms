@@ -150,7 +150,6 @@ class HilbertMaassForm_Element(ModuleElement):
         if self.parent().group().ncusps() > 1:
             # TODO: support multiple cusps: find closest cusp and use correct Fourier expansion
             raise NotImplementedError("Only one cusp supported for now")
-        C = self._coefficients
         if isinstance(z, UpperHalfPlaneProductElement__class):
             x = z.real()
             y = z.imag()
@@ -448,7 +447,7 @@ class HilbertMaassForm_Element(ModuleElement):
         for cmapi in cmap:
             g = plt.figure(figsize=(xmax - xmin, ymax - ymin))
             ax = g.add_subplot(111)
-            t = ax.imshow(
+            ax.imshow(
                 xy_data_array,
                 origin="lower",
                 cmap=cmapi,

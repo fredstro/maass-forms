@@ -124,10 +124,14 @@ class HilbertEisensteinSeries(SageObject):
         return sum(ideal_c.norm() ** s for ideal_c in self._ideals_dividing_vD(v))
 
     def coefficients(self, M: tuple[tuple[Integer_t]]) -> HilbertMaassCoefficients:
-        different = self.number_field().different()
-        dual_ideals = [ideal**-1 * different**-1 for ideal in self._dual_ideals]
-        for V in cartesian_product([range(-m0[0], m0[1] + 1) for m0 in M]):
-            for ideala_dual in dual_ideals:
-                v = self.dual_ideal_element(V, self._ideal)
-
-        C = HilbertMaassCoefficients(X, M, self._dual_ideals)
+        """
+        TODO: Implement the coefficients of the Eisenstein series.
+        """
+        raise NotImplementedError
+        # different = self.number_field().different()
+        # dual_ideals = [ideal**-1 * different**-1 for ideal in self._dual_ideals]
+        # for V in cartesian_product([range(-m0[0], m0[1] + 1) for m0 in M]):
+        #     for ideala_dual in dual_ideals:
+        #         c = self.dual_ideal_element(V, self._ideal)
+        #
+        # HilbertMaassCoefficients(X, M, self._dual_ideals)
