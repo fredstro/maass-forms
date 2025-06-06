@@ -1,4 +1,3 @@
-from math import pi, sqrt, exp
 
 from hilbert_maass.functions.functions_cy import bessel_prod_dp2, exp_trace_prod_dp
 from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement

@@ -6,7 +6,6 @@ from copy import copy
 
 from hilbert_maass.modform.coefficients import HilbertMaassCoefficients
 from hilbert_maass.modform.hilbert_maass_element import (
-    HilbertMaassForm,
     HilbertMaassForm_Element,
 )
 from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace

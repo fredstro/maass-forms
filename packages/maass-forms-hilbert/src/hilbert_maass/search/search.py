@@ -361,7 +361,7 @@ def compute_one_spectral_parameter(
             )
             maass_form = load_object(maass_form_db)
         except mongoengine.connection.ConnectionFailure:
-            log.warning(f"Could not connect to database. Compute locally only")
+            log.warning("Could not connect to database. Compute locally only")
     if not maass_form:
         maass_form = HilbertMaassForm(space, spectral_parameter)
     if not maass_form.coefficients():

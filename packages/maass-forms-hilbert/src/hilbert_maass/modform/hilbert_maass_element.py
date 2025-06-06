@@ -5,7 +5,7 @@ Classes For Hilbert-Maass forms
 
 import json
 import logging
-from copy import copy, deepcopy
+from copy import copy
 from typing import ParamSpec
 
 from hilbert_maass.functions.functions import bessel_prod

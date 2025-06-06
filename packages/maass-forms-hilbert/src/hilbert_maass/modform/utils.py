@@ -2,19 +2,16 @@ import json
 from typing import Iterable, Any
 import logging
 
-from hilbert_modgroup.pullback import HilbertPullback
 from sage.all import CC
 from sage.arith.misc import factor
 from sage.categories.sets_cat import cartesian_product
 from sage.rings.integer_ring import ZZ
-from sage.functions.other import ceil
 from sage.misc.functional import round
 from sage.matrix.constructor import matrix
 from sage.misc.cachefunc import cached_function
 from sage.misc.misc_c import prod
 from sage.modules.free_module_element import vector
 from sage.rings.complex_mpfr import ComplexNumber, ComplexField
-from sage.rings.infinity import Infinity
 from sage.rings.integer import Integer
 from sage.rings.number_field.number_field import NumberField
 from sage.rings.number_field.number_field_element import NumberFieldElement
