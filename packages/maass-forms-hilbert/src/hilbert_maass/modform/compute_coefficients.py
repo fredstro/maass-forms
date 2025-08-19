@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 
 from hilbert_maass.functions.functions_cy import bessel_prod_dp2, exp_trace_prod_dp
 from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement
@@ -30,6 +31,9 @@ from .utils import (
     map_int_to_tuple,
 )
 
+if TYPE_CHECKING:
+    from .hilbert_maass_space import HilbertMaassFormSpace
+
 
 # @cached_method
 def get_pb_pts_set_params(
@@ -44,9 +48,47 @@ def get_pb_pts_set_params(
     use_symmetry: bool = False,
     use_shift: bool = False,
 ) -> tuple:
-    if isinstance(spectral_parameter, tuple) and hasattr(
-        spectral_parameter[0], "parent"
-    ):
+    r"""
+    Compute pullback points and related parameters for coefficient computation.
+
+    INPUT:
+
+    - ``space`` -- Hilbert Maass form space
+    - ``spectral_parameter`` -- tuple of complex numbers (optional)
+    - ``M`` -- tuple of integer bounds (optional)
+    - ``Y`` -- tuple of real numbers (optional)
+    - ``Q_set`` -- tuple of integer Q values (optional)
+    - ``smax`` -- maximum |s| (optional)
+    - ``prec`` -- precision (optional)
+    - ``ideala`` -- fractional ideal (optional)
+    - ``use_symmetry`` -- use symmetry (default: False)
+    - ``use_shift`` -- use shift (default: False)
+
+    OUTPUT:
+
+    - tuple (zpb, zm, Qs, M, Y)
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.modform.compute_coefficients import get_pb_pts_set_params
+        sage: from hilbert_maass.modform.hilbert_maass_space import HilbertMaassFormSpace
+        sage: space = HilbertMaassFormSpace(2)
+        sage: s = (0.5+0.5j, 0.5+0.5j)
+        sage: M = ((0, 1), (0,1))
+        sage: Y = (0.32, 0.32)
+        sage: Q = (2, 2)
+        sage: t = get_pb_pts_set_params(space, spectral_parameter=s, M=M, Y=Y, Q_set=Q)
+        sage: len(t) == 5
+        True
+        sage: len(t[0]) == len(t[1]) == 36
+        sage: t[2] == (3, 3)
+        True
+        sage: t[3] == M
+        True
+        sage: t[4] == Y
+        True
+    """
+    if isinstance(spectral_parameter, tuple) and hasattr(spectral_parameter[0], "parent"):
         prec = spectral_parameter[0].parent().prec()
     elif not prec:
         prec = 53
@@ -96,7 +138,7 @@ def get_pb_pts_set_params(
     except ArithmeticError as e:
         msg = f"Could not find good pullback points. Error: {e}"
         log.debug(msg)
-        raise ArithmeticError(msg)
+        raise ArithmeticError(msg) from e
     return zpb, zm, Qs, M, Y
 
 
@@ -170,15 +212,11 @@ def get_pb_pts(
             xm = basis_matrix_m * (vector(m) - half_vector)
         else:
             xm = basis_matrix_m * vector(m)
-        zm_elt = UpperHalfPlaneProductElement(
-            [(xm[i], Y[i]) for i in range(n)], prec=prec
-        )
+        zm_elt = UpperHalfPlaneProductElement([(xm[i], Y[i]) for i in range(n)], prec=prec)
         zm.append(zm_elt)
         pbpt = P.reduce(zm_elt)
         if check and any(y <= Y[i] for i, y in enumerate(pbpt.imag())):
-            raise ArithmeticError(
-                f"Point {pbpt} has imaginary part smaller than {Y}. zm={zm_elt}"
-            )
+            raise ArithmeticError(f"Point {pbpt} has imaginary part smaller than {Y}. zm={zm_elt}")
         zmpb.append(pbpt)
     return zmpb, zm
 
@@ -368,9 +406,7 @@ def compute_coefficients(
     else:
         err_est = None
     # Recreate the actual used set_coefficients dictionary
-    set_coefficients_used = {
-        map_int_to_tuple(k, M): v for k, v in normalisation.items()
-    }
+    set_coefficients_used = {map_int_to_tuple(k, M): v for k, v in normalisation.items()}
     return HilbertMaassCoefficients(
         X,
         M,
@@ -380,7 +416,7 @@ def compute_coefficients(
         set_coefficients=set_coefficients_used,
         Y=Y,
         Q=Qs,
-        err_est=err_est
+        error_est=err_est,
     )
 
 
@@ -408,7 +444,7 @@ def setup_matrix(
     - ``idealb`` -- fractional ideal
     - ``Y`` -- tuple of real numbers
     - ``M`` -- tuple of integers giving the limits used to map the indices of the matrix to tuples
-    - ``Qs`` -- tuple of positive intgers. >= M+2
+    - ``Qs`` -- tuple of positive integers. >= M+2
     - ``zpb`` -- list of complex numbers
     - ``zm`` -- list of complex numbers
     - ``Mcol`` -- same as ``M`` but for column indices if different from row indices
@@ -502,9 +538,7 @@ def setup_matrix(
                     sgn=0,
                 )
             else:
-                bes = bessel_prod(
-                    v, tuple(Y), spectral_parameter, sgn="-", use_iR=use_iR
-                )
+                bes = bessel_prod(v, tuple(Y), spectral_parameter, sgn="-", use_iR=use_iR)
             matrixV[(V, V)] = matrixV[(V, V)] - bes
     return matrixV
 
@@ -671,9 +705,7 @@ def compute_coefficients_symmetric(
     else:
         X = Vmat.solve_right(-RHSmat)
     # Recreate the actual used set_coefficients dictionary
-    set_coefficients_used = {
-        map_int_to_tuple(k, M): v for k, v in normalisation.items()
-    }
+    set_coefficients_used = {map_int_to_tuple(k, M): v for k, v in normalisation.items()}
     return HilbertMaassCoefficients(
         X,
         M,
@@ -758,9 +790,7 @@ def setup_matrix_symmetric(
                     sgn=0,
                 )
             else:
-                bes = bessel_prod(
-                    tuple(w), tuple(ympb), spectral_parameter, sgn="-", use_iR=use_iR
-                )
+                bes = bessel_prod(tuple(w), tuple(ympb), spectral_parameter, sgn="-", use_iR=use_iR)
             exp_arg = (xpbs[m][0] * w[0], xpbs[m][1] * w[1])
             exp_val = exp_trace_prod_dp(exp_arg, symmetry=eps)
             bes_values[m][W] = bes * exp_val
@@ -768,7 +798,7 @@ def setup_matrix_symmetric(
     exp_values = {}
     for m, xm in enumerate(xms):
         exp_values[m] = {}
-        for V in list_of_coordinates:
+        for V in cartesian_product_from_M(M):
             v = dual_ideal_elements[0][V]
             exp_arg = (-xm[0] * v[0], -xm[1] * v[1])
             exp_values[m][V] = exp_trace_prod_dp(exp_arg, symmetry=eps)
@@ -806,6 +836,29 @@ def setup_matrix_symmetric(
 def matrix_element(
     s: tuple, Q: tuple, v: tuple, w: tuple, zpb_v: list, zm_v: list, sgn: str = "+"
 ) -> ComplexNumber:
+    r"""
+    Compute a matrix element for the coefficient system.
+
+    INPUT:
+
+    - ``s`` -- tuple of complex numbers (spectral parameter)
+    - ``Q`` -- tuple of integer Q values
+    - ``v`` -- tuple (row index)
+    - ``w`` -- tuple (column index)
+    - ``zpb_v`` -- list of pullback points
+    - ``zm_v`` -- list of lattice points
+    - ``sgn`` -- sign, '+' or '-'
+
+    OUTPUT:
+
+    - ComplexNumber, the matrix element
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.modform.compute_coefficients import matrix_element
+        sage: # Typical usage (requires setup):
+        sage: # matrix_element(s, Q, v, w, zpb_v, zm_v)
+    """
     factor = prod(2 * q for q in Q)
     summa = 0
     sgn_bool = bool(sgn == "+")
@@ -863,7 +916,7 @@ def find_max_y(
     if not Qs:
         Qs = get_Q_from_bounds(M)
     log.debug(f"Trying: {Qs, Y}")
-    for i in range(max_iterations):
+    for _i in range(max_iterations):
         ok_all_cusps = True
         for id in space.group().ideal_cusp_representatives():
             zp, zm = get_pb_pts(space, Qs, id, Y, check=False)
@@ -878,9 +931,7 @@ def find_max_y(
     raise ArithmeticError("Could not find max Y")
 
 
-def error_estimate_lattice_sum(
-    space, M: Integer_t, Y: Real_t = None, Q: Integer_t = 100
-):
+def error_estimate_lattice_sum(space, M: Integer_t, Y: Real_t = None, Q: Integer_t = 100):
     """
     Estimate of the truncated lattice sum.
 
@@ -906,9 +957,7 @@ def error_estimate_lattice_sum(
     coordinates = cartesian_product_from_M(((-Q, Q),) * n)
     return sum(
         [
-            (
-                -(vector(dual_ideal_element(x, ideala)) * Y[0]).norm(1) * RR.pi() * 2
-            ).exp()
+            (-(vector(dual_ideal_element(x, ideala)) * Y[0]).norm(1) * RR.pi() * 2).exp()
             for x in coordinates
             if vector(x).norm(Infinity) >= M
         ]

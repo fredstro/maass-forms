@@ -21,7 +21,7 @@ def bessel_prod(
     use_iR: bool = False,
     prec: Integer_t = 53,
 ) -> RealNumber_class:
-    """
+    r"""
     A product of scaled K-Bessel functions: sqrt(y_i) e^{pi R_i/2}K_{iR_i}(2pi |v_i|y_i)
     where s_i = 1/2 + Ri
 
@@ -34,9 +34,14 @@ def bessel_prod(
     - ``use_iR`` -- boolean, if True compute K_{iR}(x) where s_i = 1/2 + Ri
     - ``prec`` -- precision
 
-    NOTE: We need to pass precision as an argument since the cache key
-          does not distinguish between input with different precisions, e.g. RealField(103)(1)
-          and 1.0 are seen as the same input.
+    OUTPUT:
+
+    - The product of K-Bessel functions as a real number
+
+    EXAMPLES::
+
+        sage: from hilbert_maass.functions.functions import bessel_prod
+        sage: bessel_prod((1.0,), (1.0,), (1.0,))
     """
     n = len(v)
     if len(y) != n or len(s) != n:
@@ -51,11 +56,7 @@ def bessel_prod(
             return prod(CF(y[i] ** (CF(1) - s[i])) for i in range(n))
     s_minus_half = [si - CF(1) / CF(2) for si in s]
     twopi = CF(2) * CF.pi()
-    if (
-        not all(si.real() == 0 for si in s_minus_half)
-        or not besselk_dp
-        or CF.prec() > 53
-    ):
+    if not all(si.real() == 0 for si in s_minus_half) or not besselk_dp or CF.prec() > 53:
         bessels = [
             CF(
                 y[i].sqrt()
@@ -67,8 +68,7 @@ def bessel_prod(
     else:
         R = [si.imag() for si in s_minus_half]
         bessels = [
-            CF(y[i]).sqrt() * besselk_dp(R[i], twopi * abs(v[i]) * y[i], pref=1)
-            for i in range(n)
+            CF(y[i]).sqrt() * besselk_dp(R[i], twopi * abs(v[i]) * y[i], pref=1) for i in range(n)
         ]
     return prod(bessels)
 

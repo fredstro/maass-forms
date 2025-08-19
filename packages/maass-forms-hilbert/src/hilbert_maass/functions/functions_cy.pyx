@@ -46,7 +46,18 @@ cpdef bessel_prod_dp2(double v0, double v1, double y0, double y1,
     """
     Special case of degree 2. A product of scaled K-Bessel functions: sqrt(y_i) e^{pi R_i/2}K_{iR_i}(2pi |v_i|y_i)
     where s_i = 1/2 + Ri
-    
+
+    INPUT:
+
+    - ``v0, v1`` -- real numbers representing the v values.
+    - ``y0, y1`` -- real numbers representing the y values.
+    - ``s0, s1`` -- complex numbers representing the s values.
+    - ``sgn`` -- integer, 1 for positive sign and 0 for negative sign.
+
+    OUTPUT:
+
+    - The product of scaled K-Bessel functions as a real number.
+
     EXAMPLES::
 
         sage: from hilbert_maass.functions.functions_cy import bessel_prod_dp2
