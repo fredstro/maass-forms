@@ -1,22 +1,24 @@
+from sage.modules.free_module_element cimport FreeModuleElement_generic_dense
 from sage.structure.element cimport Element
 from sage.structure.parent cimport Parent
 from sage.rings.complex_mpc cimport MPComplexField_class, MPComplexNumber
-from sage.rings.real_mpfr cimport RealNumber
+from sage.rings.real_mpfr cimport RealNumber, RealField_class
 from sage.categories.map cimport Map
 
-cdef class UpperHalfSpace__class(Parent):
-    pass
 
-cdef class UpperHalfSpaceElement__class(Element):
+cdef class UpperHalfSpaceElement__class(FreeModuleElement_generic_dense):
     """
-    TODO: think about best representation.
+    TODO: think about the best representation.
     """
     # Double precision representation
-    cdef double _x0
-    cdef double _x1
-    cdef double _y
-
-    cpdef double x0(self)
-    cpdef double x1(self)
-    cpdef double y(self)
-    cpdef action(self, A)
+    # cdef MPComplexNumber _z
+    # cdef int _prec
+    # cdef list _vector
+    # cdef RealField_class _base_ring
+    cpdef x0(self)
+    cpdef x1(self)
+    cpdef y(self)
+    cpdef z(self)
+    cdef norm(self)
+    # cpdef action(self, A)
+    # cpdef add(self, UpperHalfSpaceElement__class other)
