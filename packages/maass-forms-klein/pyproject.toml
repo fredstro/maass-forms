@@ -32,6 +32,7 @@ classifiers = [
 ]
 requires-python = ">= 3.11"
 dependencies = [
+    "maass_form_core",
     "comp_manager>=0.0.1",
     "maass_forms_hilbert",
     "pythran",

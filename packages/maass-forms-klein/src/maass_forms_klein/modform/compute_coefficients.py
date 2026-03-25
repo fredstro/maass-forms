@@ -14,7 +14,7 @@ from sage.misc.cachefunc import cached_function as cached_function_default, cach
 from sage.modules.free_module_element import vector
 from sage.rings.complex_mpfr import ComplexNumber, ComplexField
 from sage.rings.real_mpfr import RealField
-from maass_forms_klein.functions.besselk_dp import besselk_dp
+from maass_form_core.functions.bessel.besselk_dp import besselk_dp
 from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement
 from maass_forms_klein.modform.utils import (Integer_t, Real_t, Complex_t, bessel_function, get_prec)
 from maass_forms_klein.hyperbolic_space.utils import get_lattice_values

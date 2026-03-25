@@ -44,12 +44,6 @@ extra_compile_args = [
 
 ext_modules = [
     Extension(
-        'maass_forms_klein.functions.besselk_dp',
-        sources=[os.path.join('src/maass_forms_klein/functions/besselk_dp.pyx')],
-        extra_compile_args=extra_compile_args,
-        include_dirs=INCLUDE_DIRS, library_dirs=LIBRARY_DIRS
-    ),
-    Extension(
         'maass_forms_klein.hyperbolic_space.upper_half_space',
         sources=[os.path.join('src/maass_forms_klein/hyperbolic_space/upper_half_space.pyx')],
         extra_compile_args=extra_compile_args,

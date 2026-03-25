@@ -1,7 +1,10 @@
 import logging
 from typing import Any
 
-from maass_forms_klein.functions.besselk_dp import besselk_dp
+try:
+    from maass_form_core.functions.bessel.besselk_dp import besselk_dp
+except ImportError:
+    besselk_dp = None
 from sage.functions.bessel import bessel_K
 from sage.misc.functional import log
 from sage.misc.misc_c import prod
