@@ -4,6 +4,7 @@ requires = [
     "cython>=3.0.8,<3.1.0",
     "setuptools_scm[toml]>=6.2",
     "passagemath-environment",
+    "passagemath-flint",
     "passagemath-modules",
 ]
 build-backend = "setuptools.build_meta"
@@ -14,6 +15,9 @@ git_describe_command = "git describe --dirty --tags --long --match core/v*"
 tag_regex = "^core/v(?P<version>.+)$"
 local_scheme = "no-local-version"
 fallback_version = "0.0.0"
+
+[tool.setuptools.package-data]
+maass_form_core = ["**/*.pxd"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
@@ -39,7 +43,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 dependencies = [
-    "passagemath-standard~=10.5.49",
+    "passagemath-standard~=10.8.1",
     "comp_manager>=0.0.2",
 ]
 
