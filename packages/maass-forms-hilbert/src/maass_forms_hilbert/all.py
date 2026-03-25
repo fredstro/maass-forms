@@ -9,7 +9,10 @@ except ImportError as e:
     import logging
 
     logging.error(f"Cannot import HilbertMaassFormDB: {e}")
-from maass_forms_hilbert.functions.bessel.besselk_dp import besselk_dp
+try:
+    from maass_form_core.functions.bessel.besselk_dp import besselk_dp
+except ImportError:
+    besselk_dp = None
 from maass_forms_hilbert.functions.functions import bessel_prod, exp_trace_prod
 from maass_forms_hilbert.modform.coefficients import HilbertMaassCoefficients
 from maass_forms_hilbert.modform.compute_coefficients import compute_coefficients, get_pb_pts
