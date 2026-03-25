@@ -6,6 +6,7 @@ requires = [
     "passagemath-environment",
     "passagemath-flint",
     "passagemath-modules",
+    "maass_form_core",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -48,9 +49,10 @@ classifiers = [
 readme = {file = "README.md", content-type = "text/markdown"}
 dynamic = ["version"]
 dependencies = [
-    "passagemath-standard~=10.5.49",
-    "passagemath-plot~=10.5.49",
-    "hilbert_modular_group >= 0.1.3",
+    "maass_form_core",
+    "passagemath-standard~=10.8.1",
+    "passagemath-plot~=10.8.1",
+    "hilbert_modular_group >= 0.2.1",
     "comp_manager >= 0.0.3",
     ]
 [project.optional-dependencies]

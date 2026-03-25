@@ -43,14 +43,14 @@ extra_compile_args = [
     "-Wno-deprecated-register",
 ]
 
+# Find maass_form_core source for cimport resolution
+try:
+    import maass_form_core
+    CORE_SRC = os.path.dirname(os.path.dirname(maass_form_core.__file__))
+except ImportError:
+    CORE_SRC = os.path.join(os.path.dirname(__file__), "..", "maass-form-core", "src")
+
 ext_modules = [
-    Extension(
-        "maass_forms_hilbert.functions.bessel.besselk_dp",
-        ["src/maass_forms_hilbert/functions/bessel/besselk_dp.pyx"],
-        include_dirs=INCLUDE_DIRS,
-        extra_compile_args=extra_compile_args,
-        library_dirs=LIBRARY_DIRS,
-    ),
     Extension(
         "maass_forms_hilbert.functions.functions_cy",
         ["src/maass_forms_hilbert/functions/functions_cy.pyx"],
@@ -73,7 +73,7 @@ with cython_namespace_package_support():
     setuptools.setup(
         ext_modules=cythonize(
             ext_modules,
-            include_path=["src", SAGE_LIB],
+            include_path=["src", SAGE_LIB, CORE_SRC],
             compiler_directives={
                 "embedsignature": True,
                 "language_level": "3",
