@@ -2,7 +2,8 @@ import logging
 import string
 from typing import ParamSpec, Union, TYPE_CHECKING
 
-# Define types locally to avoid import chain issues  
+from .. import log
+# Define types locally to avoid import chain issues
 from sage.rings.real_mpfr import RealNumber
 from sage.rings.integer import Integer
 from sage.rings.rational import Rational
@@ -125,7 +126,7 @@ def find_covering_generators(rect: Rectangle | Parallelogram, named_gens: dict,
                              covering_list: list = [],
                              check: bool = True,
                              itermax: int = 4,
-                             **kwargs: P.kwargs) -> list[tuple[str, Circle]]:
+                             **kwargs: P.kwargs) -> list[tuple[str, Circle]] | list[str]:
     """
     Find a set of generators that cover the rectangle.
 
@@ -182,21 +183,8 @@ def find_covering_generators(rect: Rectangle | Parallelogram, named_gens: dict,
              ('bml',
               Circle(center=(3.46410161513775, 1.00000000000000), radius=1.00000000000000))]
         sage: rect =  G.translation_fundamental_domain()
-        sage: find_covering_generators(rect, gens)
-         [('BAB',
-          Circle(center=(-0.866025403784438, -0.500000000000001), radius=1.00000000000000)),
-         ('ABab',
-          Circle(center=(0.866025403784439, 0.500000000000000), radius=1.00000000000000)),
-         ('BAba',
-          Circle(center=(-0.866025403784439, 0.499999999999999), radius=1.00000000000000)),
-         ('BAbM',
-          Circle(center=(-8.65333208872605e-16, 4.99600361081319e-16), radius=1.00000000000000)),
-         ('baMl',
-          Circle(center=(1.73205080756888, 0.000000000000000), radius=1.00000000000000)),
-         ('bmaa',
-          Circle(center=(-1.73205080756888, -7.77156117237610e-16), radius=1.00000000000000)),
-         ('bMBl',
-          Circle(center=(0.866025403784438, -0.500000000000000), radius=1.00000000000000))]
+        sage: find_covering_generators(rect, gens, return_words=True)
+        ['ABab', 'BAB', 'BAbM', 'BAba', 'bMBl', 'baMl', 'bmaa']
     """
     verbose = kwargs.get("verbose", False)
     if not isinstance(named_gens, dict):
@@ -246,7 +234,7 @@ def find_covering_generators(rect: Rectangle | Parallelogram, named_gens: dict,
             if test:
                 covering_list = covering_list_intersect
         except ArithmeticError as e:
-            print(e)
+            log.info(str(e))
             pass
         # Update the list
         if test:
@@ -264,7 +252,11 @@ def find_covering_generators(rect: Rectangle | Parallelogram, named_gens: dict,
         n += 1
     if not test:
         raise ArithmeticError("Could not find a covering list.")
-    return reduce_cover(rect, covering_list, named_gens, **kwargs)
+    return_words = kwargs.pop("return_words", False)
+    res = reduce_cover(rect, covering_list, named_gens, **kwargs)
+    if return_words:
+        return sorted([x[0] for x in res])
+    return res
 
 def find_covering_generators2(rect: Rectangle | Parallelogram, named_gens: dict,
                              check: bool = True,
@@ -287,24 +279,24 @@ def find_covering_generators2(rect: Rectangle | Parallelogram, named_gens: dict,
         sage: find_covering_generators(rect, {'a': s,'b':s,'B':s,'A':s})
         Traceback (most recent call last):
         ...
-        ValueError: Incomplete generators. Need all of ['a', 'A', 'b', 'B', 'm', 'M', 'l', 'L']
+        ArithmeticError: Could not find a covering list.
         sage: gens = {'a': s,'b':s,'B':s,'A':s, 'm':t, 'M': t**-1, 'l':l, 'L':l**-1}
-        sage: find_covering_generators(rect, gens)
-        ['A', 'AL', 'AM', 'ALM']
+        sage: find_covering_generators(rect, gens, return_words=True)
+        ['a', 'aL', 'aLM', 'aM']
         sage: rect = Rectangle(base=vector((-0.5, -0.5)), v1=vector((1, 0)), v2=vector((0, 1)))
-        sage: find_covering_generators(rect, gens)
-        ['A']
+        sage: find_covering_generators(rect, gens, return_words=True)
+        ['a']
         sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup__from_manifold
         sage: from snappy import Manifold
         sage: M = Manifold("4_1")
         sage: G = KleinianGroup__from_manifold(M)
         sage: gens = G.named_generators(prec=53)
         sage: rect = Parallelogram(base=vector((0, 0)), v1=vector((3.46410161513775, 0)), v2=vector((0, 1)))
-        sage: find_covering_generators(rect, gens)
-        ['b', 'Bl', 'bl', 'bm', 'abM', 'BAl', 'bal', 'blm']
+        sage: find_covering_generators(rect, gens, return_words=True)
+        ['AB', 'BAb', 'BAl', 'Bl', 'abM', 'bal', 'bl', 'bml']
         sage: rect =  G.translation_fundamental_domain()
-        sage: find_covering_generators(rect, gens)
-         ['B', 'b', 'BA', 'Bl', 'abM', 'BAB', 'abMM']
+        sage: find_covering_generators(rect, gens, return_words=True)
+        ['ABab', 'BAB', 'BAbM', 'BAba', 'bMBl', 'baMl', 'bmaa']
     """
     verbose = kwargs.get("verbose", False)
     if not isinstance(named_gens, dict):
@@ -444,7 +436,7 @@ def find_covering_generators2(rect: Rectangle | Parallelogram, named_gens: dict,
                                                     n_max=kwargs.get("n_max", 20),
                                                     verbose=verbose-1 if verbose > 0 else 0)
     except ArithmeticError as e:
-        print(e)
+        log.info(str(e))
         test = False
     if test:
         covering_generators = reduce_cover(rect, new_reduced_list, named_gens)
@@ -688,10 +680,12 @@ def find_side_pairing_gens(manifold: "Manifold") -> list[str]:
     EXAMPLES::
 
         sage: # Skipping examples that depend on snappy and Kleinian groups  # doctest: +SKIP
-        sage: # from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup  # doctest: +SKIP
-        sage: # M = Manifold('4_1')  # doctest: +SKIP
-        sage: # find_side_pairing_gens(M)  # doctest: +SKIP
-        ['a', 'b', 'm', 'l', 'LBl', 'Lbl', 'Mbm', 'LBAl', 'Lbal', 'mabM', 'LMbml']
+        sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+        sage: from maass_forms_klein.hyperbolic_space.utils import find_side_pairing_gens
+        sage: from snappy import Manifold
+        sage: M = Manifold('4_1')
+        sage: find_side_pairing_gens(M)
+        ['AB', 'ABB', 'B', 'BAB', 'b', 'bABB', 'ba', 'bab', 'babABB', 'bba', 'bbaB', 'bbaBAB']
     """
     # Try to find side-pairing generators
     D = manifold.dirichlet_domain(include_words=True)
@@ -701,4 +695,5 @@ def find_side_pairing_gens(manifold: "Manifold") -> list[str]:
     # we need to translate to a and b etc.
     az = string.ascii_lowercase
     original_gens = {az[n]: x for n, x in enumerate(G.original_generators())}
-    return [change_letters_in_word(x, original_gens) for x in side_pairing_dirichlet]
+    return sorted([reduce_word(change_letters_in_word(x, original_gens))
+                   for x in side_pairing_dirichlet])

@@ -123,9 +123,8 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
     EXAMPLES::
 
         sage: from maass_forms_klein.database.models import KleinianMaassFormDB
-        sage: from maass_forms_klein.database.tests import connect_mockdb, insert_fixtures
+        sage: from maass_form_core.testing import connect_mockdb
         sage: connect_mockdb()
-        sage: insert_fixtures()
         sage: qs = KleinianMaassFormDB.objects
         sage: # Query for forms in spectral range
         sage: forms = qs.spectral_range((0.5, 0.6), (14.0, 15.0))
@@ -146,7 +145,7 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
             item = slice(int(item.start), int(item.stop))
         return super().__getitem__(item)
 
-    def space(self, space: Union['KleinianMaassFormSpace', dict]) -> QuerySet:
+    def space(self, space: Union["KleinianMaassFormSpace", dict]) -> QuerySet:
         """Filter KleinianMaassFormsDB objects by space.
         
         INPUT:
@@ -163,6 +162,8 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
             sage: qs = KleinianMaassFormDB.objects.space(space)
             
         TESTS::
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
             sage: qs = KleinianMaassFormDB.objects
             sage: qs.space({'invalid': 'dict'})
             Traceback (most recent call last):
@@ -204,6 +205,8 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
         EXAMPLES::
 
             sage: from maass_forms_klein.all import KleinianMaassFormDB
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
             sage: qs = KleinianMaassFormDB.objects
             sage: # Find forms with real part in [0.4, 0.6]
             sage: forms = qs.spectral_range((0.4, 0.6))
@@ -211,6 +214,8 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
             sage: forms = qs.spectral_range((0.4, 0.6), (14.0, 15.0))
             
         TESTS::
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
             sage: qs = KleinianMaassFormDB.objects
             sage: qs.spectral_range((0.9, 0.1))  # Invalid range
             Traceback (most recent call last):
@@ -461,7 +466,7 @@ class MatrixDB(me.DynamicEmbeddedDocument):
     entries = me.ListField(me.ListField())
 
 
-class KleinianGroupDB(DBObjectBase):
+class KleinianGroupDB(DBObjectBaseAbstract):
     """
     Database representation of KleinianGroup.
     """
