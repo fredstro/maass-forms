@@ -1,12 +1,8 @@
 [build-system]
 requires = [
-    "setuptools>=75.0.0",
-    "cython>=3.0.8,<3.1.0",
-    "setuptools_scm[toml]>=6.2",
-    "passagemath-environment",
-    "passagemath-flint",
-    "passagemath-modules",
-    "maass_form_core",
+    "setuptools>=82.0.1",
+    "cython>=3.1.0,<3.3.0",
+    "setuptools_scm[toml]>=6.2"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -50,10 +46,7 @@ readme = {file = "README.md", content-type = "text/markdown"}
 dynamic = ["version"]
 dependencies = [
     "maass_form_core",
-    "passagemath-standard~=10.8.1",
-    "passagemath-plot~=10.8.1",
     "hilbert_modular_group >= 0.2.1",
-    "comp_manager >= 0.0.3",
     ]
 [project.optional-dependencies]
 dev = [
@@ -73,7 +66,7 @@ sourcecode = "https://github.com/fredstro/maass_forms_hilbert/"
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 src = ["src"]
 extend-exclude = ["*.pyx", "*.ipynb"]
 

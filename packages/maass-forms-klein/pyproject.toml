@@ -1,10 +1,8 @@
 [build-system]
 requires = [
-    "setuptools>=49.6.0",
-    "wheel>=0.36.2",
-    "cython>=3.0.8,<3.1.0",
+    "setuptools>=82.0.1",
+    "cython>=3.1.0,<3.3.0",
     "setuptools_scm[toml]>=6.2",
-    "passagemath-modules",
         ]
 build-backend = "setuptools.build_meta"
 
@@ -17,8 +15,7 @@ authors = [
 ]
 readme = "README.md"
 license = "GPL-3.0-or-later"
-#license-files = ["LICENSE.txt"]
-#license = {file = "LICENSE.txt"}
+requires-python = ">= 3.11"
 keywords = ["kleinian groups", "maass forms", "hyperbolic 3-manifolds"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -28,13 +25,9 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Cython",
     "Topic :: Scientific/Engineering :: Mathematics",
-    "Topic :: Scientific/Engineering :: Information Analysis",
 ]
-requires-python = ">= 3.11"
 dependencies = [
     "maass_form_core",
-    "comp_manager>=0.0.1",
-    "maass_forms_hilbert",
     "pythran",
     "snappy",
     "snappy-manifolds",
@@ -49,8 +42,8 @@ dev = [
     "pytest-mock",
     "mongomock",
     "freezegun",
-    "mongoengine",
-    "ruff"
+    "ruff",
+    "pre-commit",
 ]
 notebook = [
     "jupyter"
@@ -71,9 +64,13 @@ fallback_version = "0.0.0"
 [tool.setuptools.package-data]
 maass_forms_klein = ["src/maass_forms_klein/openapi/*"]
 
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+addopts = ["--import-mode=importlib"]
+
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 fix = true
 unsafe-fixes = false
 
