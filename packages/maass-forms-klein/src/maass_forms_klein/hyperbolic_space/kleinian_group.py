@@ -14,7 +14,7 @@ from .utils import Integer_t, Real_t, get_lattice_values
 from .geometry_utils import split_rectangle, rectangle_in_circle, \
     matrix_to_circle
 from maass_forms_klein.hyperbolic_space.word_utils import expand_word, \
-    word_to_element
+    word_to_element, find_inverse_word
 from ..utils.json_converters import matrix_to_json, matrix_from_json
 from maass_forms_klein.exceptions import InvalidGroupError
 from sage.categories.groups import Groups
@@ -84,7 +84,8 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
                                         data.get("_covering_generators", {}).items()}
         self._named_gens = {k: matrix_from_json(g) for k, g in
                             data.get("_named_gens", {}).items()}
-        self._side_pairing_gens = data.get("_side_pairing_gens", [])
+        self._side_pairing_gens = kwargs.get("side_pairing_gens", data.get("_side_pairing_gens", []))
+        self._parabolic_words = kwargs.get("parabolic_words", data.get("_parabolic_words", {}))
         self._covering_generators_words = data.get("_covering_generators_words", [])
         self._prec = data.get("_prec", None)
         self._init_prec = None
@@ -305,6 +306,9 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         if not self._side_pairing_gens:
             self._side_pairing_gens = find_side_pairing_gens(self.manifold())
         return self._side_pairing_gens
+
+    def parabolic_words(self):
+        return dict(self._parabolic_words)
 
     @cached_method
     def word_to_element(self, word, prec=53):
@@ -811,8 +815,15 @@ def KleinianGroup__from_manifold(manifold: "Manifold", **kwargs: P.kwargs):
     normalised_gens_nf["m"] = normalised_gens_nf["M"].inverse()
     # Try to find side-pairing generators
     side_pairing_gens = find_side_pairing_gens(manifold)
+    parabolic_words = tuple({
+        "L": G.longitude(),
+        "l": find_inverse_word(G.longitude()),
+        "M": G.meridian(),
+        "m": find_inverse_word(G.meridian()),
+    }.items())
     return KleinianGroup_class(tuple(normalised_gens_nf.items()),
                                manifold=manifold.name(),
+                               parabolic_words=parabolic_words,
                                side_pairing_gens=tuple(side_pairing_gens))
 
 
