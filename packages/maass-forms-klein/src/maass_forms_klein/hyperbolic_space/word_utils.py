@@ -237,12 +237,14 @@ def change_letters_in_word(word: str, new_names: dict) -> str:
         sage: from maass_forms_klein.hyperbolic_space.word_utils import change_letters_in_word
         sage: change_letters_in_word('aC', {'a': 'A', 'c': 'B'})
         'Ab'
+        sage: change_letters_in_word('A', {'a': 'ab'})
+        'BA'
     """
 
     new_word = []
     for letter in word:
         if letter.isupper():
-            new_letter = new_names[letter.lower()].swapcase()
+            new_letter = find_inverse_word(new_names[letter.lower()])
         else:
             new_letter = new_names[letter]
         new_word.append(new_letter)
