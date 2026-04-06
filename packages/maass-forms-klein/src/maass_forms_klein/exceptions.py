@@ -25,7 +25,7 @@ class InvalidSpectralParameterError(KnotMaassError):
     - Parameter format is incorrect for the mathematical context
     - Complex parameters have invalid real/imaginary parts
     """
-    
+
     def __init__(self, message: str, parameter_value: Any = None):
         super().__init__(message)
         self.parameter_value = parameter_value
@@ -39,7 +39,7 @@ class InvalidSpaceError(KnotMaassError):
     - Space serialization/deserialization fails
     - Required space properties are missing
     """
-    
+
     def __init__(self, message: str, space_config: Optional[dict] = None):
         super().__init__(message)
         self.space_config = space_config
@@ -53,7 +53,7 @@ class InvalidGroupError(KnotMaassError):
     - Group construction fails mathematical validation
     - Group parameters are inconsistent
     """
-    
+
     def __init__(self, message: str, group_data: Any = None):
         super().__init__(message)
         self.group_data = group_data
@@ -67,7 +67,7 @@ class ComputationError(KnotMaassError):
     - Mathematical operations encounter singularities
     - Algorithm-specific failures occur
     """
-    
+
     def __init__(self, message: str, computation_details: Optional[dict] = None):
         super().__init__(message)
         self.computation_details = computation_details
@@ -81,7 +81,7 @@ class DatabaseError(KnotMaassError):
     - Data serialization/deserialization fails
     - Database validation errors occur
     """
-    
+
     def __init__(self, message: str, operation: Optional[str] = None):
         super().__init__(message)
         self.operation = operation
@@ -95,7 +95,7 @@ class ValidationError(KnotMaassError):
     - Data types are incorrect for mathematical operations
     - Required parameters are missing
     """
-    
+
     def __init__(self, message: str, field_name: Optional[str] = None, value: Any = None):
         super().__init__(message)
         self.field_name = field_name

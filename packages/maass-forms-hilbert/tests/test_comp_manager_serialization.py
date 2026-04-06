@@ -5,7 +5,6 @@ These tests document known serialization failures in comp_manager's JSONEncoder,
 which lacks support for SageMath types like NumberFieldFractionalIdeal.
 """
 
-import pytest
 from comp_manager.utils.serialization import serialize
 from sage.rings.number_field.number_field import QuadraticField
 

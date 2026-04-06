@@ -1,4 +1,3 @@
-import json
 
 import numpy
 from maass_forms_klein.modform.compute_coefficients import compute_coefficients
@@ -12,7 +11,7 @@ from werkzeug.datastructures import ImmutableDict
 from typing import ParamSpec
 import logging
 
-P = ParamSpec('P')
+P = ParamSpec("P")
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ log = logging.getLogger(__name__)
 def h(r, space: KleinianMaassFormSpace, M: Integer_t, Q: Integer_t,
       Y1: Real_t, Y2: Real_t, set_coefficients: dict | str = None,
       coefficient_indices: tuple[Integer_t, ...] = None,
-      real_imag: str = 'real') -> tuple[Real_t, ...] | tuple[tuple[Real_t, Real_t], ...]:
+      real_imag: str = "real") -> tuple[Real_t, ...] | tuple[tuple[Real_t, Real_t], ...]:
     if isinstance(set_coefficients, str):
         set_coefficients = dict_from_json(set_coefficients)
     C0 = compute_coefficients(space, r, Q, Y1, M, set_coefficients)
@@ -28,11 +27,11 @@ def h(r, space: KleinianMaassFormSpace, M: Integer_t, Q: Integer_t,
     if not coefficient_indices:
         coefficient_indices = [1]
     for i in coefficient_indices:
-        log.debug(f'Computing h({r})({i}) = {C0[i]} - {C1[i]}='
-            f'{(C0[i] - C1[i]).real()}, {(C0[i] - C1[i]).imag()}')
-    if real_imag == 'imag':
+        log.debug(f"Computing h({r})({i}) = {C0[i]} - {C1[i]}="
+            f"{(C0[i] - C1[i]).real()}, {(C0[i] - C1[i]).imag()}")
+    if real_imag == "imag":
         return tuple([imag(C0[i] - C1[i]) for i in coefficient_indices])
-    if real_imag == 'real':
+    if real_imag == "real":
         return tuple([real(C0[i] - C1[i]) for i in coefficient_indices])
     return tuple([((C0[i] - C1[i]).real(), (C0[i] - C1[i]).imag()) for i in coefficient_indices])
 
@@ -65,20 +64,20 @@ def search_eigenvalues(space: KleinianMaassFormSpace, R1: Real_t, R2: Real_t,
         ArithmeticError:...
 
     """
-    if 'step_size' in kwargs:
-        step_size = kwargs.get('step_size', 0.05)
+    if "step_size" in kwargs:
+        step_size = kwargs.get("step_size", 0.05)
         num_steps = ceil((R2 - R1) / step_size + 1)
-    elif 'num_steps' not in kwargs:
+    elif "num_steps" not in kwargs:
         raise ValueError("Need either step size or number of steps.")
     else:
-        num_steps = int(kwargs.get('num_steps', 11))
+        num_steps = int(kwargs.get("num_steps", 11))
     range_of_r = numpy.linspace(R1, R2, num_steps)
-    M = kwargs.get('M', 4)
-    Q = kwargs.get('Q', M + 5)
-    Y1 = kwargs.get('Y', 0.5)
-    Y2 = kwargs.get('Y2', Y1 * 0.95)
-    set_coefficients = kwargs.get('set_coefficients', None)
-    coefficient_indices = kwargs.get('coefficient_indices', None)
+    M = kwargs.get("M", 4)
+    Q = kwargs.get("Q", M + 5)
+    Y1 = kwargs.get("Y", 0.5)
+    Y2 = kwargs.get("Y2", Y1 * 0.95)
+    set_coefficients = kwargs.get("set_coefficients", None)
+    coefficient_indices = kwargs.get("coefficient_indices", None)
     if set_coefficients:
         set_coefficients = ImmutableDict(set_coefficients)
 
@@ -101,7 +100,7 @@ def newton_method_search(r0: Real_t, r1: Real_t, space: KleinianMaassFormSpace, 
                          Q: Integer_t, Y1: Real_t, Y2: Real_t, set_coefficients: dict,
                          coefficient_indices: tuple[Integer_t, ...] = None,
                          tolerance: Real_t = 1e-10, verbose: bool = False,
-                         real_imag: str = 'real') -> tuple[Real_t, tuple]:
+                         real_imag: str = "real") -> tuple[Real_t, tuple]:
     r"""
     Search for eigenvalues of Maass forms for the space.
 
@@ -164,7 +163,7 @@ def newton_method_search(r0: Real_t, r1: Real_t, space: KleinianMaassFormSpace, 
 def newton_method_step(r0, r1, space, M, Q, Y1, Y2, set_coefficients: dict = None,
                        coefficient_indices: tuple[Integer_t, ...] = None,
                        tolerance: Real_t = 1e-10,
-                       real_imag: str = 'real') -> Real_t:
+                       real_imag: str = "real") -> Real_t:
     r"""
     Search for eigenvalues of Maass forms for the space.
 

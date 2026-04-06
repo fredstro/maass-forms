@@ -3,7 +3,6 @@ import re
 from maass_forms_klein.hyperbolic_space.types import Circle
 from sage.matrix.constructor import matrix
 from sage.structure.element import Matrix
-from sage.symbolic.ring import SymbolicRing
 
 
 def find_inverse_word(word: str) -> str:
@@ -101,7 +100,7 @@ def reduce_word(word, n: int = 0):
     if n and 2 * n > len_word_in:
         return word
     # hard-coded list is quicker ...
-    for pair in ['aA', 'bB', 'lL', 'mM', 'Aa', 'Bb', 'Ll', 'Mm']:
+    for pair in ["aA", "bB", "lL", "mM", "Aa", "Bb", "Ll", "Mm"]:
         word = word.replace(pair, "")
     # If no change in word we just return it
     if len_word_in == len(word):
@@ -125,15 +124,15 @@ def expand_parentheses(word):
         sage: expand_parentheses('(a(ab)^2)^2')
         'aababaabab'
     """
-    if '(' in word and not ')' in word or ')' in word and not '(' in word:
+    if ("(" in word and ")" not in word) or (")" in word and "(" not in word):
         raise ValueError(f"Unmatched parentheses in {word}")
-    if '(' not in word:
+    if "(" not in word:
         return word
-    for w, n in re.findall(r'\(([^()]*)\)\^(-?\d+)', word):
+    for w, n in re.findall(r"\(([^()]*)\)\^(-?\d+)", word):
         wnew = expand_parentheses(w)
         if int(n) < 0:
             wnew = wnew.swapcase()
-        word = word.replace(f'({w})^{n}', wnew * abs(int(n)))
+        word = word.replace(f"({w})^{n}", wnew * abs(int(n)))
     return expand_parentheses(word)
 
 def expand_word(word: str) -> str:
@@ -152,16 +151,16 @@ def expand_word(word: str) -> str:
         sage: expand_word('a^3*b^-1*a*b^-10')
         'aaaBaBBBBBBBBBB'
     """
-    word = word.replace('*', '')
+    word = word.replace("*", "")
     word = expand_parentheses(word)
     # Replace any a^2 with aa etc.
-    replacements = re.findall(r'(\w)\^(\d+)', word)
+    replacements = re.findall(r"(\w)\^(\d+)", word)
     # Need to make sure that we match b^10 before b^1
     replacements.sort(key=lambda x: len(x[1]), reverse=True)
     for w, n in replacements:
         word = word.replace(f"{w}^{n}", w * int(n))
     # Replace any a^-2 with AA etc.
-    replacements = re.findall(r'(\w)\^(-\d+)', word)
+    replacements = re.findall(r"(\w)\^(-\d+)", word)
     replacements.sort(key=lambda x: len(x[1]), reverse=True)
     for w, n in replacements:
         winv = w.swapcase()

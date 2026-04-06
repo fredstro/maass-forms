@@ -1,6 +1,4 @@
 import numpy
-from hilbert_modgroup.pullback_cython import cartesian_product
-from math import prod
 
 from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
 from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
@@ -14,7 +12,6 @@ from sage.misc.cachefunc import cached_function as cached_function_default, cach
 from sage.modules.free_module_element import vector
 from sage.rings.complex_mpfr import ComplexNumber, ComplexField
 from sage.rings.real_mpfr import RealField
-from maass_form_core.functions.bessel.besselk_dp import besselk_dp
 from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement
 from maass_forms_klein.modform.utils import (Integer_t, Real_t, Complex_t, bessel_function, get_prec)
 from maass_forms_klein.hyperbolic_space.utils import get_lattice_values
@@ -34,7 +31,7 @@ except ImportError:
 def setup_matrix(space, spectral_parameter: Complex_t | Real_t,
                  Y: Real_t,
                  M: tuple[Integer_t] | Integer_t,
-                 zpb: list, zm: list,
+                 zpb: tuple, zm: tuple,
                  ) -> Matrix:
     """
     Compute the matrix to solve.
@@ -58,7 +55,7 @@ def setup_matrix(space, spectral_parameter: Complex_t | Real_t,
         sage: Y = 0.5; M = 1; Q = 3
         sage: zpb, zm = get_pb_pts(space.group(), Q=Q, Y=Y)
         sage: s = CC(0.5,6.62211934)
-        sage: V = setup_matrix(space, spectral_parameter=s, M=M, Y=Y, zpb=zpb, zm=zm)
+        sage: V = setup_matrix(space, spectral_parameter=s, M=M, Y=Y, zpb=tuple(zpb), zm=tuple(zm))
         sage: V.ncols() == 9 and V.nrows() == 9
         True
 
@@ -146,7 +143,7 @@ def find_max_y(space: KleinianMaassFormSpace,
     return Y
 
 
-def compute_coefficients(space: 'KleinianMaassFormSpace',
+def compute_coefficients(space: "KleinianMaassFormSpace",
                          spectral_parameter: Complex_t | Real_t,
                          Q: tuple[Integer_t] | Integer_t = None,
                          Y: Real_t = None,
@@ -160,7 +157,7 @@ def compute_coefficients(space: 'KleinianMaassFormSpace',
     zpb, zm, Q, M, Y = get_pb_pts_set_params(space, spectral_parameter,
                                             M=M, Y=Y, Q_set=Q)
     log.debug(f"Q={Q}, M={M}, Y={Y}")
-    V = setup_matrix(space, spectral_parameter, Y, M, zpb, zm)
+    V = setup_matrix(space, spectral_parameter, Y, M, tuple(zpb), tuple(zm))
     # normalise:
     dual_lattice_values = space.group().dual_translation_lattice_vectors(M, return_indices=True)
     dual_lattice_values, dual_lattice_indices = dual_lattice_values
@@ -278,14 +275,14 @@ def get_pb_pts(group: KleinianGroup, Q: Integer_t = None,
     return zmpb, zm
 
 
-def get_pb_pts_set_params(space: 'KleinianMaassFormSpace',
+def get_pb_pts_set_params(space: "KleinianMaassFormSpace",
                           spectral_parameter: ComplexNumber = None,
                           M: Integer_t = None,
                           Y: Real_t = None,
                           Q_set: Integer_t = None,
                           smax: float | Real_t = None,
                           prec: Integer_t = None) -> tuple:
-    if hasattr(spectral_parameter, 'parent'):
+    if hasattr(spectral_parameter, "parent"):
         prec = spectral_parameter.parent().prec()
     else:
         prec = 53

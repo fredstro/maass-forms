@@ -55,12 +55,12 @@ def decode_function(obj: dict | str) -> Any:
         ....:                   "value": "1"})
         1
     """
-    if isinstance(obj, dict) and '__type__' in obj:
-        if obj['__type__'] == 'ring':
+    if isinstance(obj, dict) and "__type__" in obj:
+        if obj["__type__"] == "ring":
             return ring_from_json(obj)
-        elif obj['__type__'] == 'matrix':
+        elif obj["__type__"] == "matrix":
             return matrix_from_json(obj)
-        elif obj['__type__'] == 'element':
+        elif obj["__type__"] == "element":
             return ring_element_from_json(obj)
     if isinstance(obj, dict):
         new_dict = {}
@@ -107,9 +107,9 @@ def matrix_to_json(m):
          'entries': [['z^2', 'z^3'], ['z^4', 'z^5']]}
     """
     return {
-        'base_ring': ring_to_json(m.base_ring()),
-        'entries': [[str(x) for x in row] for row in list(m)],
-        '__type__': 'matrix'
+        "base_ring": ring_to_json(m.base_ring()),
+        "entries": [[str(x) for x in row] for row in list(m)],
+        "__type__": "matrix"
     }
 
 def ring_element_to_json(data: Any) ->dict:
@@ -139,19 +139,19 @@ def ring_element_to_json(data: Any) ->dict:
     base_ring = None
     # print("data", data, type(data))
     if isinstance(data, Integer_t):
-        base_ring = {'name': 'IntegerRing', 'prec': get_prec(data), '__type__': 'ring'}
+        base_ring = {"name": "IntegerRing", "prec": get_prec(data), "__type__": "ring"}
     if isinstance(data, Real_t):
-        base_ring = {'name': 'RealField', 'prec': get_prec(data), '__type__': 'ring'}
+        base_ring = {"name": "RealField", "prec": get_prec(data), "__type__": "ring"}
     if isinstance(data, Complex_t):
-        base_ring = {'name': 'ComplexField', 'prec': get_prec(data), '__type__': 'ring'}
+        base_ring = {"name": "ComplexField", "prec": get_prec(data), "__type__": "ring"}
     if isinstance(data, Rational):
-        base_ring = {'name': 'RationalField', 'prec': get_prec(data), '__type__': 'ring'}
+        base_ring = {"name": "RationalField", "prec": get_prec(data), "__type__": "ring"}
     if isinstance(data, NumberFieldElement):
         base_ring = number_field_to_json(data.parent())
     return {
-        'parent': base_ring,
-        'value': str(data),
-        '__type__': 'element'
+        "parent": base_ring,
+        "value": str(data),
+        "__type__": "element"
     }
 
 
@@ -177,8 +177,8 @@ def ring_element_from_json(data: dict) -> Any:
     """
     if not isinstance(data, dict):
         data = json.loads(data)
-    parent = ring_from_json(data['parent'])
-    return parent(data['value'])
+    parent = ring_from_json(data["parent"])
+    return parent(data["value"])
 
 
 def matrix_from_json(data):
@@ -199,7 +199,7 @@ def matrix_from_json(data):
         [z^2 z^3]
         [z^4 z^5]
     """
-    return matrix(ring_from_json(data['base_ring']), data['entries'])
+    return matrix(ring_from_json(data["base_ring"]), data["entries"])
 
 
 def ring_to_json(F):
@@ -230,15 +230,15 @@ def ring_to_json(F):
          'name': 'NumberField'}
     """
     if isinstance(F, RealField_class):
-        return {"name": "RealField", "prec": int(F.prec()), '__type__': 'ring'}
+        return {"name": "RealField", "prec": int(F.prec()), "__type__": "ring"}
     if isinstance(F, ComplexField_class):
-        return {"name": "ComplexField", "prec": int(F.prec()), '__type__': 'ring'}
+        return {"name": "ComplexField", "prec": int(F.prec()), "__type__": "ring"}
     if isinstance(F, RationalField):
-        return {"name": "RationalField", "prec": int(0), '__type__': 'ring'}
+        return {"name": "RationalField", "prec": (0), "__type__": "ring"}
     if isinstance(F, IntegerRing_class):
-        return {"name": "IntegerRing", "prec": int(0), '__type__': 'ring'}
+        return {"name": "IntegerRing", "prec": (0), "__type__": "ring"}
     if isinstance(F, NumberField_generic):
-        return {"name": "NumberField", "field": number_field_to_json(F), '__type__': 'ring'}
+        return {"name": "NumberField", "field": number_field_to_json(F), "__type__": "ring"}
     raise ValueError(f"Unsupported base ring {F}")
 
 
@@ -306,8 +306,8 @@ def number_field_to_json(nf: NumberField_generic) -> dict:
          'polynomial': 'x^8 + 2*x^6 + 3*x^4 + 3*x^2 + 2'}
 
     """
-    return {'polynomial': str(nf.polynomial()), 'names': list(nf._names), '__type__': 'ring',
-            'embedding': str(nf.gen_embedding().n(53)) if nf.gen_embedding() else None}
+    return {"polynomial": str(nf.polynomial()), "names": list(nf._names), "__type__": "ring",
+            "embedding": str(nf.gen_embedding().n(53)) if nf.gen_embedding() else None}
 
 
 def number_field_from_json(data: dict | str) -> NumberField_generic:
@@ -334,9 +334,9 @@ def number_field_from_json(data: dict | str) -> NumberField_generic:
     """
     if isinstance(data, str):
         data = json.loads(data)
-    emb = data.get('embedding', None)
+    emb = data.get("embedding", None)
 
-    return NumberField(ZZ['x'](data['polynomial']), names=tuple(data['names']),
+    return NumberField(ZZ["x"](data["polynomial"]), names=tuple(data["names"]),
                        embedding=ComplexField(53)(emb) if emb else None)
 
 
@@ -361,7 +361,7 @@ def dict_from_json(data: str | dict) -> dict:
     """
     if isinstance(data, str):
         data = json.loads(data)
-    if '__type__' in data:
+    if "__type__" in data:
         return decode_function(data)
     new_dict = {}
     for key, value in data.items():

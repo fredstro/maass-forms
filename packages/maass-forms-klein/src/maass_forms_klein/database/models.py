@@ -1,19 +1,17 @@
 import logging
-from typing import ParamSpec, Any, ClassVar, Union, Optional, List, Dict, Tuple
+from typing import ParamSpec, Union, Optional, Tuple
 
 import mongoengine as me
 from mongoengine import QuerySet
 from sage.rings.complex_mpfr import ComplexField
 from sage.rings.integer import Integer
 
-from comp_manager.core.models import DBObjectBase
+from comp_manager.core.models import DBObjectBase, DBObjectBaseAbstract
 from comp_manager.core.queryset import QuerySetCompat
 from comp_manager.utils import insert_object
 from maass_forms_klein.exceptions import (
-    ValidationError, 
-    InvalidSpaceError, 
-    InvalidSpectralParameterError,
-    DatabaseError
+    ValidationError,
+    InvalidSpaceError
 )
 from maass_forms_klein.modform.utils import Real_t, Complex_t, Integer_t, map_tuple_to_int
 
@@ -23,7 +21,7 @@ if TYPE_CHECKING:
     from maass_forms_klein.modform.kmaass_element import KleinianMaassFormElement
     from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
 
-P = ParamSpec('P')
+P = ParamSpec("P")
 
 
 log = logging.getLogger(__name__)
@@ -81,9 +79,9 @@ class ParallelogramDB(me.EmbeddedDocument):
         sage: from maass_forms_klein.all import ParallelogramDB
         sage: pg = ParallelogramDB(base=[0,0], v1=[1,0], v2=[0,1])
         sage: pg.base
-        [0, 0]
+        [0.0, 0.0]
     """
-    base = me.ListField(me.FloatField(), max_length=2, min_length=2, 
+    base = me.ListField(me.FloatField(), max_length=2, min_length=2,
                         help_text="Base point coordinates [x, y]")
     v1 = me.ListField(me.FloatField(), max_length=2, min_length=2,
                       help_text="First spanning vector [x, y]")
@@ -103,8 +101,8 @@ class Word(DBObjectBase):
     max_length = me.IntField()
     group = me.DictField()
     meta = {
-        'indexes': [{'fields': ('label', 'reduced_to_fd', 'max_length'),
-                    'unique': True}]
+        "indexes": [{"fields": ("label", "reduced_to_fd", "max_length"),
+                    "unique": True}]
     }
 
     def save(self, **kwargs: P.kwargs) -> None:
@@ -173,22 +171,22 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
         """
         # Import here to avoid circular imports
         from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
-        
+
         if isinstance(space, KleinianMaassFormSpace):
             space = space.to_json()
         elif isinstance(space, dict):
-            if 'group' not in space:
+            if "group" not in space:
                 raise InvalidSpaceError("Dict must contain 'group' key", space_config=space)
         else:
             raise ValidationError(
                 f"space must be KleinianMaassFormSpace or dict with 'group', got {type(space)}",
-                field_name="space", 
+                field_name="space",
                 value=space
             )
-        return self(parent__group=space['group'], parent__cuspidal=space['cuspidal'])
+        return self(parent__group=space["group"], parent__cuspidal=space["cuspidal"])
 
     def spectral_range(
-        self, 
+        self,
         range_real: Tuple[Real_t, Real_t],
         range_imag: Optional[Tuple[Real_t, Real_t]] = None,
         eps: Real_t = 1e-15
@@ -222,20 +220,20 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
         # Validate input ranges
         if not isinstance(range_real, (tuple, list)) or len(range_real) != 2:
             raise ValidationError(
-                "range_real must be a tuple/list of length 2", 
+                "range_real must be a tuple/list of length 2",
                 field_name="range_real", value=range_real
             )
-            
+
         if range_real[0] > range_real[1]:
             raise ValidationError(
                 "Lower bound must be less than or equal to upper bound",
                 field_name="range_real", value=range_real
             )
-            
+
         if range_imag is not None:
             if not isinstance(range_imag, (tuple, list)) or len(range_imag) != 2:
                 raise ValidationError(
-                    "range_imag must be a tuple/list of length 2", 
+                    "range_imag must be a tuple/list of length 2",
                     field_name="range_imag", value=range_imag
                 )
             if range_imag[0] > range_imag[1]:
@@ -243,23 +241,23 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
                     "Lower bound must be less than or equal to upper bound",
                     field_name="range_imag", value=range_imag
                 )
-        
+
         # Build query conditions
         lower_bds_x = float(range_real[0] - eps)
         upper_bds_x = float(range_real[1] + eps)
         conditions = {
             "spectral_parameter_point.x": {"$gte": lower_bds_x, "$lte": upper_bds_x},
         }
-        
+
         if range_imag:
             lower_bds_y = float(range_imag[0] - eps)
             upper_bds_y = float(range_imag[1] + eps)
             conditions["spectral_parameter_point.y"] = {"$gte": lower_bds_y, "$lte": upper_bds_y}
-            
+
         return self(__raw__=conditions)
 
     def near(
-        self, 
+        self,
         spectral_parameter: Complex_t,
         max_distance: Real_t = 1e-15
     ) -> QuerySet:
@@ -276,29 +274,34 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
 
             sage: from maass_forms_klein.all import KleinianMaassFormDB
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
             sage: CC = ComplexField(53)
             sage: s = CC(0.5, 14.1)
             sage: qs = KleinianMaassFormDB.objects
             sage: nearby_forms = qs.near(s, max_distance=1e-10)
             
         TESTS::
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
+            sage: qs = KleinianMaassFormDB.objects
             sage: qs.near("invalid")
             Traceback (most recent call last):
             ...
             ValidationError: spectral_parameter must be a complex number
         """
-        if not hasattr(spectral_parameter, 'real') or not hasattr(spectral_parameter, 'imag'):
+        if not hasattr(spectral_parameter, "real") or not hasattr(spectral_parameter, "imag"):
             raise ValidationError(
                 "spectral_parameter must be a complex number",
                 field_name="spectral_parameter", value=spectral_parameter
             )
-            
+
         if max_distance < 0:
             raise ValidationError(
                 "max_distance must be non-negative",
                 field_name="max_distance", value=max_distance
             )
-            
+
         return self.spectral_range(
             (spectral_parameter.real(), spectral_parameter.real()),
             (spectral_parameter.imag(), spectral_parameter.imag()),
@@ -319,9 +322,9 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
         conditions = {}
         if m_bound:
             conditions = {
-                    f"coefficients.M": {"$lte": int(m_bound[0]), "$gte": int(m_bound[1])}
+                    "coefficients.M": {"$lte": int(m_bound[0]), "$gte": int(m_bound[1])}
             }
-        return self(__raw__=conditions).order_by('-max_m')
+        return self(__raw__=conditions).order_by("-max_m")
 
     def with_y_precision(self, y: tuple[Real_t] = None, eps: Real_t = 1e-15) -> QuerySet:
         """
@@ -338,7 +341,7 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
             return self
         if not isinstance(y, (tuple, list)):
             y = [y] * 2
-        conditions = {f"coefficients.Y": {
+        conditions = {"coefficients.Y": {
                         "$lte": float(y[1]) + float(eps),
                         "$gte": float(y[0]) - float(eps)
                     }}
@@ -349,17 +352,17 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
     #     set_coefficients_db = coefficient_dict_to_json(set_coefficients)
     #     return self(__raw__={"coefficients.set_coefficients": set_coefficients_db})
 
-class KleinianMaassFormDB(DBObjectBase):
+class KleinianMaassFormDB(DBObjectBaseAbstract):
     """
     Kleinian Maass form database object.
     """
     meta = {
-        'collection': 'kleinian_maass_forms',
-        'object_class_name_base': 'KleinianMaassForm',
-        'queryset_class': KleinianMaassFormQuerySet,
-        'indexes': [
-            {'fields': ('hash',), 'unique': True},
-            {'fields': ('parent',), 'unique': False},
+        "collection": "kleinian_maass_forms",
+        "object_class_name_base": "KleinianMaassForm",
+        "queryset_class": KleinianMaassFormQuerySet,
+        "indexes": [
+            {"fields": ("hash",), "unique": True},
+            {"fields": ("parent",), "unique": False},
         ],
     }
     # Properties matching those of KleinianMaassForm_Element
@@ -377,15 +380,15 @@ class KleinianMaassFormDB(DBObjectBase):
     # Set manually (or automatically) to 'tentative' if the form is
     # close to a true eigenvalue, otherwise 'checked'.
     # If it is a known lift we mark it as 'lift'
-    status = me.StringField(choices=['tentative', 'unchecked', 'checked',
-                                     'lift'],
-                            default='unchecked')
+    status = me.StringField(choices=["tentative", "unchecked", "checked",
+                                     "lift"],
+                            default="unchecked")
     comments = me.StringField()
     max_m = me.IntField()
     # Skip 'coefficients' since we only want to compare against the
     # input values, not the computed values.
-    _skip_keys = ['_id', 'created_at', 'updated_at', 'hash', 'comments',
-                  'coefficients.coefficients', 'spectral_parameter_points']
+    _skip_keys = ["_id", "created_at", "updated_at", "hash", "comments",
+                  "coefficients.coefficients", "spectral_parameter_points"]
 
     def save(self, **kwargs: P.kwargs):
         """
@@ -397,23 +400,23 @@ class KleinianMaassFormDB(DBObjectBase):
 
         """
         if self.spectral_parameter and not self.r_values:
-            complex_pts = [complex(s['val'].replace('*I', 'j').replace(' ', ''))
+            complex_pts = [complex(s["val"].replace("*I", "j").replace(" ", ""))
                            for s in self.spectral_parameter]
-            coords = [Point(**{'x': s.real, 'y': s.imag}) for s in complex_pts]
+            coords = [Point(**{"x": s.real, "y": s.imag}) for s in complex_pts]
             self.spectral_parameter_points = coords
             self.r_values = [float(s.imag) for s in complex_pts]
         if self.coefficients and not self.y_values:
-            self.y_values = [float(y) for y in self.coefficients['Y']]
+            self.y_values = [float(y) for y in self.coefficients["Y"]]
         if not self.max_m and self.coefficients:
-            self.max_m = max(max(m) for m in self.coefficients['M'])
+            self.max_m = max(max(m) for m in self.coefficients["M"])
         super(KleinianMaassFormDB, self).save(**kwargs)
 
     def __str__(self, *args: P.args, **kwargs: P.kwargs) -> str:
         """
         String representation of self.
         """
-        poly = self.parent.get('number_field', {}).get('polynomial', '')
-        spectral_parameter = [s.get('val', "") for s in self.spectral_parameter]
+        poly = self.parent.get("number_field", {}).get("polynomial", "")
+        spectral_parameter = [s.get("val", "") for s in self.spectral_parameter]
         return f"Kleinian Maass form for NumberField({poly}) with spectral parameter" \
            f" {spectral_parameter}"
 
@@ -424,15 +427,15 @@ class KleinianMaassFormDB(DBObjectBase):
         """
         bound_tuple = integer_to_bounds_tuple(self.max_m, len(self.spectral_parameter))
         n = map_tuple_to_int(t, bound_tuple)
-        prec = self.spectral_parameter[0]['prec']
-        return ComplexField(prec)(self.coefficients['coefficients'][n][0])
+        prec = self.spectral_parameter[0]["prec"]
+        return ComplexField(prec)(self.coefficients["coefficients"][n][0])
 
     @classmethod
-    def near_or_create(cls, parent: 'KleinianMaassFormSpace', spectral_parameter: tuple[Complex_t],
+    def near_or_create(cls, parent: "KleinianMaassFormSpace", spectral_parameter: tuple[Complex_t],
                        max_distance: Real_t=1e-15,
                        bound_m: tuple[Integer_t] = None,
                        y: tuple[Real_t] = None,
-                       set_coefficients: dict = None) -> 'KleinianMaassFormDB':
+                       set_coefficients: dict = None) -> "KleinianMaassFormDB":
         """
         Find or create KleinianMaassFormsDB objects near the given spectral parameter.
         """
@@ -473,14 +476,14 @@ class KleinianGroupDB(DBObjectBase):
     _latex_string = me.StringField()
     type = me.StringField()
     meta = {
-        'collection': 'kleinian_group',
-        'object_class_name_base': 'KleinianGroup',
+        "collection": "kleinian_group",
+        "object_class_name_base": "KleinianGroup",
     }
 
     def __repr__(self):
         return self._name_string
 
-    def save(self, **kwargs: P.kwargs) -> 'BaseDocument':
+    def save(self, **kwargs: P.kwargs) -> "BaseDocument":
         """
         Save self.
 

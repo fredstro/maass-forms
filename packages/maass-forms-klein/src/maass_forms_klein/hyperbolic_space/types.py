@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, astuple
+from dataclasses import dataclass, field
 from typing import NoReturn, Union
 
 # Define Real_t locally to avoid import chain issues

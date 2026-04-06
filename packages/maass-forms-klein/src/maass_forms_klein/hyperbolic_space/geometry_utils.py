@@ -1,11 +1,9 @@
-import logging
 from copy import deepcopy
-from dataclasses import dataclass
 from typing import ParamSpec
 
 from maass_forms_klein.hyperbolic_space.parallelogram import split_parallelogram, \
     parallelogram_intersect_circle, parallelogram_in_circle, \
-    parallelogram_covered_by_matrices, parallelogram_covered_by_circles
+    parallelogram_covered_by_circles
 from sage.functions.other import real, imag
 from sage.misc.cachefunc import cached_function
 from sage.misc.functional import sqrt
@@ -13,12 +11,11 @@ from sage.modules.free_module_element import vector
 from sage.plot.circle import circle
 from sage.plot.polygon import polygon
 from sage.rings.complex_mpfr import ComplexField
-from sage.rings.imaginary_unit import I
-from sage.rings.infinity import Infinity, infinity
+from sage.rings.infinity import Infinity
 from sage.rings.real_mpfr import RR
 from sage.structure.element import Matrix, Vector
 
-# Define types locally to avoid import chain issues  
+# Define types locally to avoid import chain issues
 from sage.rings.real_mpfr import RealNumber
 from sage.rings.integer import Integer
 from sage.rings.rational import Rational
@@ -32,11 +29,11 @@ from maass_forms_klein.hyperbolic_space.types import Rectangle, Circle, Parallel
 # Define get_epsilon locally to avoid import issues
 def get_epsilon(element: Real_t):
     """Get machine epsilon for given precision."""
-    if hasattr(element, 'base_ring'):
+    if hasattr(element, "base_ring"):
         return element.base_ring().epsilon()
     return 2 ** (4 - 53)
 
-P = ParamSpec('P')
+P = ParamSpec("P")
 
 
 def reduce_cover(rect: Rectangle | Parallelogram, cover_list: list[str | tuple[str, Circle]],
@@ -129,7 +126,7 @@ def remove_duplicate_circles(cover_list: list[tuple[str, Circle] | str], gens: d
         return []
     # Get 'infinity' cut-off
     elt = cover_list[0][1].radius
-    if hasattr(elt, 'base_ring'):
+    if hasattr(elt, "base_ring"):
         eps = elt.base_ring().epsilon()
         if eps == 0:  # Handle rings like Integer Ring with epsilon = 0
             eps = 1e-10
@@ -422,11 +419,11 @@ def matrix_to_circle(mat: Matrix) -> Circle:
         raise ValueError(f"Need matrix input. Got: {mat}.")
     if mat[1, 0] == 0:
         return Circle(center=vector((0, 0)), radius=Infinity)
-    if hasattr(mat.base_ring(), 'prec'):
+    if hasattr(mat.base_ring(), "prec"):
         prec = mat.base_ring().prec()
     else:
         prec = 53
-    if hasattr(mat[1, 0], 'n'):
+    if hasattr(mat[1, 0], "n"):
         c, d = mat[1, 0].n(prec), mat[1, 1].n(prec)
     else:
         CF = ComplexField(prec)
@@ -535,9 +532,9 @@ def display_rectangle_and_matrices(rect, matrices, **kwargs):
     for g in matrices:
         cr = matrix_to_circle(g)
         plot += circle(tuple(cr.center), cr.radius,
-                       alpha=kwargs.get('alpha', 0.5),
-                       thickness=kwargs.get('thickness', 0.2),
-                       color=kwargs.get('color', 'red'))
+                       alpha=kwargs.get("alpha", 0.5),
+                       thickness=kwargs.get("thickness", 0.2),
+                       color=kwargs.get("color", "red"))
     return plot
 
 
@@ -684,10 +681,10 @@ def point_covered_by_circles(p: Vector, circles: list[Circle],
 def display_parallelogram_and_circles(par: Parallelogram,
                                       circles: list[Circle | Matrix | str] = None,
                                       **kwargs: P.kwargs):
-    alpha = kwargs.get('alpha', 0.5)
-    thickness = kwargs.get('thickness', 0.2)
-    color = kwargs.get('color', 'red')
-    pcolor = kwargs.get('pcolor', 'blue')
+    alpha = kwargs.get("alpha", 0.5)
+    thickness = kwargs.get("thickness", 0.2)
+    color = kwargs.get("color", "red")
+    pcolor = kwargs.get("pcolor", "blue")
     plot = polygon(par.vertices, alpha=alpha, thickness=thickness, color=pcolor)
     if not circles:
         circles = []
@@ -695,7 +692,7 @@ def display_parallelogram_and_circles(par: Parallelogram,
         if isinstance(cr, Matrix):
             cr = matrix_to_circle(cr)
         if isinstance(cr, str):
-            cr = word_to_circle(cr, kwargs.get('gens', []))
+            cr = word_to_circle(cr, kwargs.get("gens", []))
         if cr.radius == Infinity:
             continue
         plot += circle(cr.center, cr.radius,

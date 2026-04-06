@@ -176,11 +176,11 @@ def dual_ideal_element(index_tuple, ideal):
 
 
 @cached_function
-def bessel_function(absv, y, s, pre_factor=1, sgn='+'):
+def bessel_function(absv, y, s, pre_factor=1, sgn="+"):
     if absv == 0:
         if s == 1.0:
-            return y if sgn == '+' else y * log(y)
-        return y ** s if sgn == '+' else y ** (2 - s)
+            return y if sgn == "+" else y * log(y)
+        return y ** s if sgn == "+" else y ** (2 - s)
     elif absv < 0:
         raise ValueError("absv must be non-negative")
     # print("S in bes=",s,type(s))
@@ -218,7 +218,7 @@ def get_prec(x: Any) -> int:
 def get_epsilon(x: Any) -> tuple[float,Any]:
     if isinstance(x, float):
         eps = 2 ** - 53
-    elif hasattr(x, 'parent'):
+    elif hasattr(x, "parent"):
         eps = x.parent().base_ring().epsilon()
     else:
         raise ValueError("Could not find base ring")

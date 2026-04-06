@@ -4,7 +4,6 @@ We represent a parallelogram as a triple of vectors (v1,v2,b)
 where b is the base and v1 and v2 span the parallelogram sides.
 """
 from maass_forms_klein.hyperbolic_space.word_utils import translation_tuple_to_word
-from pythran.transformations.normalize_is_none import is_is_none
 from sage.all import RR
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import floor
@@ -13,7 +12,7 @@ from sage.misc.functional import sqrt
 from sage.modules.free_module_element import vector
 from sage.rings.infinity import Infinity
 from sage.structure.element import Vector, Matrix
-# Define types locally to avoid import chain issues  
+# Define types locally to avoid import chain issues
 from sage.rings.real_mpfr import RealNumber
 from sage.rings.integer import Integer
 from sage.rings.rational import Rational
