@@ -739,7 +739,8 @@ def KleinianGroup(spec: Union[int, str, List, Tuple, Dict, Manifold], **kwargs: 
     elif spec is None:
         raise InvalidGroupError("Invalid group specification: None")
     try:
-        from snappy import Manifold
+        if isinstance(spec, str):
+            spec = Manifold(spec)
         if isinstance(spec, Manifold):
             return KleinianGroup__from_manifold(spec, **kwargs)
     except ImportError:
@@ -747,8 +748,7 @@ def KleinianGroup(spec: Union[int, str, List, Tuple, Dict, Manifold], **kwargs: 
     return KleinianGroup_class(spec, **kwargs)
 
 
-
-def KleinianGroup__from_manifold(manifold: "Manifold", **kwargs: P.kwargs):
+def KleinianGroup__from_manifold(manifold: Manifold, **kwargs: P.kwargs):
     """
     Create a Kleinian group from a manifold.
 
