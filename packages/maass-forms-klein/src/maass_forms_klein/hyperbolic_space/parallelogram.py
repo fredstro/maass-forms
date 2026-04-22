@@ -307,7 +307,7 @@ def circle_outside_parallelogram(c: Circle, p: Parallelogram, scaling_factor: Re
         return False
 
     #if abs(coord11[0]) <= 1 / 2 or abs(coord11[1]) <= 1 / 2:
-    # If the circle is not entirely in a hyperplane then it cna only intersect the parallelogram
+    # If the circle is not entirely in a hyperplane then it can only intersect the parallelogram
     # if it contains one of the vertices.
     # from maass_forms_klein.hyperbolic_space.geometry_utils import point_in_circle
     # if not any(point_in_circle(v, c, scaling_factor) for v in p.vertices):

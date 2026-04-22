@@ -240,7 +240,7 @@ cdef class UpperHalfSpaceElement__class(FreeModuleElement_generic_dense):
         if A.nrows() == 2 and A.ncols() == 2:
             a, b, c, d = A.list()
         else:
-            raise ValueError("Input must be coercable to a matrix in SL(2,C).")
+            raise ValueError("Input must be coercible to a matrix in SL(2,C).")
         eps = a.parent().epsilon()
         if check and abs(a * d - b * c  - 1) > 16 * eps:
             raise ValueError(f"Matrix must be in SL(2,C): det(A)-1 = "
