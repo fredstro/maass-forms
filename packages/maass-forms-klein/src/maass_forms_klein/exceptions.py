@@ -10,16 +10,17 @@ from typing import Any, Optional
 
 class KnotMaassError(Exception):
     """Base exception for maass-forms-klein package.
-    
+
     All package-specific exceptions inherit from this class to provide
     a common exception hierarchy for error handling.
     """
+
     pass
 
 
 class InvalidSpectralParameterError(KnotMaassError):
     """Raised when a spectral parameter is invalid or out of bounds.
-    
+
     This exception is raised when:
     - Spectral parameter values are outside expected mathematical bounds
     - Parameter format is incorrect for the mathematical context

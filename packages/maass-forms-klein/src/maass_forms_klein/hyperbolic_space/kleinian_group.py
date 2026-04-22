@@ -3,22 +3,17 @@ Class representing a Kleinian group, i.e. a discrete subgroup of PSL(2,C)
 acting discretely on the upper half-space.
 
 """
+
 import json
-from typing import ParamSpec, Union, List, Tuple, Dict
-
-from .utils import find_covering_generators
-from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement__class
+import logging
+import warnings
 from math import floor
+from typing import Dict, List, ParamSpec, Tuple, Union
 
-from .utils import Integer_t, Real_t, get_lattice_values
-from .geometry_utils import split_rectangle, rectangle_in_circle, \
-    matrix_to_circle
-from maass_forms_klein.hyperbolic_space.word_utils import expand_word, \
-    word_to_element, find_inverse_word
-from ..utils.json_converters import matrix_to_json, matrix_from_json
-from maass_forms_klein.exceptions import InvalidGroupError
+from maass_form_core.utils.json_converters import matrix_from_json, matrix_to_json
 from sage.categories.groups import Groups
 from sage.functions.other import imag, real
+from sage.groups.matrix_gps.linear import LinearMatrixGroup_generic
 from sage.matrix.constructor import matrix
 from sage.matrix.matrix_space import MatrixSpace
 from sage.misc.cachefunc import cached_method
@@ -29,20 +24,28 @@ from sage.rings.infinity import Infinity
 from sage.rings.integer import Integer
 from sage.rings.integer_ring import ZZ
 from sage.rings.number_field.number_field import QuadraticField
-from sage.rings.real_mpfr import RealField
-from sage.structure.element import Matrix, Element, Vector
-from sage.groups.matrix_gps.linear import LinearMatrixGroup_generic
 from sage.rings.number_field.number_field_base import NumberField
+from sage.rings.real_mpfr import RealField
+from sage.structure.element import Element, Matrix, Vector
 
+from maass_forms_klein.exceptions import InvalidGroupError
 from maass_forms_klein.hyperbolic_space.types import Parallelogram
-import warnings
-warnings.filterwarnings(
-        action="ignore", category=UserWarning
-    )
-from snappy import Manifold
+from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement__class
+from maass_forms_klein.hyperbolic_space.word_utils import (
+    expand_word,
+    find_inverse_word,
+    word_to_element,
+)
 
+from .geometry_utils import matrix_to_circle, rectangle_in_circle, split_rectangle
+from .utils import Integer_t, Real_t, find_covering_generators, get_lattice_values
 
-from maass_forms_klein.hyperbolic_space.utils import find_side_pairing_gens
+warnings.filterwarnings(action="ignore", category=UserWarning)
+from snappy import Manifold  # noqa: E402
+
+from maass_forms_klein.hyperbolic_space.utils import find_side_pairing_gens  # noqa: E402
+
+log = logging.getLogger(__name__)
 
 P = ParamSpec("P")
 
@@ -78,13 +81,14 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         if isinstance(data, str):
             data = json.loads(data)
         self._gens = [matrix_from_json(g) for g in data.get("_gens", [])]
-        self._named_gens = {k: matrix_from_json(g) for k, g in
-                               data.get("_named_gens", {}).items()}
-        self._covering_generators = {k: matrix_from_json(g) for k, g in
-                                        data.get("_covering_generators", {}).items()}
-        self._named_gens = {k: matrix_from_json(g) for k, g in
-                            data.get("_named_gens", {}).items()}
-        self._side_pairing_gens = kwargs.get("side_pairing_gens", data.get("_side_pairing_gens", []))
+        self._named_gens = {k: matrix_from_json(g) for k, g in data.get("_named_gens", {}).items()}
+        self._covering_generators = {
+            k: matrix_from_json(g) for k, g in data.get("_covering_generators", {}).items()
+        }
+        self._named_gens = {k: matrix_from_json(g) for k, g in data.get("_named_gens", {}).items()}
+        self._side_pairing_gens = kwargs.get(
+            "side_pairing_gens", data.get("_side_pairing_gens", [])
+        )
         self._parabolic_words = kwargs.get("parabolic_words", data.get("_parabolic_words", {}))
         self._covering_generators_words = data.get("_covering_generators_words", [])
         self._prec = data.get("_prec", None)
@@ -93,7 +97,7 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         if basis_matrix:
             basis_matrix = matrix_from_json(basis_matrix)
             prec = basis_matrix.parent().base_ring().prec()
-            self._translation_lattice = (RealField(prec)**2).span_of_basis(basis_matrix)
+            self._translation_lattice = (RealField(prec) ** 2).span_of_basis(basis_matrix)
         else:
             self._translation_lattice = None
         self._manifold = kwargs.get("manifold", data.get("_manifold", ""))
@@ -116,14 +120,19 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             M = MS([[1, b2.complex_embedding(prec)], [0, 1]])
             S = MS([[0, -1], [1, 0]])
             self._init_prec = prec
-            self._gens = [L, M, S, L ** -1, M ** -1]
+            self._gens = [L, M, S, L**-1, M**-1]
             self._gens.append(MS([[0, -1], [1, 0]]))
             A = S
             B = S
             self._named_gens = {
-                "L": L, "M": M,
-                "l": L ** -1, "m": M ** -1,
-                "A": A, "a": A**-1, "B": B, "b": B**-1
+                "L": L,
+                "M": M,
+                "l": L**-1,
+                "m": M**-1,
+                "A": A,
+                "a": A**-1,
+                "B": B,
+                "b": B**-1,
             }
             if not self._name_string:
                 self._name_string = f"Bianchi Group: Q(sqrt({x}))"
@@ -132,19 +141,22 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         elif isinstance(x, (list, tuple)):
             x = dict(x)
             if not all(isinstance(g, Matrix) for g in x.values()):
-                raise NotImplementedError(f"Can not make a Kleinian group from {x}")
+                raise NotImplementedError(f"Can not make a valid Kleinian group from {x}")
             self._gens = list(x.values())
             self._named_gens = x
             # In this case it is something like ComplexField
             base_ring = self._gens[0].base_ring()
         else:
-            raise NotImplementedError
-        super().__init__(degree=Integer(2), base_ring=base_ring,
-                         special=True,
-                         sage_name=self._name_string,
-                         latex_string=self._latex_string,
-                         category=Groups().Infinite(),
-                         invariant_form=None)
+            raise NotImplementedError(f"Can not make a Kleinian group from {x}")
+        super().__init__(
+            degree=Integer(2),
+            base_ring=base_ring,
+            special=True,
+            sage_name=self._name_string,
+            latex_string=self._latex_string,
+            category=Groups().Infinite(),
+            invariant_form=None,
+        )
 
     def _cache_key(self):
         return json.dumps(self.to_json())
@@ -157,8 +169,9 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             "_gens": [matrix_to_json(g) for g in self._gens],
             "_covering_generators_words": self._covering_generators_words,
             "_named_gens": {k: matrix_to_json(g) for k, g in self._named_gens.items()},
-            "_covering_generators": {k: matrix_to_json(g) for k, g in
-                                     self._covering_generators.items()},
+            "_covering_generators": {
+                k: matrix_to_json(g) for k, g in self._covering_generators.items()
+            },
             "_name_string": self._name_string,
             "_latex_string": self._latex_string,
             "_manifold": self._manifold,
@@ -168,17 +181,17 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
 
     def __eq__(self, other: "KleinianGroup_class") -> bool:
         """Test equality of two Kleinian groups.
-        
+
         Two groups are considered equal if their JSON representations match.
-        
+
         INPUT:
         - ``other`` -- KleinianGroup_class; group to compare with
-        
+
         OUTPUT:
         - bool; True if groups are equal
-        
+
         EXAMPLES::
-        
+
             sage: from sage.rings.number_field.number_field import QuadraticField
             sage: # Test __eq__ method concept (would compare KleinianGroup_class instances)
             sage: # Since we can't import the class, test the equality logic
@@ -231,13 +244,16 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         """
         if prec:
             CF = ComplexField(prec=prec)
-        return [g.change_ring(CF) if prec else g for g in self._gens
-                if include_parabolic or g.trace() ** 2 != 4]
+        return [
+            g.change_ring(CF) if prec else g
+            for g in self._gens
+            if include_parabolic or g.trace() ** 2 != 4
+        ]
 
     @cached_method
-    def named_generators(self, include_parabolic: bool = True,
-                         only_parabolic: bool = False,
-                         prec: int = 0):
+    def named_generators(
+        self, include_parabolic: bool = True, only_parabolic: bool = False, prec: int = 0
+    ):
         """
         Return a (in general not minimal) dictionary of names and generators.
         Note: This is useful for word problems.
@@ -256,10 +272,12 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             return {}
         if prec:
             CF = ComplexField(prec=prec)
-        return {name: g.change_ring(CF) if prec else g for name, g in self._named_gens.items()
-                if (include_parabolic or g.trace() ** 2 != 4) and
-                   (not only_parabolic or g.trace() ** 2 == 4)
-                }
+        return {
+            name: g.change_ring(CF) if prec else g
+            for name, g in self._named_gens.items()
+            if (include_parabolic or g.trace() ** 2 != 4)
+            and (not only_parabolic or g.trace() ** 2 == 4)
+        }
 
     def covering_generators(self, include_parabolic=False, prec=53):
         """
@@ -276,20 +294,28 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             # Try to get an initial list of words from database
             try:
                 from maass_forms_klein.database.models import Word
+
                 if self._manifold and Word.objects(label=self._manifold):
-                    w = (Word.objects(label=self._manifold).
-                         order_by("-reduced_cover,-reduced_to_fd").first())
+                    w = (
+                        Word.objects(label=self._manifold)
+                        .order_by("-reduced_cover,-reduced_to_fd")
+                        .first()
+                    )
                     word_list = w.words
             except ImportError:
                 pass
-            self._covering_generators_words = find_covering_generators(parallelogram, gens,
-                                                                       covering_list=word_list)
-            self._covering_generators_words = [expand_word(x[0]) for x in self._covering_generators_words]
+            self._covering_generators_words = find_covering_generators(
+                parallelogram, gens, covering_list=word_list
+            )
+            self._covering_generators_words = [
+                expand_word(x[0]) for x in self._covering_generators_words
+            ]
 
         gens = {x: self.word_to_element(x, prec=prec) for x in self._covering_generators_words}
         if include_parabolic:
-            gens.update(self.named_generators(only_parabolic=True, include_parabolic=True,
-                                              prec=prec))
+            gens.update(
+                self.named_generators(only_parabolic=True, include_parabolic=True, prec=prec)
+            )
         self._covering_generators = gens
         return gens
 
@@ -328,13 +354,12 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             M = self.named_generators()["M"]
             tL = L[0][0] * L[0][1]
             tM = M[0][0] * M[0][1]
-            basis = [[real(tL.n(prec)), imag(tL.n(prec))],
-                     [real(tM.n(prec)), imag(tM.n(prec))]]
-        self._translation_lattice = (RealField(prec)**2).span_of_basis(basis)
+            basis = [[real(tL.n(prec)), imag(tL.n(prec))], [real(tM.n(prec)), imag(tM.n(prec))]]
+        self._translation_lattice = (RealField(prec) ** 2).span_of_basis(basis)
         if self._translation_lattice.rank() != 2:
-            raise ArithmeticError(f"Translation lattice has rank"
-                                  f" {self._translation_lattice.rank()}. "
-                                  f"Expected 2.")
+            raise ArithmeticError(
+                f"Translation lattice has rank {self._translation_lattice.rank()}. Expected 2."
+            )
         return self._translation_lattice
 
     def translation_fundamental_domain(self, base: Vector = None):
@@ -366,7 +391,7 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         """
         v1, v2 = self.translation_lattice().basis()
         if base is None:
-            base = - v1 / 2 - v2 / 2
+            base = -v1 / 2 - v2 / 2
         return Parallelogram(base=base, v1=v1, v2=v2)
 
     def _init_from_manifold(self, M: "Manifold"):
@@ -458,8 +483,8 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             1.00000000000000
         """
         lattice_coordinates = self.translation_lattice().coordinates(list(z.z()))
-        t1 = - floor(lattice_coordinates[0] + 1 / 2)
-        t2 = - floor(lattice_coordinates[1] + 1 / 2)
+        t1 = -floor(lattice_coordinates[0] + 1 / 2)
+        t2 = -floor(lattice_coordinates[1] + 1 / 2)
         basis_matrix = self.translation_lattice().basis_matrix()
         translation = vector([t1, t2]) * basis_matrix
         translation = ComplexField(basis_matrix.base_ring().prec())(list(translation))
@@ -547,8 +572,9 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             raise ArithmeticError(f"Could not reduce point: z={z}")
         return z, mat
 
-    def _pullback_general(self, z: UpperHalfSpaceElement__class, max_iterations: int = 1000) -> (
-            tuple)[UpperHalfSpaceElement__class, matrix]:
+    def _pullback_general(
+        self, z: UpperHalfSpaceElement__class, max_iterations: int = 1000
+    ) -> (tuple)[UpperHalfSpaceElement__class, matrix]:
         r"""
         Special case of Gaussian integers
 
@@ -582,7 +608,6 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             raise ValueError(f"Can not find precision for z={z}")
         CF = ComplexField(prec=prec)
         mat = matrix(CF, [[1, 0], [0, 1]])
-        inversion = matrix(CF, [[0, -1], [1, 0]])
         eps = 8 * CF.epsilon()
         n = 0
         word = ""
@@ -605,7 +630,7 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             raise ValueError("Cusp must be defined over the base ring of the Kleinian group.")
         if isinstance(cusp, NFCusp):
             return cusp.ABmatrix()
-        return matrix(self.base_ring(), [[1, 0], [cusp ** -1, 1]])
+        return matrix(self.base_ring(), [[1, 0], [cusp**-1, 1]])
 
     @cached_method
     def dual_translation_lattice_vectors(self, M: Integer_t,
@@ -617,8 +642,9 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
     def check_translation_cell_coverage(self) -> bool:
         b1, b2 = self.translation_lattice().basis()
         if b1.imag() != 0 or b2.real() != 0:
-            raise ArithmeticError("Translation basis should be parallel with standard basis."
-                                  f"Basis: {b1}, {b2}")
+            raise ArithmeticError(
+                f"Translation basis should be parallel with standard basis.Basis: {b1}, {b2}"
+            )
         center = (0.0, 0.0)
         sides = (b1.real(), b2.imag())
         gens = self.generators(include_parabolic=False)
@@ -660,7 +686,7 @@ class KleinianGroupElement__class(Element):
 
     def is_parabolic(self):
         if self._is_parabolic is None:
-            self._is_parabolic = abs(self.trace()**2 - 4) < self._epsilon
+            self._is_parabolic = abs(self.trace() ** 2 - 4) < self._epsilon
         return self._is_parabolic
 
     def is_hyperbolic(self):
@@ -671,8 +697,9 @@ class KleinianGroupElement__class(Element):
 
     def is_elliptic(self):
         if self._is_hyperbolic is None:
-            self._is_hyperbolic = self._trace_is_real() and \
-                                  (self.trace()**2).real() - 4 < -self._epsilon
+            self._is_hyperbolic = (
+                self._trace_is_real() and (self.trace() ** 2).real() - 4 < -self._epsilon
+            )
         return self._is_hyperbolic
 
     def is_loxodromic(self):
@@ -682,7 +709,7 @@ class KleinianGroupElement__class(Element):
 
     def fixed_points(self):
         if self.is_parabolic():
-            a, b, c, d = list(self._matrix)
+            a, _b, c, d = list(self._matrix)
 
             if c == 0 or abs(c) < self._epsilon:
                 if isinstance(self.base_ring(), NumberField):
@@ -690,15 +717,16 @@ class KleinianGroupElement__class(Element):
                 else:
                     return Infinity
             if isinstance(self.base_ring(), NumberField):
-                return NFCusp(self.base_ring(), [(a-d), 2*c])
+                return NFCusp(self.base_ring(), [(a - d), 2 * c])
             else:
                 return (a - d) / (c * 2)
         raise NotImplementedError("Fixed point only implemented for parabolic elements")
 
 
 # Factory function for convenient group creation
-def KleinianGroup(spec: Union[int, str, List, Tuple, Dict, Manifold], **kwargs: P.kwargs) \
-        -> KleinianGroup_class:
+def KleinianGroup(
+    spec: Union[int, str, List, Tuple, Dict, Manifold], **kwargs: P.kwargs
+) -> KleinianGroup_class:
     """Create a Kleinian group from various specifications.
 
     This is a factory function that provides a convenient interface for
@@ -772,19 +800,18 @@ def KleinianGroup__from_manifold(manifold: Manifold, **kwargs: P.kwargs):
     # K, g, _ = TF.find_field(prec=kwargs.get('prec', 300), degree=kwargs.get('degree', 20),
     #                         optimize=True)
     # Get translations
-    #T = manifold.cusp_neighborhood().all_translations()
+    # T = manifold.cusp_neighborhood().all_translations()
     HME = manifold.holonomy_matrix_entries()
     try:
-        K, g, entries = HME.find_field(prec=300, degree=kwargs.get("degree", 20), optimize=True)
+        K, _g, entries = HME.find_field(prec=300, degree=kwargs.get("degree", 20), optimize=True)
     except TypeError:
         entries = [x(kwargs.get("prec", 100)) for x in HME.list()]
         K = ComplexField(kwargs.get("prec", 100))
-        print("eps=", K.epsilon())
-        pass
+        log.debug("eps= %s", K.epsilon())
     G = manifold.fundamental_group()
     nf_gens = {
         "a": matrix(K, [[entries[0], entries[1]], [entries[2], entries[3]]]),
-        "b": matrix(K, [[entries[4], entries[5]], [entries[6], entries[7]]])
+        "b": matrix(K, [[entries[4], entries[5]], [entries[6], entries[7]]]),
     }
     nf_gens["A"] = nf_gens["a"].inverse()
     nf_gens["B"] = nf_gens["b"].inverse()
@@ -794,7 +821,7 @@ def KleinianGroup__from_manifold(manifold: Manifold, **kwargs: P.kwargs):
     # Parabolics
     L = word_to_element(G.longitude(), nf_gens)
     M = word_to_element(G.meridian(), nf_gens)
-    if abs(L.trace()**2 - 4) > 1e-10 or abs(M.trace()**2 - 4) > 1e-10:
+    if abs(L.trace() ** 2 - 4) > 1e-10 or abs(M.trace() ** 2 - 4) > 1e-10:
         raise ArithmeticError("Longitude and meridian are not parabolic!")
     if isinstance(K, NumberField):
         cuspL = NFCusp(K, [L[0][0] - L[1][1], 2 * L[1][0]])
@@ -807,7 +834,7 @@ def KleinianGroup__from_manifold(manifold: Manifold, **kwargs: P.kwargs):
         cuspM = [M[0][0] - M[1][1], 2 * M[1][0]]
         if abs(cuspL[0] * cuspM[1] - cuspL[1] * cuspM[0]) > 1e-16:
             raise ArithmeticError("Longitude and meridian do not have the same fixed point!")
-        normaliser = matrix(2, 2, [[cuspL[0], 0], [cuspL[1], 1/cuspL[0]]])
+        normaliser = matrix(2, 2, [[cuspL[0], 0], [cuspL[1], 1 / cuspL[0]]])
     normalised_gens_nf = {k: normaliser.inverse() * g * normaliser for (k, g) in nf_gens.items()}
     normalised_gens_nf["L"] = normaliser.inverse() * L * normaliser
     normalised_gens_nf["l"] = normalised_gens_nf["L"].inverse()
@@ -815,16 +842,20 @@ def KleinianGroup__from_manifold(manifold: Manifold, **kwargs: P.kwargs):
     normalised_gens_nf["m"] = normalised_gens_nf["M"].inverse()
     # Try to find side-pairing generators
     side_pairing_gens = find_side_pairing_gens(manifold)
-    parabolic_words = tuple({
-        "L": G.longitude(),
-        "l": find_inverse_word(G.longitude()),
-        "M": G.meridian(),
-        "m": find_inverse_word(G.meridian()),
-    }.items())
-    return KleinianGroup_class(tuple(normalised_gens_nf.items()),
-                               manifold=manifold.name(),
-                               parabolic_words=parabolic_words,
-                               side_pairing_gens=tuple(side_pairing_gens))
+    parabolic_words = tuple(
+        {
+            "L": G.longitude(),
+            "l": find_inverse_word(G.longitude()),
+            "M": G.meridian(),
+            "m": find_inverse_word(G.meridian()),
+        }.items()
+    )
+    return KleinianGroup_class(
+        tuple(normalised_gens_nf.items()),
+        manifold=manifold.name(),
+        parabolic_words=parabolic_words,
+        side_pairing_gens=tuple(side_pairing_gens),
+    )
 
 
 # def KleinianGroup__from_manifold2(manifold: 'Manifold', **kwargs: P.kwargs):

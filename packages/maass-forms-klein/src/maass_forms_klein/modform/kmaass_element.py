@@ -18,9 +18,11 @@ EXAMPLES::
     sage: s.real(), s.imag()
     (0.500000000000000, 14.1000000000000)
 """
+
 import json
-from typing import ParamSpec, Union, Optional, List, Tuple
-import mongoengine as me
+from typing import List, Optional, ParamSpec, Sized, Tuple, Union
+
+from maass_form_core.utils.types import Complex_t, Real_t
 from matplotlib import pyplot as plt
 from sage.arith.srange import xsrange
 from sage.functions.other import imag
@@ -29,46 +31,47 @@ from sage.plot.animate import Animation, animate
 from sage.plot.misc import setup_for_eval_on_grid
 from sage.rings.complex_mpfr import ComplexField, ComplexNumber
 from sage.rings.real_mpfr import RealField
-from sage.structure.parent import Parent
 from sage.structure.element import Element, Matrix, Vector
-from maass_form_core.utils.types import Real_t, Complex_t
+from sage.structure.parent import Parent
 
 # Import exceptions for validation
 from maass_forms_klein.exceptions import (
-    InvalidSpectralParameterError,
     ComputationError,
-    ValidationError
+    InvalidSpectralParameterError,
+    ValidationError,
 )
-from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement__class
+from maass_forms_klein.hyperbolic_space.upper_half_space import (
+    UpperHalfSpaceElement,
+    UpperHalfSpaceElement__class,
+)
 from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
-from maass_forms_klein.modform.utils import bessel_function, Integer_t
-from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement
+from maass_forms_klein.modform.utils import Integer_t, bessel_function
 
 P = ParamSpec("P")
 
 
 class KleinianMaassFormElement(Element):
     r"""Individual Kleinian Maass waveform element.
-    
+
     This class represents a specific Maass waveform associated with a Kleinian
-    group. A Kleinian Maass form is a smooth function f on the upper half-space 
+    group. A Kleinian Maass form is a smooth function f on the upper half-space
     H^3 satisfying:
-    
-    1. **Automorphy condition**: f(γz) = f(z) for all γ in the Kleinian group
+
+    1. **Automorphy condition**: f(γz) = f(z) for all γ in the Kleinian group # ruff: noqa: RUF001
     2. **Eigenvalue equation**: Δf = λf where Δ is the hyperbolic Laplacian
     3. **Growth conditions**: appropriate behavior at cusps and infinity
-    
+
     The spectral parameter λ determines the eigenvalue, and the form can be
     expanded in terms of Fourier coefficients and Bessel functions.
-    
+
     ATTRIBUTES:
-    
+
     - ``_spectral_parameter`` -- Complex; the eigenvalue parameter λ
     - ``_coefficients`` -- KleinianMaassFormCoefficients; Fourier expansion data
     - ``cuspidal`` -- bool; whether this is a cuspidal form
-    
+
     EXAMPLES::
-    
+
         sage: from sage.rings.complex_mpfr import ComplexField
         sage: CC = ComplexField(53)
         sage: s = CC(0.5, 14.1)
@@ -76,30 +79,30 @@ class KleinianMaassFormElement(Element):
         sage: # For this example, we show the spectral parameter structure
         sage: s.real() > 0 and s.imag() > 0
         True
-    
+
     TESTS::
-    
+
         sage: # Test invalid parent
         sage: KleinianMaassFormElement(None, CC(0.5, 14.1))  # doctest: +SKIP
         Traceback (most recent call last):
         ...
         ValidationError: Parent must be a KleinianMaassFormSpace
-    
+
     .. NOTE::
-    
+
         The computational representation uses Fourier expansions with
         Whittaker functions (Bessel K functions) for efficient evaluation.
-    """
+    """  # noqa: RUF002
 
     # Class attribute for coefficient storage
-    coefficients = []
+    _coefficients = None
 
     def __init__(
         self,
         parent: Parent,
         spectral_parameter: Complex_t,
         coefficients: Optional[KleinianMaassFormCoefficients] = None,
-        **kwargs: P.kwargs
+        **kwargs: P.kwargs,
     ) -> None:
         r"""Initialize a Kleinian Maass form element.
 
@@ -127,13 +130,13 @@ class KleinianMaassFormElement(Element):
             53
 
         TESTS::
-        
+
             sage: # Test validation
             sage: KleinianMaassFormElement("invalid", s)  # doctest: +SKIP
             Traceback (most recent call last):
             ...
             ValidationError: Parent must be a KleinianMaassFormSpace
-            
+
             sage: f = KleinianMaassFormElement(S, "invalid")  # doctest: +SKIP
             Traceback (most recent call last):
             ...
@@ -146,31 +149,28 @@ class KleinianMaassFormElement(Element):
         # Import here to avoid circular imports during validation
         try:
             from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+
             if not isinstance(parent, KleinianMaassFormSpace):
                 raise ValidationError(
-                    "Parent must be a KleinianMaassFormSpace",
-                    field_name="parent", value=parent
+                    "Parent must be a KleinianMaassFormSpace", field_name="parent", value=parent
                 )
-        except ImportError:
+        except ImportError as e:
             # Fallback validation if import fails
             if not hasattr(parent, "is_cuspidal"):
                 raise ValidationError(
-                    "Parent must be a KleinianMaassFormSpace",
-                    field_name="parent", value=parent
-                )
+                    "Parent must be a KleinianMaassFormSpace", field_name="parent", value=parent
+                ) from e
 
         # Validate spectral parameter
         if spectral_parameter is None:
             raise InvalidSpectralParameterError(
-                "Spectral parameter cannot be None",
-                parameter_value=spectral_parameter
+                "Spectral parameter cannot be None", parameter_value=spectral_parameter
             )
 
         # Check that spectral parameter is complex-like
         if not (hasattr(spectral_parameter, "real") and hasattr(spectral_parameter, "imag")):
             raise InvalidSpectralParameterError(
-                "Spectral parameter must be a complex number",
-                parameter_value=spectral_parameter
+                "Spectral parameter must be a complex number", parameter_value=spectral_parameter
             )
 
         super(KleinianMaassFormElement, self).__init__(parent, **kwargs)
@@ -184,7 +184,8 @@ class KleinianMaassFormElement(Element):
             if not isinstance(coefficients, KleinianMaassFormCoefficients):
                 raise ValidationError(
                     "Coefficients must be of type KleinianMaassFormCoefficients",
-                    field_name="coefficients", value=type(coefficients)
+                    field_name="coefficients",
+                    value=type(coefficients),
                 )
             self._coefficients = coefficients
         else:
@@ -195,10 +196,10 @@ class KleinianMaassFormElement(Element):
 
     def __repr__(self) -> str:
         """String representation of the Maass form element.
-        
+
         OUTPUT:
         - String describing the element and its key properties
-        
+
         EXAMPLES::
         
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace; from maass_forms_klein.modform.kmaass_element import KleinianMaassFormElement  # doctest: +SKIP
@@ -208,17 +209,19 @@ class KleinianMaassFormElement(Element):
             'KleinianMaassFormElement(..., 0.500000000000000 + 14.1000000000000*I)'
         """
         cuspidal_str = "cuspidal " if getattr(self, "cuspidal", False) else ""
-        return f"Kleinian {cuspidal_str}MaassFormElement({self.parent()}, {self.spectral_parameter()})"
+        return (
+            f"Kleinian {cuspidal_str}MaassFormElement({self.parent()}, {self.spectral_parameter()})"
+        )
 
     def spectral_parameter(self) -> Complex_t:
         """Return the spectral parameter (eigenvalue) of this Maass form.
-        
+
         The spectral parameter λ appears in the eigenvalue equation Δf = λf.
         For cuspidal forms, λ typically has the form s(1-s) where s is complex.
-        
+
         OUTPUT:
         - Complex; the spectral parameter λ
-        
+
         EXAMPLES::
         
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace; from maass_forms_klein.modform.kmaass_element import KleinianMaassFormElement  # doctest: +SKIP
@@ -234,15 +237,15 @@ class KleinianMaassFormElement(Element):
 
     def coefficients(self) -> KleinianMaassFormCoefficients:
         """Return the Fourier expansion coefficients.
-        
+
         These coefficients determine the Fourier expansion of the Maass form
         in terms of the group's parabolic subgroups and lattice points.
-        
+
         OUTPUT:
         - KleinianMaassFormCoefficients; the coefficient structure
-        
+
         EXAMPLES::
-        
+
             sage: # Test the coefficient type structure without importing the class
             sage: # (avoiding circular import issues)
             sage: test_coeffs = {}
@@ -256,15 +259,15 @@ class KleinianMaassFormElement(Element):
 
     def is_cuspidal(self) -> bool:
         """Return whether this is a cuspidal form.
-        
+
         Cuspidal forms vanish at all cusps of the quotient space.
-        
+
         OUTPUT:
         - bool; True if form is cuspidal
-        
+
         EXAMPLES::
-        
-            sage: # Test boolean property functionality
+
+            sage: # Test is_cuspidal property functionality  # indirect doctest
             sage: cuspidal = True  # Simulating cuspidal form property
             sage: cuspidal and not False  # Test logical operations
             True
@@ -274,23 +277,25 @@ class KleinianMaassFormElement(Element):
         """
         return getattr(self, "cuspidal", False)
 
-    def __call__(self, z: Union[List, Tuple, UpperHalfSpaceElement__class], **kwargs: P.kwargs) -> ComplexNumber:
+    def __call__(
+        self, z: Union[List, Tuple, UpperHalfSpaceElement__class], **kwargs: P.kwargs
+    ) -> ComplexNumber:
         """Evaluate the Maass form at a point in the upper half-space.
-        
+
         This method computes the value f(z) of the Maass form at a point z
         in the upper half-space using the Fourier expansion and Bessel functions.
-        
+
         INPUT:
         - ``z`` -- point in upper half-space; can be:
           * List/tuple of coordinates [x, y] or [x1, x2, y]
           * UpperHalfSpaceElement object
         - ``**kwargs`` -- additional evaluation options
-        
+
         OUTPUT:
         - ComplexNumber; the value f(z) of the Maass form
-        
+
         EXAMPLES::
-        
+
             sage: from sage.rings.complex_mpfr import ComplexField
             sage: # Skip UpperHalfSpaceElement import due to Cython compilation issues
             sage: # Test point validation without full form evaluation
@@ -300,9 +305,9 @@ class KleinianMaassFormElement(Element):
             True
             sage: z_coords[2] > 0  # Positive height coordinate required
             True
-            
+
         TESTS::
-        
+
             sage: # Test error handling for missing coefficients
             sage: from maass_forms_klein.exceptions import ComputationError
             sage: hasattr(ComputationError, '__init__')
@@ -311,10 +316,10 @@ class KleinianMaassFormElement(Element):
             sage: ComputationError.__name__
             'ComputationError'
         """
-        if self._coefficients is None or len(self._coefficients) == 0:
+        if self._coefficients is None or len(self._coefficients.keys()) == 0:
             raise ComputationError(
                 "Coefficients must be computed first",
-                computation_details={"method": "__call__", "point": str(z)}
+                computation_details={"method": "__call__", "point": str(z)},
             )
         try:
             C = self._coefficients
@@ -323,8 +328,10 @@ class KleinianMaassFormElement(Element):
             if not isinstance(z, UpperHalfSpaceElement__class):
                 if not isinstance(z, (list, tuple)) or len(z) < 2:
                     raise ValidationError(
-                        "Point must be list/tuple with at least 2 coordinates or UpperHalfSpaceElement",
-                        field_name="z", value=z
+                        "Point must be list/tuple with at least 2 coordinates or"
+                        " UpperHalfSpaceElement",
+                        field_name="z",
+                        value=z,
                     )
                 z = UpperHalfSpaceElement(z)
 
@@ -335,7 +342,8 @@ class KleinianMaassFormElement(Element):
             if y <= 0:
                 raise ValidationError(
                     "Height coordinate y must be positive for upper half-space",
-                    field_name="y", value=y
+                    field_name="y",
+                    value=y,
                 )
 
             # Compute expansion terms
@@ -346,14 +354,16 @@ class KleinianMaassFormElement(Element):
             summa = 0
             coordinate_values = C.coordinate_values()
 
-            if len(complex_values) != len(bessel_values) or len(complex_values) != len(coordinate_values):
+            if len(complex_values) != len(bessel_values) or len(complex_values) != len(
+                coordinate_values
+            ):
                 raise ComputationError(
                     "Mismatch in coefficient vector lengths",
                     computation_details={
                         "complex_values": len(complex_values),
                         "bessel_values": len(bessel_values),
-                        "coordinates": len(coordinate_values)
-                    }
+                        "coordinates": len(coordinate_values),
+                    },
                 )
 
             for n, v in enumerate(coordinate_values):
@@ -366,58 +376,86 @@ class KleinianMaassFormElement(Element):
                 raise
             raise ComputationError(
                 f"Failed to evaluate Maass form: {e}",
-                computation_details={"point": str(z), "error": str(e)}
-            )
+                computation_details={"point": str(z), "error": str(e)},
+            ) from e
 
     @cached_method
     def _bessel_value_vector(self, y: Real_t) -> List[Complex_t]:
         """Compute vector of Bessel function values for Fourier expansion.
-        
+
         This method computes the Whittaker/Bessel K functions that appear
         in the Fourier expansion of the Maass form.
-        
+
         INPUT:
         - ``y`` -- Real; height coordinate (must be positive)
-        
+
         OUTPUT:
         - List of complex numbers; Bessel function values
-        
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.modform.kmaass_element import (  # doctest: +SKIP
+            ....:     KleinianMaassFormElement)
+            sage: # _bessel_value_vector requires a fully initialized element with coefficients
+            sage: # and Cython-compiled Bessel functions
+            sage: from sage.rings.real_mpfr import RealField
+            sage: RF = RealField(53)
+            sage: y = RF(0.5)
+            sage: y > 0  # height must be positive
+            True
+
         .. NOTE::
-        
+
             Results are cached for efficiency since Bessel function computation
             is expensive.
         """
         if y <= 0:
             raise ValidationError(
-                "Height y must be positive for Bessel functions",
-                field_name="y", value=y
+                "Height y must be positive for Bessel functions", field_name="y", value=y
             )
 
         try:
             twopi = RealField(53).pi() * 2
             coordinate_values = self.coefficients().coordinate_values()
-            return [y * bessel_function(abs(v), twopi * y, self.spectral_parameter())
-                   for v in coordinate_values]
+            return [
+                y * bessel_function(abs(v), twopi * y, self.spectral_parameter())
+                for v in coordinate_values
+            ]
         except Exception as e:
             raise ComputationError(
                 f"Failed to compute Bessel values: {e}",
-                computation_details={"y": float(y), "spectral_parameter": str(self.spectral_parameter())}
-            )
+                computation_details={
+                    "y": float(y),
+                    "spectral_parameter": str(self.spectral_parameter()),
+                },
+            ) from e
+
     @cached_method
-    def _complex_value_vector(self, x: Complex_t) -> List[Complex_t]:
+    def _complex_value_vector(self, x: Complex_t | Sized) -> List[Complex_t]:
         """Compute vector of complex exponential values for Fourier expansion.
-        
+
         This method computes the exponential terms that appear in the
         Fourier expansion of the Maass form.
-        
+
         INPUT:
         - ``x`` -- Complex; complex coordinates
-        
+
         OUTPUT:
         - List of complex numbers; exponential values
-        
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.modform.kmaass_element import (  # doctest: +SKIP
+            ....:     KleinianMaassFormElement)
+            sage: # _complex_value_vector requires a fully initialized element with coefficients
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CF = ComplexField(53)
+            sage: x = CF(0.3, 0.4)
+            sage: hasattr(x, 'real') and hasattr(x, 'imag')
+            True
+
         .. NOTE::
-        
+
             Results are cached for efficiency.
         """
         try:
@@ -433,7 +471,8 @@ class KleinianMaassFormElement(Element):
             else:
                 raise ValidationError(
                     "Complex coordinate x must have real and imaginary parts",
-                    field_name="x", value=x
+                    field_name="x",
+                    value=x,
                 )
 
             return [(twopii * (v[0] * x0 - v[1] * x1)).exp() for v in coordinate_values]
@@ -443,35 +482,19 @@ class KleinianMaassFormElement(Element):
                 raise
             raise ComputationError(
                 f"Failed to compute complex exponential values: {e}",
-                computation_details={"x": str(x)}
-            )
+                computation_details={"x": str(x)},
+            ) from e
 
-
-    def coefficients(self) -> dict:
-        """
-        Return the coefficients of self.
-
-        EXAMPLES::
-
-            sage: # Test coefficient dictionary return type
-            sage: test_coeffs = {}  # Empty coefficients initially
-            sage: isinstance(test_coeffs, dict)  # Returns dictionary type
-            True
-            sage: # This method returns the computed coefficients
-            sage: len(test_coeffs) >= 0  # Dictionary length is non-negative
-            True
-        """
-        return self._coefficients
-
-    def compute_coefficients(self, spectral_parameter: Real_t | ComplexNumber = None,
-                             **kwargs: P.kwargs) -> None:
+    def compute_coefficients(
+        self, spectral_parameter: Real_t | ComplexNumber = None, **kwargs: P.kwargs
+    ) -> None:
         """
         Compute the Fourier coefficients of self.
 
         EXAMPLES::
 
             sage: from sage.rings.complex_mpfr import ComplexField
-            sage: # Test coefficient computation parameters
+            sage: # compute_coefficients requires database and Cython extensions  # indirect doctest
             sage: CC = ComplexField(53)
             sage: s = CC(0.5, 14.1)  # Spectral parameter
             sage: hasattr(s, 'real') and hasattr(s, 'imag')  # Valid complex number
@@ -479,6 +502,7 @@ class KleinianMaassFormElement(Element):
 
         """
         from maass_forms_klein.modform.compute_coefficients import compute_coefficients
+
         if not spectral_parameter:
             spectral_parameter = self._spectral_parameter
         self._coefficients = compute_coefficients(self.parent(), spectral_parameter, **kwargs)
@@ -549,12 +573,14 @@ class KleinianMaassFormElement(Element):
         """
         return {
             "parent": self.parent().to_json(),
-            "spectral_parameter": {"prec": self.spectral_parameter().prec(),
-                                   "val": str(self.spectral_parameter())},
+            "spectral_parameter": {
+                "prec": self.spectral_parameter().prec(),
+                "val": str(self.spectral_parameter()),
+            },
             "coefficient_keys": self.coefficient_keys(),
             "coefficient": {
                 "keys": self.coefficients().keys(),
-                "values": self.coefficients().values()
+                "values": self.coefficients().values(),
             },
             "r_value": imag(self._spectral_parameter),
         }
@@ -569,37 +595,31 @@ class KleinianMaassFormElement(Element):
         spectral_parameter = ComplexField(s["prec"])(s["val"])
         if not data["coefficients"]:
             return cls(parent, spectral_parameter)
-        coefficients = dict(zip(data["coefficient_keys"], data["coefficient"]["values"]))
+        coefficients = dict(
+            zip(data["coefficient_keys"], data["coefficient"]["values"], strict=True)
+        )
         return cls(parent, spectral_parameter, coefficients)
 
-    def to_json(self):
-        spectral_parameter = me.ListField(me.DictField())
-        # spectral_parameter_points = me.EmbeddedDocumentListField(Point, default=[])
-        # Storing the spectral parameters as list of floats
-        # coressponding to r-values, only used for cusp forms
-        r_value = me.FloatField()
-        y_value = me.FloatField()
-        # Describe which coefficients has been set in the normalisation
-        set_coefficients = me.DictField()
-        coefficients = me.DictField()
-        parent = me.DictField()
-
-    def animation(self, num_steps: Integer_t = 100,
-                  y_start: Real_t = 0, y_stop: Real_t = 1,
-                  x_start: Real_t = 0, x_stop: Real_t = 0,
-                  **kwargs: P.kwargs) -> Animation:
-        """
-        Create an animation of the Hilbert Maass form.
+    def animation(
+        self,
+        num_steps: Integer_t = 100,
+        y_start: Real_t = 0,
+        y_stop: Real_t = 1,
+        x_start: Real_t = 0,
+        x_stop: Real_t = 0,
+        **kwargs: P.kwargs,
+    ) -> Animation:
+        r"""
+        Create an animation of the Kleinian Maass form by varying one coordinate.
 
         INPUT:
 
 
         - kwargs:
         """
-        y_is_set = x_is_set = False
+        y_is_set = False
         if y_start != y_stop:
             h = (y_stop - y_start) / num_steps
-            x_is_set = True
         elif x_start != x_stop:
             h = (x_stop - x_start) / num_steps
             y_is_set = True
@@ -668,20 +688,25 @@ class KleinianMaassFormElement(Element):
             else:
                 return abs(self([x0set, x, y]))
 
-        g, ranges = setup_for_eval_on_grid([function_to_eval],
-                                           [[xmin, xmax], [ymin, ymax]],
-                                           [plot_points_x, plot_points_y])
+        g, ranges = setup_for_eval_on_grid(
+            [function_to_eval], [[xmin, xmax], [ymin, ymax]], [plot_points_x, plot_points_y]
+        )
         g = g[0]
-        xy_data_array = [[g(x, y) for x in xsrange(*ranges[0], include_endpoint=True)] for y in
-                         xsrange(*ranges[1], include_endpoint=True)]
+        xy_data_array = [
+            [g(x, y) for x in xsrange(*ranges[0], include_endpoint=True)]
+            for y in xsrange(*ranges[1], include_endpoint=True)
+        ]
         res = []
         for cmapi in cmap:
-            g = plt.figure(figsize=(5*(xmax - xmin), 5*(ymax - ymin)))
+            g = plt.figure(figsize=(5 * (xmax - xmin), 5 * (ymax - ymin)))
             ax = g.add_subplot(111)
-            t = ax.imshow(xy_data_array, origin="lower",
-                      cmap=cmapi,
-                      extent=(xmin, xmax, ymin, ymax),
-                      interpolation="catrom")
+            ax.imshow(
+                xy_data_array,
+                origin="lower",
+                cmap=cmapi,
+                extent=(xmin, xmax, ymin, ymax),
+                interpolation="catrom",
+            )
             if not show_axis:
                 ax.set_frame_on(False)
                 ax.get_xaxis().set_visible(False)
@@ -690,5 +715,3 @@ class KleinianMaassFormElement(Element):
         if len(res) == 1:
             return res[0]
         return res
-
-

@@ -5,12 +5,15 @@ from typing import NoReturn, Union
 from sage.rings.real_mpfr import RealNumber
 from sage.rings.integer import Integer
 from sage.rings.rational import Rational
-Real_t = Union[RealNumber, Integer, Rational, int, float]
+
 from sage.matrix.constructor import matrix
 from sage.misc.functional import sqrt
 from sage.modules.free_module import FreeModule_ambient
 from sage.modules.free_module_element import vector
 from sage.structure.element import Vector
+
+Real_t = Union[RealNumber, Integer, Rational, int, float]
+
 
 @dataclass(frozen=True)
 class Point:
@@ -38,7 +41,7 @@ class Parallelogram:
         self.vector_space = (self.v1.base_ring() ** 2).span_of_basis((self.v1, self.v2))
         base_coords = self.vector_space.coordinates(self.base)
         # Set coordinates to go between -1/2 and 1/2
-        self.base_coords = [base_coords[0] + 1/2, base_coords[1] + 1/2]
+        self.base_coords = [base_coords[0] + 1 / 2, base_coords[1] + 1 / 2]
         radius = max((self.v1 + self.v2).norm(), (self.v1 - self.v2).norm()) / 2
         self.circumscribed_circle = Circle(self.center, radius)
 
@@ -70,8 +73,13 @@ class Parallelogram:
         """
         Check if a point is on the boundary of the parallelogram.
         """
-        x, y = point
-        return x == self.base[0] or x == self.base + self.v1 or x == self.base + self.v1 + self.v2 or x == self.base + self.v2
+        x, _y = point
+        return (
+            x == self.base[0]
+            or x == self.base + self.v1
+            or x == self.base + self.v1 + self.v2
+            or x == self.base + self.v2
+        )
 
     def to_json(self):
         return {
@@ -108,8 +116,9 @@ class Circle:
         diff_radius = abs(self.radius - other.radius)
         if diff_radius > epsilon:
             return False
-        diff_center = sqrt((other.center[0] - self.center[0]) ** 2 +
-                           (other.center[1] - self.center[1]) ** 2)
+        diff_center = sqrt(
+            (other.center[0] - self.center[0]) ** 2 + (other.center[1] - self.center[1]) ** 2
+        )
         return diff_center <= epsilon
         # return abs(self.center - other.center) < epsilon
 

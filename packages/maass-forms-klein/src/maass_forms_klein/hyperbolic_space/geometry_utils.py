@@ -1,10 +1,7 @@
 from copy import deepcopy
-from typing import ParamSpec
+from typing import ParamSpec, Union
 
-from maass_forms_klein.hyperbolic_space.parallelogram import split_parallelogram, \
-    parallelogram_intersect_circle, parallelogram_in_circle, \
-    parallelogram_covered_by_circles
-from sage.functions.other import real, imag
+from sage.functions.other import imag, real
 from sage.misc.cachefunc import cached_function
 from sage.misc.functional import sqrt
 from sage.modules.free_module_element import vector
@@ -12,19 +9,24 @@ from sage.plot.circle import circle
 from sage.plot.polygon import polygon
 from sage.rings.complex_mpfr import ComplexField
 from sage.rings.infinity import Infinity
-from sage.rings.real_mpfr import RR
-from sage.structure.element import Matrix, Vector
-
-# Define types locally to avoid import chain issues
-from sage.rings.real_mpfr import RealNumber
 from sage.rings.integer import Integer
 from sage.rings.rational import Rational
-from typing import Union
+from sage.rings.real_mpfr import RR, RealNumber
+from sage.structure.element import Matrix, Vector
+
+from maass_forms_klein.hyperbolic_space.parallelogram import (
+    parallelogram_covered_by_circles,
+    parallelogram_in_circle,
+    parallelogram_intersect_circle,
+    split_parallelogram,
+)
+from maass_forms_klein.hyperbolic_space.types import Circle, Parallelogram, Rectangle
+from maass_forms_klein.hyperbolic_space.word_utils import word_list_sort_key, word_to_circle
+
+# Define types locally to avoid import chain issues
 Real_t = Union[RealNumber, Integer, Rational, int, float]
 Integer_t = Union[Integer, int]
 
-from maass_forms_klein.hyperbolic_space.word_utils import word_list_sort_key, word_to_circle
-from maass_forms_klein.hyperbolic_space.types import Rectangle, Circle, Parallelogram
 
 # Define get_epsilon locally to avoid import issues
 def get_epsilon(element: Real_t):
@@ -36,10 +38,14 @@ def get_epsilon(element: Real_t):
 P = ParamSpec("P")
 
 
-def reduce_cover(rect: Rectangle | Parallelogram, cover_list: list[str | tuple[str, Circle]],
-                 gens: dict = None,
-                 max_n: Integer_t = 10, fix_circles: list[str] = None,
-                 verbose: int = 0) -> list[tuple[str, Circle]]:
+def reduce_cover(
+    rect: Rectangle | Parallelogram,
+    cover_list: list[str | tuple[str, Circle]],
+    gens: dict | None = None,
+    max_n: Integer_t = 10,
+    fix_circles: list[str] | None = None,
+    verbose: int = 0,
+) -> list[tuple[str, Circle]]:
     r"""
     Given a list of group elements that cover a rectangle find a smaller covering subset.
     """
@@ -52,8 +58,9 @@ def reduce_cover(rect: Rectangle | Parallelogram, cover_list: list[str | tuple[s
         fix_circles = []
     new_list = deepcopy(cover_list)
     # Check that the original list is covering the parallelogram
-    if not parallelogram_covered_by_circles(rect, [w[1] for w in new_list],
-                                            scaling_factor=0.99, n_max=max_n):
+    if not parallelogram_covered_by_circles(
+        rect, [w[1] for w in new_list], scaling_factor=0.99, n_max=max_n
+    ):
         raise ArithmeticError("The original list is not covering the parallelogram.")
 
     # Now we test and see which circles we can remove and still cover the parallelogram
@@ -66,8 +73,9 @@ def reduce_cover(rect: Rectangle | Parallelogram, cover_list: list[str | tuple[s
             continue
         new_list.remove((x, c))
         try:
-            test = parallelogram_covered_by_circles(rect, [w[1] for w in new_list],
-                                                    scaling_factor=0.99, n_max=max_n)
+            test = parallelogram_covered_by_circles(
+                rect, [w[1] for w in new_list], scaling_factor=0.99, n_max=max_n
+            )
         except ArithmeticError:
             test = False
         if test:
@@ -86,8 +94,11 @@ def _ensure_tuples(cover_list: list[str | tuple[str, Circle]], gens: dict = None
     return cover_list
 
 
-def remove_duplicate_circles(cover_list: list[tuple[str, Circle] | str], gens: dict = None,
-                             include_parabolic: bool = False) -> list[tuple[str, Circle]]:
+def remove_duplicate_circles(
+    cover_list: list[tuple[str, Circle] | str],
+    gens: dict | None = None,
+    include_parabolic: bool = False,
+) -> list[tuple[str, Circle]]:
     """
     Given a list of words remove duplicates corresponding to the same
     invariant circles.
@@ -133,7 +144,7 @@ def remove_duplicate_circles(cover_list: list[tuple[str, Circle] | str], gens: d
     else:
         eps = 1e-10
     max_word_len = max([len(c[0]) for c in cover_list]) + 2
-    eps = eps * 2 ** max_word_len
+    eps = eps * 2**max_word_len
     infinity_value = 1 / eps
 
     cover_list.sort(key=lambda x: (x[1].center[0], x[1].center[1], x[1].radius))
@@ -147,15 +158,14 @@ def remove_duplicate_circles(cover_list: list[tuple[str, Circle] | str], gens: d
         new_list.append(cn)
         while n < len(cover_list) and cn[1].within_epsilon(cover_list[n][1], eps):
             n += 1
-        # if n == len(cover_list) - 1 and not cn[1].within_epsilon(cover_list[n][1], eps):
-        #     new_list.append(cover_list[n])
-        # elif n < len(cover_list) - 1:
-        #     new_list.append(cover_list[n])
     return new_list
 
 
-def remove_contained_circles(circle_list: list[tuple[str, Circle] | str], gens: dict = None,
-                             include_parabolic: bool = False) -> list[tuple[str, Circle]]:
+def remove_contained_circles(
+    circle_list: list[tuple[str, Circle] | str],
+    gens: dict | None = None,
+    include_parabolic: bool = False,
+) -> list[tuple[str, Circle]]:
     """
     Given a list of words remove duplicates corresponding to the same
     invariant circles.
@@ -176,10 +186,12 @@ def remove_contained_circles(circle_list: list[tuple[str, Circle] | str], gens: 
     circle_list = _ensure_tuples(circle_list, gens)
     if not circle_list:
         return []
-    elt = circle_list[0][1].radius
-    eps = get_epsilon(elt)
+    radii = [c[1].radius for c in circle_list]
+    eps = max(get_epsilon(r) for r in radii)
+    if eps == 0:
+        eps = 2**-53
     max_word_len = max([len(c[0]) for c in circle_list]) + 2
-    eps = eps * 2 ** max_word_len
+    eps = eps * 2**max_word_len
     infinity_value = 1 / eps
     circle_list.sort(key=lambda x: x[1].radius, reverse=True)
     new_list = []
@@ -191,8 +203,11 @@ def remove_contained_circles(circle_list: list[tuple[str, Circle] | str], gens: 
     return new_list
 
 
-def remove_non_intersecting_circles(circle_list: list[tuple[str, Circle]], para: Parallelogram,
-                                    gens: dict = None) -> list[tuple[str, Circle]]:
+def remove_non_intersecting_circles(
+    circle_list: list[tuple[str, Circle]],
+    para: Parallelogram,
+    gens: dict | None = None,
+) -> list[tuple[str, Circle]]:
     """
     Given a list of words remove duplicates corresponding to the same
     invariant circles.
@@ -254,27 +269,45 @@ def circle_is_contained(c1: Circle, c2: Circle) -> bool:
         raise ValueError("Input should be circles")
     vx = c1.center[0] - c2.center[0]
     vy = c1.center[1] - c2.center[1]
-    # v = vector(c1.center) - vector(c2.center)
     if vx == 0 and vy == 0:
         return c1.radius <= c2.radius
-    # vn = v / abs(v)
-    absv = sqrt(vx ** 2 + vy ** 2)
+    absv = sqrt(vx**2 + vy**2)
     vnx_c1radius = vx / absv * c1.radius
     vny_c1radius = vy / absv * c1.radius
     abs_plus = sqrt((vx + vnx_c1radius) ** 2 + (vy + vny_c1radius) ** 2)
     abs_minus = sqrt((vx - vnx_c1radius) ** 2 + (vy - vny_c1radius) ** 2)
-    # return abs(v + vn * c1.radius) <= c2.radius and abs(v - vn * c1.radius) <= c2.radius
     return abs_plus <= c2.radius and abs_minus <= c2.radius
 
 
 def circle_intersects_circle(c1: Circle, c2: Circle) -> bool:
     """
-    Check if circle c1 instersect circle c2
+    Check if circle c1 intersects circle c2.
+
+    INPUT:
+
+    - ``c1`` -- a Circle
+    - ``c2`` -- a Circle
+
+    OUTPUT:
+
+    ``True`` if the two circles intersect (including touching), ``False`` otherwise.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import circle_intersects_circle
+        sage: from maass_forms_klein.hyperbolic_space.types import Circle
+        sage: c1 = Circle(center=vector((0, 0)), radius=1)
+        sage: c2 = Circle(center=vector((1, 0)), radius=1)
+        sage: circle_intersects_circle(c1, c2)
+        True
+        sage: c3 = Circle(center=vector((3, 0)), radius=1)
+        sage: circle_intersects_circle(c1, c3)
+        False
 
     """
     vx = c1.center[0] - c2.center[0]
     vy = c1.center[1] - c2.center[1]
-    return sqrt(vx ** 2 + vy ** 2) <= c1.radius + c2.radius
+    return sqrt(vx**2 + vy**2) <= c1.radius + c2.radius
 
 
 def circle_approx_equal(c1: Circle, c2: Circle, prec: Real_t = 1e-10) -> bool:
@@ -332,7 +365,6 @@ def rectangle_in_circle(rect: Rectangle, circle: Circle) -> bool:
         sage: rectangle_in_circle(rect, Circle(center=vector((0, 0)), radius=2))
         True
     """
-    circle_center = circle.center
     for sgn_x in [-1, 1]:
         corner_x = rect.center[0] + sgn_x * rect.sides[0] / 2
         for sgn_y in [-1, 1]:
@@ -351,10 +383,9 @@ def is_point_in_rectangle(rect, point):
     """
     x, y = point
     cRx, cRy = rect.center
-    # (cRx, cRy), (lx, ly) = rect
     lx, ly = rect.sides
     # allow for ploss of precision in matrix elements and rectangle
-    eps = (2 ** 4) * x.base_ring().epsilon()
+    eps = (2**4) * x.base_ring().epsilon()
     rectangle_left = cRx - lx / 2 - eps
     rectangle_right = cRx + lx / 2 + eps
     rectangle_bottom = cRy - ly / 2 - eps
@@ -362,9 +393,7 @@ def is_point_in_rectangle(rect, point):
     return rectangle_left <= x <= rectangle_right and rectangle_bottom <= y <= rectangle_top
 
 
-def split_rectangle(rectangle: Rectangle,
-                    n1: Integer_t = 2, n2: Integer_t = 2) -> list[Rectangle]:
-
+def split_rectangle(rectangle: Rectangle, n1: Integer_t = 2, n2: Integer_t = 2) -> list[Rectangle]:
     """
     Split a rectangle into a set of smaller rectangles of the same size.
 
@@ -390,29 +419,35 @@ def split_rectangle(rectangle: Rectangle,
     """
     rectangles = split_parallelogram(rectangle, n1, n2)
     return [Rectangle(base=rect.base, v1=rect.v1, v2=rect.v2) for rect in rectangles]
-    # import numpy as np
-    # rectangle_center, rectangle_sides = rectangle
-    # start_x = rectangle_center[0] - rectangle_sides[0] / 2
-    # end_x = rectangle_center[0] + rectangle_sides[0] / 2
-    # start_y = rectangle_center[1] - rectangle_sides[1] / 2
-    # end_y = rectangle_center[1] + rectangle_sides[1] / 2
-    # xpoints = np.linspace(start_x, end_x, number + 1)
-    # ypoints = np.linspace(start_y, end_y, number + 1)
-    # for xi in range(number):
-    #     for yi in range(number):
-    #         c = ((xpoints[xi] + xpoints[xi + 1]) / 2, (ypoints[yi] + ypoints[yi + 1]) / 2)
-    #         hx = (xpoints[xi + 1] - xpoints[xi])
-    #         hy = (ypoints[yi + 1] - ypoints[yi])
-    #         yield c, (hx, hy)
 
 
 @cached_function
 def matrix_to_circle(mat: Matrix) -> Circle:
     r"""
-    Find the invariant circle of a matrix
+    Find the invariant circle of a matrix.
 
     Note: If lower-left entry is 0 the invariant circle is a vertical line parallel
     with the imaginary axis.
+
+    INPUT:
+
+    - ``mat`` -- a 2x2 matrix
+
+    OUTPUT:
+
+    A Circle representing the invariant circle of the matrix.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import matrix_to_circle
+        sage: A = matrix(CC, [[0, -1], [1, 0]])
+        sage: c = matrix_to_circle(A)
+        sage: c.radius
+        1.00000000000000
+        sage: c.center # abstol 1e-100
+        (0.000000000000000, 0.000000000000000)
+        sage: matrix_to_circle(identity_matrix(CC, 2)).radius
+        +Infinity
 
     """
     if not isinstance(mat, Matrix):
@@ -433,8 +468,9 @@ def matrix_to_circle(mat: Matrix) -> Circle:
     return Circle(center=vector((real(center), imag(center))), radius=radius)
 
 
-def rectangle_covered_by_matrices(rect: Rectangle, matrices, scaling_factor=1.0,
-                                  n_max=10000) -> bool:
+def rectangle_covered_by_matrices(
+    rect: Rectangle, matrices, scaling_factor=1.0, n_max=10000
+) -> bool:
     """
     Return True if rectangle is covered by the invariant circles given by the list of matrices
     scaled with `scaling_factor`.
@@ -471,8 +507,9 @@ def rectangle_covered_by_matrices(rect: Rectangle, matrices, scaling_factor=1.0,
     while n < n_max:
         all_are_covered = True
         for rect_small in split_rectangle(rect, n):
-            if not one_rectangle_covered_by_matrices(rect_small, matrices,
-                                                     scaling_factor=scaling_factor):
+            if not one_rectangle_covered_by_matrices(
+                rect_small, matrices, scaling_factor=scaling_factor
+            ):
                 all_are_covered = False
                 break
         if all_are_covered:
@@ -483,8 +520,9 @@ def rectangle_covered_by_matrices(rect: Rectangle, matrices, scaling_factor=1.0,
     raise ArithmeticError("Could not determine if rectangle is covered in given number of steps.")
 
 
-def one_rectangle_covered_by_matrices(rect: Rectangle,
-                                      matrices: list[Matrix], scaling_factor: Real_t = 1.0):
+def one_rectangle_covered_by_matrices(
+    rect: Rectangle, matrices: list[Matrix], scaling_factor: Real_t = 1.0
+):
     """
     Return True if rectangle is covered by the invariant circles given by the list of matrices
     scaled by the scaling factor.
@@ -524,17 +562,25 @@ def one_rectangle_covered_by_matrices(rect: Rectangle,
 def display_rectangle_and_matrices(rect, matrices, **kwargs):
     center = rect.center
     sides = rect.sides
-    plot = polygon([[center[0]-sides[0]/2, center[1]-sides[1]/2],
-             [center[0]-sides[0]/2, center[1]+sides[1]/2],
-             [center[0]+sides[0]/2, center[1]+sides[1]/2],
-             [center[0]+sides[0]/2, center[1]-sides[1]/2]],
-                    alpha=0.5, thickness=0.2)
+    plot = polygon(
+        [
+            [center[0] - sides[0] / 2, center[1] - sides[1] / 2],
+            [center[0] - sides[0] / 2, center[1] + sides[1] / 2],
+            [center[0] + sides[0] / 2, center[1] + sides[1] / 2],
+            [center[0] + sides[0] / 2, center[1] - sides[1] / 2],
+        ],
+        alpha=0.5,
+        thickness=0.2,
+    )
     for g in matrices:
         cr = matrix_to_circle(g)
-        plot += circle(tuple(cr.center), cr.radius,
-                       alpha=kwargs.get("alpha", 0.5),
-                       thickness=kwargs.get("thickness", 0.2),
-                       color=kwargs.get("color", "red"))
+        plot += circle(
+            tuple(cr.center),
+            cr.radius,
+            alpha=kwargs.get("alpha", 0.5),
+            thickness=kwargs.get("thickness", 0.2),
+            color=kwargs.get("color", "red"),
+        )
     return plot
 
 
@@ -563,7 +609,7 @@ def circle_in_list(new_matrix_or_circle, existing_matrices_or_circles):
     if isinstance(new_matrix_or_circle.radius, float):
         eps = 2 ** (4 - 53)
     else:
-        eps = 2 ** 4 * new_matrix_or_circle.radius.base_ring().epsilon()
+        eps = 2**4 * new_matrix_or_circle.radius.base_ring().epsilon()
     if not isinstance(existing_matrices_or_circles[0], Circle):
         convert = True
     else:
@@ -614,17 +660,18 @@ def rectangle_intersect_circle(rect: Rectangle, circ: Circle) -> bool:
     r = circ.radius
     cRx, cRy = rect.center
     lx, ly = rect.sides
-    # (cRx, cRy), (lx, ly) = rect
     rectangle_left = cRx - lx / 2
     rectangle_right = cRx + lx / 2
     rectangle_bottom = cRy - ly / 2
     rectangle_top = cRy + ly / 2
     closest_x = max(rectangle_left, min(cx, rectangle_right))
     closest_y = max(rectangle_bottom, min(cy, rectangle_top))
-    return (cx - closest_x) ** 2 + (cy - closest_y) ** 2 <= r ** 2
+    return (cx - closest_x) ** 2 + (cy - closest_y) ** 2 <= r**2
 
-def is_circle_covered_by_circles(c: Circle, circles: list[Circle], scaling_factor: Real_t = 1.0,
-                                 n_max: Integer_t = 100) -> bool:
+
+def is_circle_covered_by_circles(
+    c: Circle, circles: list[Circle], scaling_factor: Real_t = 1.0, n_max: Integer_t = 100
+) -> bool:
     r"""
     Return True if c is covered by the circles in the list.
     """
@@ -633,13 +680,17 @@ def is_circle_covered_by_circles(c: Circle, circles: list[Circle], scaling_facto
         if circle_is_contained(c, cother):
             return True
     # Otherwise we do a subdivision algorithm over a parallelogram cover of the circle.
-    para = Parallelogram(base=c.center - vector((c.radius, c.radius)), v1=vector((0, 2*c.radius)),
-                         v2=vector((2*c.radius, 0)))
+    para = Parallelogram(
+        base=c.center - vector((c.radius, c.radius)),
+        v1=vector((0, 2 * c.radius)),
+        v2=vector((2 * c.radius, 0)),
+    )
     # Ignore circles that do not intersect the rectangle
     circles = [cother for cother in circles if parallelogram_intersect_circle(para, cother)]
     # Then we look at smaller parallelograms until we either
     # 1. find a small parallelogram that is in c but none of the other circles, or
-    # 2. find that all small parallelograms that intersect c also are inside one of the other circles.
+    # 2. find that all small parallelograms that intersect c also are
+    #    inside one of the other circles.
     n = 1
     while n < n_max:
         all_are_covered = True
@@ -649,12 +700,13 @@ def is_circle_covered_by_circles(c: Circle, circles: list[Circle], scaling_facto
                 continue
             # If the small parallelogram does not intersect any of the circles
             # then it is clearly not covered
-            if not any(parallelogram_intersect_circle(para_small, c) for c in
-                       circles):
+            if not any(parallelogram_intersect_circle(para_small, c) for c in circles):
                 return False
             # If it is not covered by any circle then we need to divide further
-            if not any(parallelogram_in_circle(c, para_small, scaling_factor=scaling_factor)
-                       for c in circles):
+            if not any(
+                parallelogram_in_circle(c, para_small, scaling_factor=scaling_factor)
+                for c in circles
+            ):
                 all_are_covered = False
                 break
         if all_are_covered:
@@ -695,8 +747,5 @@ def display_parallelogram_and_circles(par: Parallelogram,
             cr = word_to_circle(cr, kwargs.get("gens", []))
         if cr.radius == Infinity:
             continue
-        plot += circle(cr.center, cr.radius,
-                       alpha=alpha,
-                       thickness=thickness,
-                       color=color)
+        plot += circle(cr.center, cr.radius, alpha=alpha, thickness=thickness, color=color)
     return plot

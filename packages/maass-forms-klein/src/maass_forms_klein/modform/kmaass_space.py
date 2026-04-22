@@ -9,11 +9,13 @@ AUTHORS:
 
 - Fredrik Strömberg (2024): initial version
 """
-from typing import ParamSpec, Any, Optional, Dict
 
-from maass_forms_klein.exceptions import InvalidSpaceError, InvalidGroupError
-from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup_class, KleinianGroup
+from typing import Any, Dict, Optional, ParamSpec
+
 from sage.structure.parent import Parent
+
+from maass_forms_klein.exceptions import InvalidGroupError, InvalidSpaceError
+from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup, KleinianGroup_class
 
 from .kmaass_element import KleinianMaassFormElement
 
@@ -22,24 +24,24 @@ P = ParamSpec("P")
 
 class KleinianMaassFormSpace(Parent):
     r"""Space of Maass waveforms for Kleinian groups.
-    
+
     This class represents the parent structure for spaces of Maass waveforms
     associated with discrete subgroups of PSL(2,C). Maass waveforms are
     eigenfunctions of the hyperbolic Laplacian on quotient spaces.
-    
+
     A Kleinian Maass form is a smooth function f on the upper half-space
     satisfying:
-    
-    1. Automorphy: f(γz) = f(z) for all γ in the Kleinian group
+
+    1. Automorphy: f(γz) = f(z) for all γ in the Kleinian group # ruff: noqa: RUF002
     2. Eigenvalue condition: Δf = λf for some spectral parameter λ
     3. Growth conditions: appropriate decay at cusps (for cuspidal forms)
-    
+
     ATTRIBUTES:
-    
+
     - ``group`` -- KleinianGroup; the underlying discrete group
     - ``Element`` -- class; the element class for this space
     - ``_is_cuspidal`` -- bool; whether forms are required to be cuspidal
-    
+
     EXAMPLES::
     
         sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace  # doctest: +SKIP
@@ -64,8 +66,9 @@ class KleinianMaassFormSpace(Parent):
         sage: hasattr(S, '_is_cuspidal')  # doctest: +SKIP
         True
     """
+    """  # noqa: RUF002
 
-    group = None
+    _group = None
     Element = KleinianMaassFormElement
 
     def __init__(self, *args: P.args, **kwargs: P.kwargs) -> None:
@@ -124,17 +127,19 @@ class KleinianMaassFormSpace(Parent):
             else:
                 self._group = KleinianGroup(args[0])
         except Exception as e:
-            raise InvalidGroupError(f"Failed to create group from {args[0]}: {e}", group_data=args[0])
+            raise InvalidGroupError(
+                f"Failed to create group from {args[0]}: {e}", group_data=args[0]
+            ) from e
 
-        self._is_cuspidal = kwargs.get("cuspidal", True)
+        self._is_cuspidal = kwargs.pop("cuspidal", True)
         super(KleinianMaassFormSpace, self).__init__(*args, **kwargs)
 
     def __repr__(self) -> str:
         """String representation of the space.
-        
+
         OUTPUT:
         - String describing the space and its underlying group
-        
+
         EXAMPLES::
         
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace  # doctest: +SKIP
@@ -147,10 +152,10 @@ class KleinianMaassFormSpace(Parent):
 
     def group(self) -> KleinianGroup_class:
         """Return the underlying Kleinian group.
-        
+
         OUTPUT:
         - KleinianGroup; the discrete group for this space
-        
+
         EXAMPLES::
         
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace  # doctest: +SKIP
@@ -163,12 +168,12 @@ class KleinianMaassFormSpace(Parent):
 
     def is_cuspidal(self) -> bool:
         """Return whether this space consists of cuspidal forms.
-        
+
         Cuspidal forms are those that vanish at all cusps of the quotient space.
-        
+
         OUTPUT:
         - bool; True if space is restricted to cuspidal forms
-        
+
         EXAMPLES::
         
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace  # doctest: +SKIP
@@ -183,16 +188,16 @@ class KleinianMaassFormSpace(Parent):
 
     def dimension_bound(self, spectral_parameter: Any) -> Optional[int]:
         """Return an upper bound for the dimension at given spectral parameter.
-        
+
         This method provides theoretical bounds on the dimension of the
         eigenspace for a given spectral parameter.
-        
+
         INPUT:
         - ``spectral_parameter`` -- complex number; the eigenvalue parameter
-        
+
         OUTPUT:
         - int or None; upper bound on dimension, or None if unbounded
-        
+
         EXAMPLES::
         
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace  # doctest: +SKIP
@@ -211,13 +216,13 @@ class KleinianMaassFormSpace(Parent):
 
     def to_json(self, **kwargs: P.kwargs) -> Dict[str, Any]:
         r"""Return JSON-compatible representation of the space.
-        
+
         This method serializes the space to a dictionary format suitable
         for database storage and network transmission.
 
         INPUT:
         - ``**kwargs`` -- additional serialization options
-        
+
         OUTPUT:
         - dict; JSON-compatible representation containing group and space data
 
@@ -243,20 +248,20 @@ class KleinianMaassFormSpace(Parent):
         return {
             "group": self._group.to_json(**kwargs) if self._group else None,
             "cuspidal": self._is_cuspidal,
-            "space_type": "KleinianMaassFormSpace"
+            "space_type": "KleinianMaassFormSpace",
         }
 
     @classmethod
     def from_json(cls, data: Dict[str, Any], **kwargs: P.kwargs) -> "KleinianMaassFormSpace":
         r"""Create space from JSON representation.
-        
+
         INPUT:
         - ``data`` -- dict; JSON data from to_json()
         - ``**kwargs`` -- additional construction options
-        
+
         OUTPUT:
         - KleinianMaassFormSpace; reconstructed space
-        
+
         EXAMPLES::
         
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace  # doctest: +SKIP
@@ -280,7 +285,7 @@ class KleinianMaassFormSpace(Parent):
             raise InvalidSpaceError("JSON data must contain 'group' key", space_config=data)
 
         # Reconstruct group from JSON
-        group = KleinianGroup.from_json(data["group"]) if data["group"] else None
+        group = KleinianGroup_class.from_json(data["group"]) if data["group"] else None
         if group is None:
             raise InvalidSpaceError("Failed to reconstruct group from JSON", space_config=data)
 
@@ -291,13 +296,13 @@ class KleinianMaassFormSpace(Parent):
 
     def _test_space_properties(self) -> bool:
         """Internal method to test basic space properties.
-        
+
         This method performs consistency checks on the space structure.
         Used primarily for debugging and testing.
-        
+
         OUTPUT:
         - bool; True if all tests pass
-        
+
         TESTS::
         
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace  # doctest: +SKIP

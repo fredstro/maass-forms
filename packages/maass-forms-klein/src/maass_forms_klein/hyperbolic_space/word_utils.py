@@ -108,6 +108,7 @@ def reduce_word(word, n: int = 0):
     # Otherwise, we might need to do another reduction
     return reduce_word(word, n + 1)
 
+
 def expand_parentheses(word):
     """
     Expand parentheses in a word.
@@ -134,6 +135,7 @@ def expand_parentheses(word):
             wnew = wnew.swapcase()
         word = word.replace(f"({w})^{n}", wnew * abs(int(n)))
     return expand_parentheses(word)
+
 
 def expand_word(word: str) -> str:
     """
@@ -166,6 +168,8 @@ def expand_word(word: str) -> str:
         winv = w.swapcase()
         word = word.replace(f"{w}^{n}", winv * abs(int(n)))
     return word
+
+
 def word_to_element(word: str, gens: dict) -> Matrix:
     """
     Convert a word to a matrix.
@@ -195,7 +199,7 @@ def word_to_element(word: str, gens: dict) -> Matrix:
         try:
             g = g * gens[w]
         except KeyError:
-            raise ValueError(f"Generator dict has no key `{w}`")
+            raise ValueError(f"Generator dict has no key `{w}`") from None
     return g
 
 
@@ -219,7 +223,8 @@ def translation_tuple_to_word(t: tuple, gens: dict) -> str:
     'LMM'
     """
     return "".join(
-        [(gens[i] if t[i] > 0 else gens[i].swapcase()) * abs(t[i]) for i in range(len(t))])
+        [(gens[i] if t[i] > 0 else gens[i].swapcase()) * abs(t[i]) for i in range(len(t))]
+    )
 
 
 def change_letters_in_word(word: str, new_names: dict) -> str:
