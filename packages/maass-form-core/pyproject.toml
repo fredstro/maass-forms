@@ -11,7 +11,7 @@ name = "maass_form_core"
 dynamic = ["version"]
 description = "Shared infrastructure for Maass forms computation"
 authors = [
-    {name = "Fredrik Stromberg", email = "fredrik314@gmail.com"},
+    { name = "Fredrik Stromberg", email = "fredrik314@gmail.com" },
 ]
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -73,18 +73,18 @@ max-complexity = 10
 
 [tool.ruff.lint]
 select = [
-    "E",      # pycodestyle errors
-    "W",      # pycodestyle warnings
-    "F",      # Pyflakes
-    "I",      # isort
-    "B",      # flake8-bugbear
-    "C4",     # flake8-comprehensions
-    "UP",     # pyupgrade
-    "SIM",    # flake8-simplify
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # Pyflakes
+    "I", # isort
+    "B", # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "SIM", # flake8-simplify
 ]
 ignore = [
-    "E501",   # line too long (handled by formatter)
-    "B008",   # do not perform function calls in argument defaults
+    "E501", # line too long (handled by formatter)
+    "B008", # do not perform function calls in argument defaults
     "SIM108", # use ternary operator instead of if-else
 ]
 
