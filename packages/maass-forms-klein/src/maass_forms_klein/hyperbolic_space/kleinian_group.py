@@ -110,6 +110,8 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             self._latex_string = f"Kleinian Group from Knot: ${self._manifold}$"
         if self._gens:
             base_ring = self._gens[0].base_ring()
+        elif isinstance(x, (int, Integer)) and x < 0 and not ZZ(x).is_fundamental_discriminant():
+            raise NotImplementedError(f"Need a fundamental discriminant. Got: {x}")
         elif isinstance(x, (int, Integer)) and x < 0 and ZZ(x).is_fundamental_discriminant():
             base_ring = QuadraticField(x)
             if base_ring.class_number() > 1:
@@ -784,6 +786,7 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             sage: z = UpperHalfSpaceElement([0.0, 0.0, 2.0])  # doctest: +SKIP
             sage: w, g, name = G.reduce_by_reflections(z)  # doctest: +SKIP
         """
+        eps = eps or 2 ** (8 - z[0].prec())
         max_height = z.y()
         max_w = z
         max_g = None
