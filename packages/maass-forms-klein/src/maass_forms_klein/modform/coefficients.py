@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
-from maass_forms_klein.modform.utils import Integer_t, Real_t, Complex_t
 from sage.categories.sets_cat import cartesian_product
 from sage.matrix.constructor import matrix
 from sage.modules.free_module_element import vector
-from sage.structure.element import Vector, Matrix
+from sage.structure.element import Matrix, Vector
 from sage.structure.parent import Parent
 
 from maass_forms_klein.hyperbolic_space.utils import P
+from maass_forms_klein.modform.utils import Complex_t, Integer_t, Real_t
 
 if TYPE_CHECKING:
     from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
@@ -187,13 +188,30 @@ class KleinianMaassFormCoefficients(Parent):
         return f"Coefficients of a Kleinian Maass form with M={self._M}"
 
     def __hash__(self):
-        self._coefficients.set_immutable()
+        r"""
+        Return the hash of this coefficient object.
+
+        The coefficient matrix is made immutable before hashing.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
+            sage: H = KleinianMaassFormSpace(-4)
+            sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
+            sage: Cmat = vector(RR, [1,2,3,4,5,6,7,8,9])
+            sage: C = KleinianMaassFormCoefficients(Cmat, 1, spectral_parameter, H)
+            sage: isinstance(hash(C), int)
+            True
+        """
+        return hash(json.dumps(self.to_json()))
+
         return hash(
             (
                 self._coefficients,
                 self._Y,
                 self._M,
-                str(self._index_tuples),
+                str(self._coordinate_indices),
                 self._spectral_parameter,
                 self._space,
                 str(self._set_coefficients),
