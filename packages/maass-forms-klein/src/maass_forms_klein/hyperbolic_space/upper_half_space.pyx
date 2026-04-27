@@ -244,7 +244,7 @@ cdef class UpperHalfSpaceElement__class(FreeModuleElement_generic_dense):
         """
         return self[2]
 
-    cdef norm(self):
+    cpdef norm(self):
         r"""
         Return norm of self.
         

@@ -19,6 +19,6 @@ cdef class UpperHalfSpaceElement__class(FreeModuleElement_generic_dense):
     cpdef x1(self)
     cpdef y(self)
     cpdef z(self)
-    cdef norm(self)
+    cpdef norm(self)
     # cpdef action(self, A)
     # cpdef add(self, UpperHalfSpaceElement__class other)
