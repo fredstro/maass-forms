@@ -48,6 +48,29 @@ def reduce_cover(
 ) -> list[tuple[str, Circle]]:
     r"""
     Given a list of group elements that cover a rectangle find a smaller covering subset.
+
+    INPUT:
+
+    - ``rect`` -- a Rectangle or Parallelogram to be covered
+    - ``cover_list`` -- list of words (strings) or tuples ``(word, Circle)``
+    - ``gens`` -- (optional) dictionary of generators, required if cover_list contains strings
+    - ``max_n`` -- (default: 10) maximum subdivision level for coverage checks
+    - ``fix_circles`` -- (optional) list of words that should not be removed
+    - ``verbose`` -- (default: 0) verbosity level
+
+    OUTPUT:
+
+    A reduced list of tuples ``(word, Circle)`` that still covers the rectangle.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import reduce_cover
+        sage: from maass_forms_klein.hyperbolic_space.types import Circle, Parallelogram
+        sage: p = Parallelogram(base=vector((0,0)), v1=vector((0.1,0)), v2=vector((0,0.1)))
+        sage: c1 = ('a', Circle(center=vector((0.05, 0.05)), radius=0.2))
+        sage: reduce_cover(p, [c1])
+        [('a', Circle(center=(0.0500000000000000, 0.0500000000000000), radius=0.200000000000000))]
+
     """
     # First remove circles that are duplicates of other circles
     cover_list = remove_duplicate_circles(cover_list, gens)
@@ -86,7 +109,33 @@ def reduce_cover(
     return new_list
 
 
-def _ensure_tuples(cover_list: list[str | tuple[str, Circle]], gens: dict = None) -> list[tuple[str, Circle]]:
+def _ensure_tuples(
+    cover_list: list[str | tuple[str, Circle]], gens: dict | None = None
+) -> list[tuple[str, Circle]]:
+    r"""
+    Ensure that the cover list is a list of tuples ``(word, Circle)``.
+
+    If ``cover_list`` contains plain strings, convert them to tuples using ``gens``
+    to compute the corresponding invariant circles.
+
+    INPUT:
+
+    - ``cover_list`` -- list of strings or tuples ``(word, Circle)``
+    - ``gens`` -- (optional) dictionary of generators, required if cover_list contains strings
+
+    OUTPUT:
+
+    A list of tuples ``(word, Circle)``.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import _ensure_tuples
+        sage: from maass_forms_klein.hyperbolic_space.types import Circle
+        sage: c = Circle(center=vector((0, 0)), radius=1)
+        sage: _ensure_tuples([('a', c)])
+        [('a', Circle(center=(0, 0), radius=1))]
+
+    """
     if not all(isinstance(x, tuple) for x in cover_list):
         if not gens:
             raise ValueError("If cover_list is not a list of tuples, gens must be provided.")
@@ -178,9 +227,14 @@ def remove_contained_circles(
 
     EXAMPLES::
 
-        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import remove_duplicate_circles
-        sage: gens = {'a': matrix([[0, 1], [1, 0]]), 'b': matrix([[0, 1], [1, 0]])}
-
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import remove_contained_circles
+        sage: from maass_forms_klein.hyperbolic_space.types import Circle
+        sage: c1 = ('a', Circle(center=vector((0, 0)), radius=1))
+        sage: c2 = ('b', Circle(center=vector((0, 0)), radius=2))
+        sage: c3 = ('c', Circle(center=vector((5, 5)), radius=0.5))
+        sage: result = remove_contained_circles([c1, c2, c3])
+        sage: len(result)
+        2
 
     """
     circle_list = _ensure_tuples(circle_list, gens)
@@ -220,7 +274,9 @@ def remove_non_intersecting_circles(
 
     EXAMPLES::
 
-        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import remove_non_intersecting_circles
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import (
+        ....:     remove_non_intersecting_circles)
+
         sage: from maass_forms_klein.hyperbolic_space.types import Circle
         sage: gens = {'a': matrix([[0, 1], [1, 0]]), 'b': matrix([[0, 1], [1, 0]])}
         sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
@@ -341,6 +397,31 @@ def circle_approx_equal(c1: Circle, c2: Circle, prec: Real_t = 1e-10) -> bool:
 
 
 def invariant_sphere_is_contained(A1, A2):
+    r"""
+    Check if the invariant sphere of matrix ``A1`` is contained in the invariant
+    sphere of matrix ``A2``.
+
+    INPUT:
+
+    - ``A1`` -- a 2x2 matrix in PSL(2,C)
+    - ``A2`` -- a 2x2 matrix in PSL(2,C)
+
+    OUTPUT:
+
+    ``True`` if the invariant circle of ``A1`` is contained in that of ``A2``.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import (
+        ....:     invariant_sphere_is_contained)
+        sage: A1 = matrix(CC, [[0, -1], [1, 0]])
+        sage: A2 = matrix(CC, [[0, -2], [0.5, 0]])
+        sage: invariant_sphere_is_contained(A1, A1)
+        True
+        sage: invariant_sphere_is_contained(A1, A2)
+        True
+
+    """
     c = -A1[1, 1] / A1[1, 0]
     r1 = 1 / abs(A1[1, 0])
     c1 = Circle(center=vector((real(c), imag(c))), radius=r1)
@@ -377,9 +458,27 @@ def rectangle_in_circle(rect: Rectangle, circle: Circle) -> bool:
 def is_point_in_rectangle(rect, point):
     """
     Check if point is inside a rectangle.
-    :param rect:
-    :param point:
-    :return:
+
+    INPUT:
+
+    - ``rect`` -- a Rectangle
+    - ``point`` -- a 2-dimensional vector or tuple
+
+    OUTPUT:
+
+    ``True`` if the point lies inside the rectangle (within machine epsilon).
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import is_point_in_rectangle
+        sage: from maass_forms_klein.hyperbolic_space.types import Rectangle
+        sage: rect = Rectangle(base=vector(RR, (0, 0)),
+        ....:     v1=vector(RR, (1, 0)), v2=vector(RR, (0, 1)))
+        sage: is_point_in_rectangle(rect, vector(RR, (0.3, 0.3)))
+        True
+        sage: is_point_in_rectangle(rect, vector(RR, (2.0, 0.3)))
+        False
+
     """
     x, y = point
     cRx, cRy = rect.center
@@ -482,7 +581,9 @@ def rectangle_covered_by_matrices(
     - ``matrices`` -- (list of matrices) list of matrices
 
     EXAMPLES:
-        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import rectangle_covered_by_matrices
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import (
+        ....:     rectangle_covered_by_matrices)
+
         sage: from maass_forms_klein.hyperbolic_space.types import Rectangle
         sage: rect = Rectangle(base=vector((0, 0)), v1=vector((1, 0)), v2=vector((0, 1)))
         sage: rectangle_covered_by_matrices(rect, [identity_matrix(2)])
@@ -535,18 +636,15 @@ def one_rectangle_covered_by_matrices(
 
     EXAMPLES::
 
-        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import rectangle_covered_by_matrices
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import (
+        ....:     one_rectangle_covered_by_matrices)
         sage: from maass_forms_klein.hyperbolic_space.types import Rectangle
-        sage: rect = Rectangle(base=vector((0, 0)), v1=vector((1, 0)), v2=vector((0, 1)))
-        sage: rectangle_covered_by_matrices(rect, [identity_matrix(2)])
-        Traceback (most recent call last):
-        ...
-        ValueError: Matrix has infinite invariant circle
-        sage: rectangle_covered_by_matrices(rect, [matrix([[0, -1],[1, 0]])])
-        False
         sage: rect = Rectangle(base=vector((0, 0)), v1=vector((1/2, 0)), v2=vector((0, 1/2)))
-        sage: rectangle_covered_by_matrices(rect, [matrix([[0, -1],[1, 0]])])
+        sage: one_rectangle_covered_by_matrices(rect, [matrix([[0, -1],[1, 0]])])
         True
+        sage: rect = Rectangle(base=vector((0, 0)), v1=vector((1, 0)), v2=vector((0, 1)))
+        sage: one_rectangle_covered_by_matrices(rect, [matrix([[0, -1],[1, 0]])])
+        False
 
     """
     if not isinstance(matrices, list):
@@ -560,6 +658,29 @@ def one_rectangle_covered_by_matrices(
 
 
 def display_rectangle_and_matrices(rect, matrices, **kwargs):
+    r"""
+    Create a plot of a rectangle and the invariant circles of the given matrices.
+
+    INPUT:
+
+    - ``rect`` -- a Rectangle
+    - ``matrices`` -- list of 2x2 matrices
+    - ``**kwargs`` -- optional keyword arguments passed to the circle plot
+      (``alpha``, ``thickness``, ``color``)
+
+    OUTPUT:
+
+    A SageMath graphics object.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import (
+        ....:     display_rectangle_and_matrices)
+        sage: from maass_forms_klein.hyperbolic_space.types import Rectangle
+        sage: rect = Rectangle(base=vector((0, 0)), v1=vector((1, 0)), v2=vector((0, 1)))
+        sage: p = display_rectangle_and_matrices(rect, [matrix(CC, [[0, -1],[1, 0]])])
+
+    """
     center = rect.center
     sides = rect.sides
     plot = polygon(
@@ -624,8 +745,29 @@ def circle_in_list(new_matrix_or_circle, existing_matrices_or_circles):
 
 def circle_in_circle_in_list(new_matrix_or_circle, existing_matrices_or_circles):
     """
-    Find if a matrix has an invariant circle within a given list up to
-    machine precision.
+    Check if a circle (or invariant circle of a matrix) is contained in any
+    circle in the given list.
+
+    INPUT:
+
+    - ``new_matrix_or_circle`` -- a Circle or a 2x2 matrix
+    - ``existing_matrices_or_circles`` -- list of Circles or matrices
+
+    OUTPUT:
+
+    ``True`` if the circle is contained in one of the circles in the list.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import circle_in_circle_in_list
+        sage: from maass_forms_klein.hyperbolic_space.types import Circle
+        sage: c1 = Circle(center=vector((0, 0)), radius=0.5)
+        sage: c2 = Circle(center=vector((0, 0)), radius=2)
+        sage: circle_in_circle_in_list(c1, [c2])
+        True
+        sage: circle_in_circle_in_list(c2, [c1])
+        False
+
     """
     if isinstance(new_matrix_or_circle, Matrix):
         new_matrix_or_circle = matrix_to_circle(new_matrix_or_circle)
@@ -636,13 +778,15 @@ def circle_in_circle_in_list(new_matrix_or_circle, existing_matrices_or_circles)
             return True
     return False
 
+
 def rectangle_intersect_circle(rect: Rectangle, circ: Circle) -> bool:
     """
     Check if a rectangle (parallel with the coordinate axes) and a circle intersect.
 
     EXAMPLES::
 
-        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import rectangle_intersect_circle
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import (
+        ....:     rectangle_intersect_circle)
         sage: from maass_forms_klein.hyperbolic_space.types import Rectangle, Circle
         sage: rect = Rectangle(base=vector((0, 0)), v1=vector((1, 0)), v2=vector((0, 1)))
         sage: rectangle_intersect_circle(rect, Circle(center=vector((0, 0)), radius=1))
@@ -673,7 +817,29 @@ def is_circle_covered_by_circles(
     c: Circle, circles: list[Circle], scaling_factor: Real_t = 1.0, n_max: Integer_t = 100
 ) -> bool:
     r"""
-    Return True if c is covered by the circles in the list.
+    Return True if circle ``c`` is covered by the circles in the list.
+
+    INPUT:
+
+    - ``c`` -- a Circle
+    - ``circles`` -- list of Circles
+    - ``scaling_factor`` -- (default: 1.0) scaling factor for the covering circles
+    - ``n_max`` -- (default: 100) maximum subdivision level
+
+    OUTPUT:
+
+    ``True`` if ``c`` is covered by the union of the circles in the list.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import (
+        ....:     is_circle_covered_by_circles)
+        sage: from maass_forms_klein.hyperbolic_space.types import Circle
+        sage: c = Circle(center=vector((0, 0)), radius=0.5)
+        sage: c2 = Circle(center=vector((0, 0)), radius=1)
+        sage: is_circle_covered_by_circles(c, [c2])
+        True
+
     """
     # First check if c is inside one of them
     for cother in circles:
@@ -717,22 +883,90 @@ def is_circle_covered_by_circles(
 
 def point_in_circle(p: Vector, c: Circle, scaling_factor: Real_t = 1.0) -> bool:
     """
-    Return True if the point is in the circle.
-    :param p:
-    :param c:
-    :return:
+    Return True if the point ``p`` is inside the circle ``c`` (optionally scaled).
+
+    INPUT:
+
+    - ``p`` -- a 2-dimensional vector
+    - ``c`` -- a Circle
+    - ``scaling_factor`` -- (default: 1.0) scaling factor applied to the radius
+
+    OUTPUT:
+
+    ``True`` if the point lies inside the (scaled) circle.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import point_in_circle
+        sage: from maass_forms_klein.hyperbolic_space.types import Circle
+        sage: c = Circle(center=vector((0, 0)), radius=1)
+        sage: point_in_circle(vector((0.5, 0)), c)
+        True
+        sage: point_in_circle(vector((2, 0)), c)
+        False
+
     """
     return sqrt((p[0] - c.center[0]) ** 2 + (p[1] - c.center[1]) ** 2) <= c.radius * scaling_factor
 
 
-def point_covered_by_circles(p: Vector, circles: list[Circle],
-                             scaling_factor: Real_t = 1.0) -> bool:
+def point_covered_by_circles(
+    p: Vector, circles: list[Circle], scaling_factor: Real_t = 1.0
+) -> bool:
+    r"""
+    Return True if the point ``p`` is inside at least one of the given circles.
+
+    INPUT:
+
+    - ``p`` -- a 2-dimensional vector
+    - ``circles`` -- list of Circles
+    - ``scaling_factor`` -- (default: 1.0) scaling factor applied to each circle radius
+
+    OUTPUT:
+
+    ``True`` if the point lies inside at least one circle.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import point_covered_by_circles
+        sage: from maass_forms_klein.hyperbolic_space.types import Circle
+        sage: c1 = Circle(center=vector((0, 0)), radius=1)
+        sage: c2 = Circle(center=vector((3, 0)), radius=1)
+        sage: point_covered_by_circles(vector((0.5, 0)), [c1, c2])
+        True
+        sage: point_covered_by_circles(vector((1.5, 0)), [c1, c2])
+        False
+
+    """
     return any(point_in_circle(p, c, scaling_factor) for c in circles)
 
 
-def display_parallelogram_and_circles(par: Parallelogram,
-                                      circles: list[Circle | Matrix | str] = None,
-                                      **kwargs: P.kwargs):
+def display_parallelogram_and_circles(
+    par: Parallelogram, circles: list[Circle | Matrix | str] | None = None, **kwargs: P.kwargs
+):
+    r"""
+    Create a plot of a parallelogram and a list of circles (or invariant circles of matrices).
+
+    INPUT:
+
+    - ``par`` -- a Parallelogram
+    - ``circles`` -- (optional) list of Circles, matrices, or words
+    - ``**kwargs`` -- optional keyword arguments: ``alpha``, ``thickness``, ``color``,
+      ``pcolor``, ``gens``
+
+    OUTPUT:
+
+    A SageMath graphics object.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import (
+        ....:     display_parallelogram_and_circles)
+        sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram, Circle
+        sage: par = Parallelogram(base=vector((0, 0)), v1=vector((1, 0)), v2=vector((0, 1)))
+        sage: c = Circle(center=vector((0.5, 0.5)), radius=0.3)
+        sage: p = display_parallelogram_and_circles(par, [c])
+
+    """
     alpha = kwargs.get("alpha", 0.5)
     thickness = kwargs.get("thickness", 0.2)
     color = kwargs.get("color", "red")

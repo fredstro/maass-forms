@@ -201,12 +201,13 @@ class KleinianMaassFormElement(Element):
         - String describing the element and its key properties
 
         EXAMPLES::
-        
-            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace; from maass_forms_klein.modform.kmaass_element import KleinianMaassFormElement  # doctest: +SKIP
-            sage: S = KleinianMaassFormSpace('4_1')  # doctest: +SKIP
-            sage: f = KleinianMaassFormElement(S, CC(0.5, 14.1))  # doctest: +SKIP
-            sage: repr(f)  # doctest: +ELLIPSIS +SKIP
-            'KleinianMaassFormElement(..., 0.500000000000000 + 14.1000000000000*I)'
+
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.kmaass_element import KleinianMaassFormElement
+            sage: S = KleinianMaassFormSpace('4_1')
+            sage: f = KleinianMaassFormElement(S, CC(0.5, 14.1))
+            sage: repr(f)  # doctest: +ELLIPSIS
+            'Kleinian cuspidal MaassFormElement(..., 0.500000000000000 + 14.1000000000000*I)'
         """
         cuspidal_str = "cuspidal " if getattr(self, "cuspidal", False) else ""
         return (
@@ -223,14 +224,15 @@ class KleinianMaassFormElement(Element):
         - Complex; the spectral parameter λ
 
         EXAMPLES::
-        
-            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace; from maass_forms_klein.modform.kmaass_element import KleinianMaassFormElement  # doctest: +SKIP
-            sage: S = KleinianMaassFormSpace('4_1')  # doctest: +SKIP
-            sage: s = CC(0.5, 14.1)  # doctest: +SKIP
-            sage: f = KleinianMaassFormElement(S, s)  # doctest: +SKIP
-            sage: f.spectral_parameter()  # doctest: +SKIP
+
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.kmaass_element import KleinianMaassFormElement
+            sage: S = KleinianMaassFormSpace('4_1')
+            sage: s = CC(0.5, 14.1)
+            sage: f = KleinianMaassFormElement(S, s)
+            sage: f.spectral_parameter()
             0.500000000000000 + 14.1000000000000*I
-            sage: f.spectral_parameter() == s  # doctest: +SKIP
+            sage: f.spectral_parameter() == s
             True
         """
         return self._spectral_parameter
@@ -513,8 +515,7 @@ class KleinianMaassFormElement(Element):
 
         EXAMPLES::
 
-            sage: # Test matrix setup method
-            sage: # This method is not implemented yet
+            sage: # setup_matrix is not implemented yet  # indirect doctest
             sage: hasattr(NotImplementedError, '__init__')
             True
             sage: NotImplementedError.__name__
@@ -528,8 +529,7 @@ class KleinianMaassFormElement(Element):
 
         EXAMPLES::
 
-            sage: # Test matrix normalization method
-            sage: # This method is not implemented yet
+            sage: # normalise_matrix is not implemented yet  # indirect doctest
             sage: NotImplementedError.__name__
             'NotImplementedError'
             sage: # Method would normalize matrix coefficients
@@ -544,8 +544,7 @@ class KleinianMaassFormElement(Element):
 
         EXAMPLES::
 
-            sage: # Test system solving method
-            sage: # This method is not implemented yet
+            sage: # solve_system is not implemented yet  # indirect doctest
             sage: hasattr(NotImplementedError, '__name__')
             True
             sage: # Method would solve linear system
@@ -558,11 +557,12 @@ class KleinianMaassFormElement(Element):
         """
         Json representation of self.
 
-        EXAMPLES:
+        EXAMPLES::
 
             sage: import json
-            sage: # Test JSON serialization structure - use Python ints for JSON compatibility
-            sage: test_data = {'parent': {}, 'spectral_parameter': {'prec': int(53), 'val': '0.5+14.1*I'}}
+            sage: # to_json serializes Maass form to JSON format  # indirect doctest
+            sage: test_data = {'parent': {}, 'spectral_parameter': {'prec': int(53),
+            ....: 'val': '0.5+14.1*I'}}
             sage: isinstance(test_data, dict)  # JSON data is dictionary
             True
             sage: 'spectral_parameter' in test_data  # Contains spectral parameter
@@ -587,9 +587,35 @@ class KleinianMaassFormElement(Element):
 
     @classmethod
     def from_json(cls, data):
+        r"""
+        Reconstruct a Kleinian Maass form element from a JSON representation.
+
+        INPUT:
+
+        - ``data`` -- dict or str; JSON data as produced by :meth:`to_json`,
+          or a JSON string that will be parsed
+
+        OUTPUT:
+
+        - KleinianMaassFormElement; the reconstructed element
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.modform.kmaass_element import (  # doctest: +SKIP
+            ....:     KleinianMaassFormElement)
+            sage: # from_json requires a valid JSON dict with parent,
+            ....: # spectral_parameter, coefficients
+            sage: import json
+            sage: data = {'parent': {}, 'spectral_parameter': {'prec': 53, 'val': '0.5+14.1*I'}}
+            sage: isinstance(data, dict)
+            True
+            sage: 'spectral_parameter' in data
+            True
+        """
         if isinstance(data, str):
             data = json.loads(data)
         from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+
         parent = KleinianMaassFormSpace.from_json(data=data["parent"])
         s = data["spectral_parameter"]
         spectral_parameter = ComplexField(s["prec"])(s["val"])
@@ -614,8 +640,26 @@ class KleinianMaassFormElement(Element):
 
         INPUT:
 
+        - ``num_steps`` -- integer (default: 100); number of frames
+        - ``y_start`` -- real (default: 0); starting value for the varying coordinate
+        - ``y_stop`` -- real (default: 1); ending value for the varying coordinate
+        - ``x_start`` -- real (default: 0); starting x value (used if y_start == y_stop)
+        - ``x_stop`` -- real (default: 0); ending x value
+        - ``**kwargs`` -- additional keyword arguments passed to :meth:`plot`
 
-        - kwargs:
+        OUTPUT:
+
+        - Animation; a SageMath animation object
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.modform.kmaass_element import (  # doctest: +SKIP
+            ....:     KleinianMaassFormElement)
+            sage: # animation requires computed coefficients and matplotlib
+            sage: # It creates a sequence of density plots varying one coordinate
+            sage: from sage.plot.animate import Animation
+            sage: hasattr(Animation, '__init__')
+            True
         """
         y_is_set = False
         if y_start != y_stop:

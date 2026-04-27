@@ -99,7 +99,9 @@ def filter_list_mod_parabolics(list_of_words, gens):
 
     INPUT:
 
-        sage: from maass_forms_klein.hyperbolic_space.utils import filter_list_mod_parabolics # doctest: +ELLIPSIS
+        sage: from maass_forms_klein.hyperbolic_space.utils import (  # doctest: +ELLIPSIS
+        ....:     filter_list_mod_parabolics)
+
         ...
         sage: filter_list_mod_parabolics(['a', 'b'], {'a': matrix([[0, 1], [1, 0]]),
         ....:                                            'b': matrix([[0, 1], [1, 0]])})
@@ -158,12 +160,15 @@ def find_covering_generators(
         sage: find_covering_generators(rect, gens)
          [('a',
           Circle(center=(-0.000000000000000, 0.000000000000000), radius=1.00000000000000))]
-        sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup__from_manifold
+        sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+        ....:     KleinianGroup__from_manifold)
+
         sage: from snappy import Manifold
         sage: M = Manifold("4_1")
         sage: G = KleinianGroup__from_manifold(M)
         sage: gens = G.named_generators(prec=53)
-        sage: rect = Parallelogram(base=vector((0, 0)), v1=vector((3.46410161513775, 0)), v2=vector((0, 1)))
+        sage: v1 = vector((3.46410161513775, 0))
+        sage: rect = Parallelogram(base=vector((0, 0)), v1=v1, v2=vector((0, 1)))
         sage: find_covering_generators(rect, gens)
          [('AB',
               Circle(center=(1.11022302462516e-16, 1.92296268638356e-16), radius=1.00000000000000)),
@@ -292,12 +297,15 @@ def find_covering_generators2(
         sage: rect = Rectangle(base=vector((-0.5, -0.5)), v1=vector((1, 0)), v2=vector((0, 1)))
         sage: find_covering_generators(rect, gens, return_words=True)
         ['a']
-        sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup__from_manifold
+        sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+        ....:     KleinianGroup__from_manifold)
+
         sage: from snappy import Manifold
         sage: M = Manifold("4_1")
         sage: G = KleinianGroup__from_manifold(M)
         sage: gens = G.named_generators(prec=53)
-        sage: rect = Parallelogram(base=vector((0, 0)), v1=vector((3.46410161513775, 0)), v2=vector((0, 1)))
+        sage: v1 = vector((3.46410161513775, 0))
+        sage: rect = Parallelogram(base=vector((0, 0)), v1=v1, v2=vector((0, 1)))
         sage: find_covering_generators(rect, gens, return_words=True)
         ['AB', 'BAb', 'BAl', 'Bl', 'abM', 'bal', 'bl', 'bml']
         sage: rect =  G.translation_fundamental_domain()

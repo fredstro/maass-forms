@@ -96,7 +96,9 @@ def reduce_list_to_parallelogram(p: Parallelogram, word_circle_list: list[tuple[
 
     EXAMPLES:
 
-        sage: from maass_forms_klein.hyperbolic_space.parallelogram import reduce_list_to_parallelogram
+        sage: from maass_forms_klein.hyperbolic_space.parallelogram import (
+        ....:     reduce_list_to_parallelogram)
+
         sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
         sage: from maass_forms_klein.hyperbolic_space.types import Circle
         sage: from maass_forms_klein.hyperbolic_space.types import Point
@@ -129,16 +131,18 @@ def point_on_boundary_of_parallelogram(
 
     EXAMPLES::
 
-        sage: from maass_forms_klein.hyperbolic_space.utils import point_on_boundary_of_parallelogram
+        sage: from maass_forms_klein.hyperbolic_space.utils import (
+        ....:     point_on_boundary_of_parallelogram)
+
         sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
         sage: v1 = (3.46410161513775, 0.000000000000000)
         sage: v2 = (0.000000000000000, 1.00000000000000)
         sage: par = Parallelogram(base=vector((0, 0)), v1=v1, v2=v2)
-        sage: point_on_boundary_of_parallelogram(vector((5, 1.0)), rect)
+        sage: point_on_boundary_of_parallelogram(vector((5, 1.0)), par)
         False
-        sage: point_on_boundary_of_parallelogram(vector((2, 1.5)), rect)
+        sage: point_on_boundary_of_parallelogram(vector((2, 1.5)), par)
         False
-        sage: point_on_boundary_of_parallelogram(vector((2, 1.0)), rect)
+        sage: point_on_boundary_of_parallelogram(vector((2, 1.0)), par)
         True
 
     """
@@ -173,8 +177,11 @@ def parallelogram_intersect_circle(
 
         sage: from maass_forms_klein.hyperbolic_space.types import Circle
         sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
-        sage: from maass_forms_klein.hyperbolic_space.utils import parallelogram_intersect_circle
-        sage: p = Parallelogram(base=vector((0, 0)), v1=(3.46410161513775, 0.000000000000000), v2=(0.000000000000000, 1.00000000000000))
+        sage: from maass_forms_klein.hyperbolic_space.utils import (
+        ....:     parallelogram_intersect_circle)
+        sage: v1 = (3.46410161513775, 0.000000000000000)
+        sage: v2 = (0.000000000000000, 1.00000000000000)
+        sage: p = Parallelogram(base=vector((0, 0)), v1=v1, v2=v2)
         sage: cr = Circle(center=vector((0, 0)), radius=1)
         sage: parallelogram_intersect_circle(p, cr)
         True
@@ -250,13 +257,16 @@ def point_in_parallelogram(c: Vector, p: Parallelogram) -> bool:
 def circle_outside_parallelogram(c: Circle, p: Parallelogram, scaling_factor: Real_t = 1) -> bool:
     """
     Return True if circle is outside of parallelogram and False if it can not be determined
-    (in particular ``False`` does not necessarily imply that the circle intersects the parallelogram).
+    (in particular ``False`` does not necessarily imply that the circle
+    intersects the parallelogram).
 
     EXAMPLES::
 
         sage: from maass_forms_klein.hyperbolic_space.types import Circle
         sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
-        sage: from maass_forms_klein.hyperbolic_space.parallelogram import circle_outside_parallelogram
+        sage: from maass_forms_klein.hyperbolic_space.parallelogram import (
+        ....:     circle_outside_parallelogram)
+
         sage: cr = Circle(center=vector((0,0)), radius=1)
         sage: p = Parallelogram(base=vector((-0.5,-0.5)), v1=vector((1,0)), v2=vector((0,1)))
         sage: circle_outside_parallelogram(cr, p)
@@ -269,9 +279,10 @@ def circle_outside_parallelogram(c: Circle, p: Parallelogram, scaling_factor: Re
         sage: p = Parallelogram(base=(3.8888888888888893, -5.0), v1=v1, v2=v2)
         sage: circle_outside_parallelogram(c, p)
         False
-        """
-    # Quickest check first: see if the circle is disjoint to the circumscribed circle of the parallelogram
+    """
+    # Quickest check: see if circle is disjoint from circumscribed circle
     from maass_forms_klein.hyperbolic_space.geometry_utils import circle_intersects_circle
+
     if not circle_intersects_circle(c, p.circumscribed_circle):
         return True
 
@@ -351,6 +362,25 @@ def perpendicular(v: Vector) -> Vector:
 def orthogonal_projection_on_line(a: Vector, L: Line) -> Vector:
     """
     Compute the orthogonal projection of a point on a line.
+
+    INPUT:
+
+    - ``a`` -- a 2-dimensional vector (the point)
+    - ``L`` -- a Line (given by base point and direction)
+
+    OUTPUT:
+
+    A vector representing the projection of ``a`` onto ``L``.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.parallelogram import (
+        ....:     orthogonal_projection_on_line)
+        sage: from maass_forms_klein.hyperbolic_space.types import Line
+        sage: L = Line(base=vector((0, 0)), direction=vector((1, 0)))
+        sage: orthogonal_projection_on_line(vector((3, 5)), L)
+        (3, 0)
+
     """
     v = L.direction
     n = perpendicular(v)
@@ -385,6 +415,29 @@ def parallelogram_to_lines(p: Parallelogram) -> tuple[Line, Line, Line, Line]:
 
 
 def intersection_point_two_lines(l1: Line, l2: Line) -> Vector:
+    r"""
+    Find the intersection point of two lines in the plane.
+
+    INPUT:
+
+    - ``l1`` -- a Line (given by base point and direction)
+    - ``l2`` -- a Line (given by base point and direction)
+
+    OUTPUT:
+
+    A vector representing the intersection point.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.parallelogram import (
+        ....:     intersection_point_two_lines)
+        sage: from maass_forms_klein.hyperbolic_space.types import Line
+        sage: l1 = Line(base=vector((0, 0)), direction=vector((1, 0)))
+        sage: l2 = Line(base=vector((1, -1)), direction=vector((0, 1)))
+        sage: intersection_point_two_lines(l1, l2)
+        (1, 0)
+
+    """
     a = l1.base
     v = l1.direction
     c = l2.base
@@ -471,15 +524,41 @@ def split_parallelogram(p: Parallelogram | Rectangle, n1: Integer_t = 2, n2: Int
     ]
 
 
-def parallelogram_covered_by_matrices(p: Parallelogram, matrices: list[Matrix],
-                                      scaling_factor=1.0, n_max=1000):
+def parallelogram_covered_by_matrices(
+    p: Parallelogram, matrices: list[Matrix], scaling_factor=1.0, n_max=1000
+):
+    r"""
+    Check if a parallelogram is covered by the invariant circles of the given matrices.
+
+    INPUT:
+
+    - ``p`` -- a Parallelogram
+    - ``matrices`` -- list of 2x2 matrices
+    - ``scaling_factor`` -- (default: 1.0) scaling factor for the invariant circles
+    - ``n_max`` -- (default: 1000) maximum subdivision level
+
+    OUTPUT:
+
+    ``True`` if the parallelogram is covered by the union of the invariant circles.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.parallelogram import (
+        ....:     parallelogram_covered_by_matrices)
+        sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+        sage: p = Parallelogram(base=vector((0,0)), v1=vector((0.1,0)), v2=vector((0,0.1)))
+        sage: parallelogram_covered_by_matrices(p, [matrix(CC, [[0, -1],[1, 0]])])
+        True
+
+    """
     if not isinstance(matrices, list) or not all(isinstance(x, Matrix) for x in matrices):
         raise ValueError(
-            f"Input should be a list of matrices. Got: {matrices} type={type(matrices[0])}")
+            f"Input should be a list of matrices. Got: {matrices} type={type(matrices[0])}"
+        )
     from maass_forms_klein.hyperbolic_space.geometry_utils import matrix_to_circle
+
     circles = [matrix_to_circle(m) for m in matrices]
-    return parallelogram_covered_by_circles(p, circles, scaling_factor=scaling_factor,
-                                            n_max=n_max)
+    return parallelogram_covered_by_circles(p, circles, scaling_factor=scaling_factor, n_max=n_max)
 
 
 def parallelogram_covered_by_circles(
@@ -500,7 +579,8 @@ def parallelogram_covered_by_circles(
 
     EXAMPLES:
         sage: from maass_forms_klein.hyperbolic_space.types import Circle, Parallelogram
-        sage: from maass_forms_klein.hyperbolic_space.parallelogram import parallelogram_covered_by_circles
+        sage: from maass_forms_klein.hyperbolic_space.parallelogram import (
+        ....:     parallelogram_covered_by_circles)
         sage: cr = Circle(center=vector((0,0)), radius=1)
         sage: p = Parallelogram(base=vector((0,0)), v1=vector((1,0)), v2=vector((0,1)))
         sage: parallelogram_covered_by_circles(p, [cr])

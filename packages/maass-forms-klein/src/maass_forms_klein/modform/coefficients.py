@@ -237,6 +237,20 @@ class KleinianMaassFormCoefficients(Parent):
         return self._coefficients.column(0)[index]
 
     def __iter__(self):
+        r"""
+        Iterate over the coefficient rows.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
+            sage: H = KleinianMaassFormSpace(-4)
+            sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
+            sage: Cmat = vector(RR, [1,2,3,4,5,6,7,8,9])
+            sage: C = KleinianMaassFormCoefficients(Cmat, 1, spectral_parameter, H)
+            sage: len(list(C))
+            9
+        """
         yield from self._coefficients
 
     def keys(self, as_elements=False) -> list:

@@ -24,8 +24,27 @@ Real_t = RealNumber_class | float
 Complex_t = ComplexNumber | complex | NumberFieldElement_gaussian
 Circle_t = tuple[tuple[Real_t, Real_t], Real_t]
 Rectangle_t = tuple[tuple[Real_t], tuple[Real_t]]
+
+
 class Rectangle:
     def __init__(self, x1, x2, y1, y2):
+        """
+        Initialize a rectangle with corner coordinates.
+
+        INPUT:
+
+        - ``x1`` -- left x-coordinate
+        - ``x2`` -- right x-coordinate
+        - ``y1`` -- bottom y-coordinate
+        - ``y2`` -- top y-coordinate
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.modform.utils import Rectangle
+            sage: r = Rectangle(0, 1, 0, 1)
+            sage: r.x1, r.x2, r.y1, r.y2
+            (0, 1, 0, 1)
+        """
         self.x1 = x1
         self.x2 = x2
         self.y1 = y1
@@ -180,12 +199,58 @@ def map_int_to_tuple(
 
 @cached_function
 def dual_ideal_element(index_tuple, ideal):
+    r"""
+    Compute the element of the dual ideal corresponding to ``index_tuple``.
+
+    INPUT:
+
+    - ``index_tuple`` -- a tuple `(a, b)` of integers
+    - ``ideal`` -- a fractional ideal with an integral basis
+
+    OUTPUT:
+
+    The element `a * b1 + b * b2` where `b1, b2` is the integral basis of ``ideal``.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.utils import dual_ideal_element
+        sage: K.<a> = NumberField(x^2 - 5)                  # doctest: +SKIP
+        sage: I = K.ideal(1)                                 # doctest: +SKIP
+        sage: dual_ideal_element((1, 0), I)                  # doctest: +SKIP
+        1
+    """
     b1, b2 = ideal.integral_basis()
     return b1 * index_tuple[0] + b2 * index_tuple[1]
 
 
 @cached_function
 def bessel_function(absv, y, s, pre_factor=1, sgn="+"):
+    r"""
+    Compute a modified Bessel function of the second kind scaled by ``y``.
+
+    For `|v| = 0`, returns `y^s` (or `y^{2-s}` if ``sgn`` is ``"-"``).
+    For `|v| > 0`, returns `K_s(|v| \cdot y)` with optional exponential pre-factor.
+
+    INPUT:
+
+    - ``absv`` -- non-negative real number
+    - ``y`` -- positive real number
+    - ``s`` -- spectral parameter (real or complex)
+    - ``pre_factor`` -- integer (default: 1); if nonzero, multiply by `e^{\pi s/2}`
+    - ``sgn`` -- string ``"+"`` or ``"-"`` (default: ``"+"``)
+
+    OUTPUT:
+
+    A real or complex number.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.utils import bessel_function
+        sage: bessel_function(0, RR(2.0), RR(1.0))
+        2.00000000000000
+        sage: bessel_function(1, RR(1.0), RR(0.5))  # doctest: +SKIP
+        ...
+    """
     if absv == 0:
         if s == 1.0:
             return y if sgn == "+" else y * log(y)
@@ -209,6 +274,23 @@ def bessel_function(absv, y, s, pre_factor=1, sgn="+"):
 
 @cached_function
 def exp_trace(z):
+    r"""
+    Compute `\exp(2 \pi \operatorname{Re}(z))`.
+
+    INPUT:
+
+    - ``z`` -- a real or complex number (Python or SageMath)
+
+    OUTPUT:
+
+    The exponential of `2 \pi \operatorname{Re}(z)`.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.utils import exp_trace
+        sage: exp_trace(RR(0.0))  # doctest: +SKIP
+        1.00000000000000
+    """
     if isinstance(z, complex):
         z = 2 * RR.pi() * z.real
     else:
@@ -217,13 +299,54 @@ def exp_trace(z):
 
 
 def get_prec(x: Any) -> int:
+    """
+    Return the precision (in bits) of the given element.
+
+    INPUT:
+
+    - ``x`` -- a numerical value (SageMath or Python)
+
+    OUTPUT:
+
+    An integer: the bit precision, or 0 for exact types, or 53 as default.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.utils import get_prec
+        sage: get_prec(RR(1.0))
+        53
+        sage: get_prec(ZZ(1))
+        0
+        sage: get_prec(1.0)
+        53
+    """
     if isinstance(x, (RealNumber, ComplexNumber)):
         return int(x.prec())
     if isinstance(x, (Integer_t, Rational)):
         return 0
     return 53
 
-def get_epsilon(x: Any) -> tuple[float,Any]:
+
+def get_epsilon(x: Any) -> tuple[float, Any]:
+    """
+    Return a small epsilon value appropriate for the precision of ``x``.
+
+    INPUT:
+
+    - ``x`` -- a numerical value with a ``parent`` method, or a Python float
+
+    OUTPUT:
+
+    A small positive number representing machine epsilon for the given type.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.utils import get_epsilon
+        sage: get_epsilon(1.0) # abstol 1e-15
+        1.11022302462516e-16
+        sage: get_epsilon(RealField(100)(1.0))
+        ...
+    """
     if isinstance(x, float):
         eps = 2**-53
     elif hasattr(x, "parent"):

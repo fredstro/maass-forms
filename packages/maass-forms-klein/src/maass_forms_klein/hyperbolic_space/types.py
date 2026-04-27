@@ -21,8 +21,19 @@ class Point:
     y: Real_t
 
     def __iter__(self):
+        """
+        Iterate over the coordinates of the point.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Point
+            sage: p = Point(1, 2)
+            sage: list(p)
+            [1, 2]
+        """
         yield self.x
         yield self.y
+
 
 @dataclass(eq=True, unsafe_hash=True)
 class Parallelogram:
@@ -32,6 +43,15 @@ class Parallelogram:
     vector_space: FreeModule_ambient = field(init=False)
 
     def __post_init__(self) -> NoReturn:
+        """Initialize internal fields from base, v1, and v2.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+            sage: P = Parallelogram(base=(0, 0), v1=(1, 0), v2=(0, 1))
+            sage: P.base
+            (0, 0)
+        """
         self.base = vector(self.base)
         self.v1 = vector(self.v1)
         self.v2 = vector(self.v2)
@@ -50,28 +70,72 @@ class Parallelogram:
         """
         Center of a parallelogram.
 
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+            sage: from sage.modules.free_module_element import vector
+            sage: P = Parallelogram(base=vector([0, 0]), v1=vector([2, 0]), v2=vector([0, 2]))
+            sage: P.center
+            (1, 1)
         """
         return self.base + self.v1 / 2 + self.v2 / 2
 
     @property
     def sides(self):
         """
-        Side lengths of a parallelogram
+        Side lengths of a parallelogram.
 
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+            sage: from sage.modules.free_module_element import vector
+            sage: P = Parallelogram(base=vector([0, 0]), v1=vector([3, 0]), v2=vector([0, 4]))
+            sage: P.sides
+            [3, 4]
         """
         return [self.v1.norm(), self.v2.norm()]
 
     @property
     def vertices(self):
+        """
+        Return the four vertices of the parallelogram.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+            sage: from sage.modules.free_module_element import vector
+            sage: P = Parallelogram(base=vector([0, 0]), v1=vector([1, 0]), v2=vector([0, 1]))
+            sage: P.vertices
+            [(0, 0), (1, 0), (1, 1), (0, 1)]
+        """
         return [self.base, self.base + self.v1, self.base + self.v1 + self.v2, self.base + self.v2]
 
     @property
     def area(self):
+        """
+        Return the signed area of the parallelogram.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+            sage: from sage.modules.free_module_element import vector
+            sage: P = Parallelogram(base=vector([0, 0]), v1=vector([3, 0]), v2=vector([0, 4]))
+            sage: P.area
+            12
+        """
         return matrix([self.v1, self.v2]).determinant()
 
     def point_on_boundary(self, point: Vector) -> bool:
         """
         Check if a point is on the boundary of the parallelogram.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+            sage: from sage.modules.free_module_element import vector
+            sage: P = Parallelogram(base=vector([0, 0]), v1=vector([1, 0]), v2=vector([0, 1]))
+            sage: P.point_on_boundary(vector([0, 0]))
+            True
         """
         x, _y = point
         return (
@@ -82,6 +146,17 @@ class Parallelogram:
         )
 
     def to_json(self):
+        """
+        Return a JSON-serializable dictionary representation.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+            sage: from sage.modules.free_module_element import vector
+            sage: P = Parallelogram(base=vector([0, 0]), v1=vector([1, 0]), v2=vector([0, 1]))
+            sage: P.to_json()
+            {'base': [0, 0], 'v1': [1, 0], 'v2': [0, 1]}
+        """
         return {
             "base": list(self.base),
             "v1": list(self.v1),
@@ -89,11 +164,32 @@ class Parallelogram:
         }
 
     def coordinates(self, x: Vector | Point) -> list:
+        """
+        Return the coordinates of ``x`` relative to the parallelogram.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+            sage: from sage.modules.free_module_element import vector
+            sage: P = Parallelogram(base=vector([0, 0]), v1=vector([2, 0]), v2=vector([0, 2]))
+            sage: P.coordinates(vector([1, 1]))  # doctest: +SKIP
+            [0.0, 0.0]
+        """
         coords = self.vector_space.coordinates(x)
         return [coords[0] - self.base_coords[0], coords[1] - self.base_coords[1]]
 
     def __repr__(self) -> str:
-        """Custom repr that excludes vector_space field."""
+        """
+        Custom repr that excludes vector_space field.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram
+            sage: from sage.modules.free_module_element import vector
+            sage: P = Parallelogram(base=vector([0, 0]), v1=vector([1, 0]), v2=vector([0, 1]))
+            sage: P
+            Parallelogram(base=(0, 0), v1=(1, 0), v2=(0, 1))
+        """
         return f"Parallelogram(base={self.base}, v1={self.v1}, v2={self.v2})"
 
 
@@ -103,15 +199,44 @@ class Circle:
     radius: Real_t
 
     def __post_init__(self) -> NoReturn:
+        """Initialize and make center vector immutable.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Circle
+            sage: c = Circle(center=(0, 0), radius=1)
+            sage: c.center
+            (0, 0)
+        """
         self.center = vector(self.center)
         self.center.set_immutable()
 
     def scale(self, scale_factor: Real_t) -> "Circle":
+        """
+        Return a new circle scaled by the given factor.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Circle
+            sage: from sage.modules.free_module_element import vector
+            sage: c = Circle(center=vector([0, 0]), radius=1)
+            sage: c.scale(2).radius
+            2
+        """
         return Circle(center=self.center, radius=self.radius * scale_factor)
 
     def within_epsilon(self, other: "Circle", epsilon: Real_t) -> bool:
         """
-        Check if self is within epsilon of other circle
+        Check if self is within epsilon of other circle.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Circle
+            sage: from sage.modules.free_module_element import vector
+            sage: c1 = Circle(center=vector([0, 0]), radius=1)
+            sage: c2 = Circle(center=vector([0, 0]), radius=1)
+            sage: c1.within_epsilon(c2, 0.01)
+            True
         """
         diff_radius = abs(self.radius - other.radius)
         if diff_radius > epsilon:
@@ -129,6 +254,15 @@ class Line:
     direction: Vector
 
     def __post_init__(self) -> NoReturn:
+        """Make base and direction vectors immutable.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Line
+            sage: L = Line(base=vector((0, 0)), direction=vector((1, 0)))
+            sage: L.base
+            (0, 0)
+        """
         self.base.set_immutable()
         self.direction.set_immutable()
 
@@ -140,5 +274,13 @@ class Rectangle(Parallelogram):
     v2: Vector
 
     def __post_init__(self) -> NoReturn:
-        super().__post_init__()
+        """Initialize rectangle via parent Parallelogram.
 
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Rectangle
+            sage: R = Rectangle(base=(0, 0), v1=(1, 0), v2=(0, 1))
+            sage: R.base
+            (0, 0)
+        """
+        super().__post_init__()

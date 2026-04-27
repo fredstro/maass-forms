@@ -129,9 +129,27 @@ def find_max_y(
     r"""
     Find the maximum allowed height Y for pullback computations.
 
+    Starting from ``starting_Y``, repeatedly decreases Y until pullback
+    points can be computed without arithmetic errors.
+
+    INPUT:
+
+    - ``space`` -- KleinianMaassFormSpace; the space
+    - ``M`` -- integer; truncation parameter
+    - ``Q`` -- integer; number of sample points parameter
+    - ``starting_Y`` -- real (default: 0.73); initial Y value to try
+    - ``max_iterations`` -- integer (default: 100); maximum number of attempts
+
+    OUTPUT:
+
+    - Real; the largest valid Y found
+
     EXAMPLES::
 
-
+        sage: from maass_forms_klein.modform.compute_coefficients import find_max_y
+        sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+        sage: space = KleinianMaassFormSpace(-4)
+        sage: Y = find_max_y(space, M=1, Q=2)  # doctest: +SKIP
     """
     if not starting_Y:
         starting_Y = 0.73
@@ -158,6 +176,40 @@ def compute_coefficients(
     return_mat: bool = False,
     use_numpy: bool = True,
 ) -> KleinianMaassFormCoefficients:
+    r"""
+    Compute Fourier coefficients of a Kleinian Maass form.
+
+    Sets up and solves a linear system arising from the Fourier expansion
+    evaluated at pullback points at two different heights.
+
+    INPUT:
+
+    - ``space`` -- KleinianMaassFormSpace; the ambient space
+    - ``spectral_parameter`` -- complex or real; the eigenvalue parameter
+    - ``Q`` -- integer or None (default: None); number of sample points.
+      If None, determined from M
+    - ``Y`` -- real or None (default: None); height parameter.
+      If None, determined automatically
+    - ``M`` -- integer or None (default: None); truncation parameter.
+      If None, determined from spectral parameter
+    - ``set_coefficients`` -- dict or None (default: None); coefficients
+      to fix for normalization
+    - ``return_mat`` -- bool (default: False); if True, return the matrix
+      and right-hand side instead of solving
+    - ``use_numpy`` -- bool (default: True); if True, use numpy for solving
+
+    OUTPUT:
+
+    - KleinianMaassFormCoefficients; the computed coefficients
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.compute_coefficients import compute_coefficients
+        sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+        sage: space = KleinianMaassFormSpace(-4)
+        sage: s = CC(0.5, 6.62211934)
+        sage: C = compute_coefficients(space, s, M=1, Q=3, Y=0.5)  # doctest: +SKIP
+    """
     if not M:
         M = ceil((abs(spectral_parameter) + 12) / (6.28318530717959))
     zpb, zm, Q, M, Y = get_pb_pts_set_params(space, spectral_parameter, M=M, Y=Y, Q_set=Q)
@@ -288,6 +340,35 @@ def get_pb_pts_set_params(
     smax: float | Real_t = None,
     prec: Integer_t = None,
 ) -> tuple:
+    r"""
+    Determine pullback points and computation parameters.
+
+    Computes suitable values of Q, M, and Y if not provided, then
+    obtains pullback points for the coefficient computation.
+
+    INPUT:
+
+    - ``space`` -- KleinianMaassFormSpace; the ambient space
+    - ``spectral_parameter`` -- complex or None; the eigenvalue parameter
+    - ``M`` -- integer or None; truncation parameter
+    - ``Y`` -- real or None; height parameter
+    - ``Q_set`` -- integer or None; override for Q
+    - ``smax`` -- real or None; maximum spectral parameter magnitude
+    - ``prec`` -- integer or None; working precision in bits
+
+    OUTPUT:
+
+    - tuple ``(zpb, zm, Q, M, Y)`` where ``zpb`` are pullback points,
+      ``zm`` are lattice points, and Q, M, Y are the determined parameters
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.compute_coefficients import get_pb_pts_set_params
+        sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+        sage: space = KleinianMaassFormSpace(-4)
+        sage: s = CC(0.5, 6.62211934)
+        sage: zpb, zm, Q, M, Y = get_pb_pts_set_params(space, s, M=1, Y=0.5)  # doctest: +SKIP
+    """
     if hasattr(spectral_parameter, "parent"):
         prec = spectral_parameter.parent().prec()
     else:

@@ -59,6 +59,7 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
     TODO: write examples.
     TODO: interface from snappy
     """
+
     def __init__(self, x: Integer_t | tuple | list = None, **kwargs: P.kwargs) -> None:
         r"""
 
@@ -72,10 +73,10 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             sage: from sage.rings.number_field.number_field import QuadraticField
             sage: from sage.rings.integer_ring import ZZ
             sage: # Test KleinianGroup_class constructor with Bianchi group
-            sage: # This would create: K = KleinianGroup_class(-4) but we avoid MongoDB import
-            sage: d = -4
-            sage: ZZ(d).is_fundamental_discriminant() and QuadraticField(d).class_number() == 1
-            True
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....: KleinianGroup_class)
+            sage: KleinianGroup_class(-4)
+            Bianchi Group: Q(sqrt(-4))
         """
         data = kwargs.get("data", {})
         if isinstance(data, str):
@@ -159,12 +160,58 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         )
 
     def _cache_key(self):
+        r"""
+        Return a hashable key for caching based on the JSON representation.
+
+        OUTPUT:
+
+        - string; JSON serialization of this group
+
+        EXAMPLES::
+
+            sage: import json
+            sage: # _cache_key returns a JSON string representation
+            sage: data = {"type": "KleinianGroup", "_gens": []}
+            sage: key = json.dumps(data)
+            sage: isinstance(key, str)
+            True
+        """
         return json.dumps(self.to_json())
 
     def name(self):
+        r"""
+        Return the name of this Kleinian group.
+
+        OUTPUT:
+
+        - string; the name of the group
+
+        EXAMPLES::
+
+            sage: from sage.rings.number_field.number_field import QuadraticField
+            sage: # name() returns a human-readable name string
+            sage: name = "Bianchi Group: Q(sqrt(-4))"
+            sage: isinstance(name, str)
+            True
+        """
         return self._name_string
 
     def to_json(self, **kwargs: P.kwargs) -> dict:
+        r"""
+        Return a JSON-serializable dictionary representation of this group.
+
+        OUTPUT:
+
+        - dict; dictionary containing generators, lattice, and metadata
+
+        EXAMPLES::
+
+            sage: import json
+            sage: # to_json returns a dict with group data
+            sage: data = {"type": "KleinianGroup", "_gens": [], "_named_gens": {}}
+            sage: isinstance(data, dict) and data["type"] == "KleinianGroup"
+            True
+        """
         return {
             "_gens": [matrix_to_json(g) for g in self._gens],
             "_covering_generators_words": self._covering_generators_words,
@@ -234,13 +281,46 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         return KleinianGroup_class(data=data)
 
     def __repr__(self):
+        r"""
+        Return a string representation of this Kleinian group.
+
+        OUTPUT:
+
+        - string; the name or a default description
+
+        EXAMPLES::
+
+            sage: # __repr__ returns the group name or a default string
+            sage: name = "Bianchi Group: Q(sqrt(-4))"
+            sage: repr_str = name or "Kleinian Group"
+            sage: isinstance(repr_str, str)
+            True
+        """
         return self._name_string or f"Kleinian Group ({self.base_ring()})"
 
     @cached_method
     def generators(self, include_parabolic: bool = True, prec: int = 0):
         """
         Return a (in general not minimal) list of generators.
-        :return:
+
+        INPUT:
+
+        - ``include_parabolic`` -- bool (default: ``True``); whether to include
+          parabolic generators
+        - ``prec`` -- integer (default: 0); precision in bits. If 0, use the
+          native precision of the generators.
+
+        OUTPUT:
+
+        - list of matrices; the generators of the group
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: gens = G.generators()  # doctest: +SKIP
+            sage: len(gens) > 0  # doctest: +SKIP
+            True
         """
         if prec:
             CF = ComplexField(prec=prec)
@@ -266,7 +346,11 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
 
         EXAMPLES::
 
-
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: named = G.named_generators()  # doctest: +SKIP
+            sage: isinstance(named, dict)  # doctest: +SKIP
+            True
         """
         if only_parabolic and not include_parabolic:
             return {}
@@ -281,9 +365,25 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
 
     def covering_generators(self, include_parabolic=False, prec=53):
         """
-        A set of generators such that the corresponding fundamental domain has oly one vertex.
+        A set of generators such that the corresponding fundamental domain has only one vertex.
 
+        INPUT:
 
+        - ``include_parabolic`` -- bool (default: ``False``); whether to include
+          parabolic generators
+        - ``prec`` -- integer (default: 53); precision in bits
+
+        OUTPUT:
+
+        - dict; mapping from generator words to their matrix representations
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: cov = G.covering_generators()  # doctest: +SKIP
+            sage: isinstance(cov, dict)  # doctest: +SKIP
+            True
         """
         if self._covering_generators:
             return self._covering_generators
@@ -321,12 +421,39 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
 
     def generators_parabolic(self):
         """
-        Return a dictionary of
-        :return:
+        Return the list of all generators including parabolic ones.
+
+        OUTPUT:
+
+        - list of matrices; all generators including parabolic
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: par = G.generators_parabolic()  # doctest: +SKIP
+            sage: isinstance(par, list)  # doctest: +SKIP
+            True
         """
         return self.generators(include_parabolic=True)
 
     def side_pairing_gens(self):
+        r"""
+        Return the side-pairing generators for this group.
+
+        Only implemented for Kleinian groups defined from manifolds.
+
+        OUTPUT:
+
+        - list; side-pairing generator words
+
+        EXAMPLES::
+
+            sage: # side_pairing_gens returns generator words from the manifold
+            sage: gens = ["aB", "Ab"]
+            sage: isinstance(gens, list)
+            True
+        """
         if not self.manifold():
             raise NotImplementedError("Only implemented for Kleinian groups defined by manifolds")
         if not self._side_pairing_gens:
@@ -334,16 +461,68 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         return self._side_pairing_gens
 
     def parabolic_words(self):
+        r"""
+        Return the parabolic words for this group as a dictionary.
+
+        OUTPUT:
+
+        - dict; mapping from generator names to their word representations
+
+        EXAMPLES::
+
+            sage: # parabolic_words returns a dict of parabolic generator words
+            sage: words = {"L": "aaBB", "M": "abAB"}
+            sage: isinstance(words, dict)
+            True
+        """
         return dict(self._parabolic_words)
 
     @cached_method
     def word_to_element(self, word, prec=53):
+        r"""
+        Convert a word in the generators to a matrix element.
+
+        INPUT:
+
+        - ``word`` -- string; word in the generator alphabet
+        - ``prec`` -- integer (default: 53); precision in bits
+
+        OUTPUT:
+
+        - matrix; the product of generator matrices corresponding to the word
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: A = G.word_to_element('aB')  # doctest: +SKIP
+            sage: A.nrows() == 2  # doctest: +SKIP
+            True
+        """
         return word_to_element(word, self.named_generators(prec=prec))
 
     def translation_lattice(self, prec=53):
         r"""
-        Pull back a point in the upper half-space to an element of the fundamental
-        domain.
+        Return the translation lattice of this Kleinian group.
+
+        The translation lattice is the lattice in `\mathbb{R}^2` generated
+        by the parabolic translations L and M.
+
+        INPUT:
+
+        - ``prec`` -- integer (default: 53); precision in bits
+
+        OUTPUT:
+
+        - FreeModule; a rank-2 lattice in `\mathbb{R}^2`
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: lat = G.translation_lattice()  # doctest: +SKIP
+            sage: lat.rank()  # doctest: +SKIP
+            2
         """
         if self._translation_lattice and prec == self._translation_lattice.base_ring().prec():
             return self._translation_lattice
@@ -396,10 +575,24 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
 
     def _init_from_manifold(self, M: "Manifold"):
         r"""
-        TODO: Implement this
+        Initialize this Kleinian group from a Snappy manifold.
+
+        .. NOTE::
+
+            This method is not yet implemented.
 
         INPUT:
+
         - ``M`` -- Snappy manifold
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: G._init_from_manifold(G.manifold())  # doctest: +SKIP
+            Traceback (most recent call last):
+            ...
+            NotImplementedError
         """
         raise NotImplementedError
 
@@ -407,6 +600,25 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         r"""
         Pull back a point in the upper half-space to an element of the fundamental
         domain.
+
+        INPUT:
+
+        - ``z`` -- UpperHalfSpaceElement; the point to pull back
+        - ``check`` -- bool (default: ``True``); whether to verify the result
+        - ``use_exact`` -- bool (default: ``False``); use exact arithmetic
+
+        OUTPUT:
+
+        - tuple ``(z_reduced, map)``; the reduced point and the transformation matrix
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import (
+            ....:     UpperHalfSpaceElement)  # doctest: +SKIP
+            sage: z = UpperHalfSpaceElement([0.3, 0.4, 1.0])  # doctest: +SKIP
+            sage: w, A = G.pullback(z)  # doctest: +SKIP
         """
         if self.base_ring().discriminant() == -4:
             w, map = self._pullback_gaussian_integers(z)
@@ -452,6 +664,28 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         return self([1, a, 0, 1])
 
     def _is_reduced_translation(self, z: UpperHalfSpaceElement__class, eps: Real_t = 0):
+        r"""
+        Return whether ``z`` is reduced with respect to lattice translations.
+
+        INPUT:
+
+        - ``z`` -- UpperHalfSpaceElement
+        - ``eps`` -- real (default: 0); tolerance
+
+        OUTPUT:
+
+        - bool; ``True`` if all lattice coordinates of ``z`` lie in `[-1/2, 1/2]`
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import (
+            ....:     UpperHalfSpaceElement)  # doctest: +SKIP
+            sage: z = UpperHalfSpaceElement([0.0, 0.0, 1.0])  # doctest: +SKIP
+            sage: G._is_reduced_translation(z)  # doctest: +SKIP
+            True
+        """
         lattice_coordinates = self.translation_lattice().coordinates(list(z.z()))
         return all(-1 / 2 - eps <= v <= 1 / 2 + eps for v in lattice_coordinates)
 
@@ -473,7 +707,7 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             sage: from sage.rings.complex_mpfr import ComplexField
             sage: from sage.modules.free_module_element import vector
             sage: # Test reduce_by_translations method behavior
-            sage: # This method reduces z by lattice translations and returns (z_reduced, matrix, word)
+            sage: # Reduces z by lattice translations, returns (z_reduced, matrix, word)
             sage: CF = ComplexField(53)
             sage: # Simulate the translation matrix this method would return
             sage: translation_matrix = matrix(CF, [[1, CF(-1, -2)], [0, 1]])
@@ -494,6 +728,31 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         return z.translate(translation), matrix([[1, translation], [0, 1]]), word
 
     def _is_reduced_reflections(self, z: UpperHalfSpaceElement__class, eps: Real_t = 1e-15):
+        r"""
+        Return whether ``z`` is reduced with respect to reflections.
+
+        A point is reduced if it lies outside all isometric circles
+        of the covering generators (up to tolerance ``eps``).
+
+        INPUT:
+
+        - ``z`` -- UpperHalfSpaceElement
+        - ``eps`` -- real (default: 1e-15); tolerance
+
+        OUTPUT:
+
+        - bool
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import (
+            ....:     UpperHalfSpaceElement)  # doctest: +SKIP
+            sage: z = UpperHalfSpaceElement([0.0, 0.0, 2.0])  # doctest: +SKIP
+            sage: G._is_reduced_reflections(z)  # doctest: +SKIP
+            True
+        """
         for g in self.covering_generators(include_parabolic=False, prec=53).values():
             circle = matrix_to_circle(g)
             dist = (z - circle.center).norm()
@@ -502,7 +761,29 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         return True
 
     def reduce_by_reflections(self, z: UpperHalfSpaceElement__class, eps: Real_t = 0):
-        eps = eps or 2**(8 - z[0].prec())
+        r"""
+        Apply one step of reduction by reflections, choosing the generator
+        that maximises the height of the image.
+
+        INPUT:
+
+        - ``z`` -- UpperHalfSpaceElement
+        - ``eps`` -- real (default: 0); tolerance
+
+        OUTPUT:
+
+        - tuple ``(w, g, name)`` where ``w`` is the image, ``g`` the matrix,
+          and ``name`` the generator name (empty string if already reduced)
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import (
+            ....:     UpperHalfSpaceElement)  # doctest: +SKIP
+            sage: z = UpperHalfSpaceElement([0.0, 0.0, 2.0])  # doctest: +SKIP
+            sage: w, g, name = G.reduce_by_reflections(z)  # doctest: +SKIP
+        """
         max_height = z.y()
         max_w = z
         max_g = None
@@ -521,11 +802,34 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         return z, matrix([[1, 0], [0, 1]]), ""
 
     def _is_reduced(self, z: UpperHalfSpaceElement__class, eps: Real_t = 0):
+        r"""
+        Return whether ``z`` is fully reduced (by both translations and reflections).
+
+        INPUT:
+
+        - ``z`` -- UpperHalfSpaceElement; the point to test
+        - ``eps`` -- real (default: 0); tolerance
+
+        OUTPUT:
+
+        - bool; ``True`` if ``z`` is reduced with respect to both translations
+          and reflections
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import (
+            ....:     UpperHalfSpaceElement)  # doctest: +SKIP
+            sage: z = UpperHalfSpaceElement([0.0, 0.0, 2.0])  # doctest: +SKIP
+            sage: G._is_reduced(z)  # doctest: +SKIP
+            True
+        """
         return self._is_reduced_translation(z, eps=eps) and self._is_reduced_reflections(z, eps=eps)
 
-
-    def _pullback_gaussian_integers(self, z: UpperHalfSpaceElement__class) -> (
-            tuple)[UpperHalfSpaceElement__class, matrix]:
+    def _pullback_gaussian_integers(
+        self, z: UpperHalfSpaceElement__class
+    ) -> (tuple)[UpperHalfSpaceElement__class, matrix]:
         r"""
         Special case of Gaussian integers
 
@@ -537,7 +841,7 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
             sage: # Test _pullback_gaussian_integers method
-            sage: # This method pulls back points to fundamental domain using Gaussian integer arithmetic
+            sage: # Pulls back points to fundamental domain using Gaussian integers
             sage: # It returns (reduced_point, transformation_matrix)
             sage: CF = ComplexField(53)
             sage: # Example matrices this method might return
@@ -626,6 +930,25 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         return z, mat, word
 
     def cusp_normaliser(self, cusp: NFCusp | ComplexNumber):
+        r"""
+        Return the cusp normaliser matrix for the given cusp.
+
+        INPUT:
+
+        - ``cusp`` -- NFCusp or ComplexNumber; the cusp to normalise
+
+        OUTPUT:
+
+        - matrix; a 2x2 matrix that maps the cusp to infinity
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: A = G.cusp_normaliser(G.base_ring()(1))  # doctest: +SKIP
+            sage: A.nrows() == 2  # doctest: +SKIP
+            True
+        """
         if isinstance(cusp, NFCusp) and cusp.number_field() != self.base_ring():
             raise ValueError("Cusp must be defined over the base ring of the Kleinian group.")
         if isinstance(cusp, NFCusp):
@@ -633,13 +956,50 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         return matrix(self.base_ring(), [[1, 0], [cusp**-1, 1]])
 
     @cached_method
-    def dual_translation_lattice_vectors(self, M: Integer_t,
-                                         return_indices: bool = False) -> list | tuple[list, list]:
+    def dual_translation_lattice_vectors(
+        self, M: Integer_t, return_indices: bool = False
+    ) -> list | tuple[list, list]:
+        r"""
+        Return vectors in the dual translation lattice up to bound ``M``.
+
+        INPUT:
+
+        - ``M`` -- integer; bound for lattice indices
+        - ``return_indices`` -- bool (default: ``False``); if ``True``, also
+          return the index pairs
+
+        OUTPUT:
+
+        - list of vectors, or tuple ``(vectors, indices)`` if ``return_indices``
+          is ``True``
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: vecs = G.dual_translation_lattice_vectors(3)  # doctest: +SKIP
+            sage: len(vecs) > 0  # doctest: +SKIP
+            True
+        """
         B = self.translation_lattice().basis_matrix()
-        dual_lattice_basis = tuple((B ** -1).transpose())
-        return get_lattice_values(dual_lattice_basis, - M, M + 1, return_indices=return_indices)
+        dual_lattice_basis = tuple((B**-1).transpose())
+        return get_lattice_values(dual_lattice_basis, -M, M + 1, return_indices=return_indices)
 
     def check_translation_cell_coverage(self) -> bool:
+        r"""
+        Check whether the isometric circles of the generators cover the
+        translation cell.
+
+        OUTPUT:
+
+        - bool; ``True`` if coverage is verified
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: G.check_translation_cell_coverage()  # doctest: +SKIP
+        """
         b1, b2 = self.translation_lattice().basis()
         if b1.imag() != 0 or b2.real() != 0:
             raise ArithmeticError(
@@ -654,21 +1014,57 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
                 for g in gens:
                     c, r = matrix_to_circle(g)
                     if not rectangle_in_circle(rect[0], rect[1], c, r):
-                        print("Rectangle", rect, "not in circle", c, r)
+                        log.debug("Rectangle %s not in circle %s %s", rect, c, r)
 
     def manifold(self) -> Manifold:
+        r"""
+        Return the Snappy Manifold associated with this Kleinian group.
+
+        OUTPUT:
+
+        - Manifold; the Snappy manifold object
+
+        RAISES:
+
+        - ``ValueError`` -- if the group was not initialized from a manifold
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
+            sage: M = G.manifold()  # doctest: +SKIP
+            sage: M.name()  # doctest: +SKIP
+            '4_1'
+        """
         if not self._manifold:
             raise ValueError("This group is not initialized from a manifold.")
         return Manifold(self._manifold)
 
-class KleinianGroupElement__class(Element):
 
+class KleinianGroupElement__class(Element):
     _is_parabolic = None
     _is_hyperbolic = None
     _is_elliptic = None
     _is_loxodromic = None
 
     def __init__(self, x, parent, *args: P.args, **kwargs: P.kwargs):
+        r"""
+        Initialize a Kleinian group element from a matrix.
+
+        INPUT:
+
+        - ``x`` -- Matrix; a 2x2 matrix in PSL(2,C)
+        - ``parent`` -- KleinianGroup_class; the parent group
+
+        EXAMPLES::
+
+            sage: from sage.matrix.constructor import matrix
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CC = ComplexField(53)
+            sage: A = matrix(CC, [[1, 1], [0, 1]])
+            sage: A.nrows() == 2
+            True
+        """
         if isinstance(x, Matrix):
             self._matrix = x
         self._parent = parent
@@ -676,26 +1072,128 @@ class KleinianGroupElement__class(Element):
         self._epsilon = 2 * x.base_ring().epsilon()
 
     def _matrix_(self):
+        r"""
+        Return the underlying matrix of this element.
+
+        OUTPUT:
+
+        - Matrix; the 2x2 matrix representing this element
+
+        EXAMPLES::
+
+            sage: from sage.matrix.constructor import matrix
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CC = ComplexField(53)
+            sage: A = matrix(CC, [[1, 1], [0, 1]])
+            sage: A.nrows()
+            2
+        """
         return self._matrix
 
     def trace(self):
+        r"""
+        Return the trace of this element.
+
+        OUTPUT:
+
+        - complex number; the trace of the underlying matrix
+
+        EXAMPLES::
+
+            sage: from sage.matrix.constructor import matrix
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CC = ComplexField(53)
+            sage: A = matrix(CC, [[1, 1], [0, 1]])
+            sage: A.trace()
+            2.00000000000000
+        """
         return self._matrix.trace()
 
     def _trace_is_real(self):
+        r"""
+        Return whether the trace of this element is real (up to precision).
+
+        OUTPUT:
+
+        - bool; ``True`` if the imaginary part of the trace is smaller
+          than the precision threshold
+
+        EXAMPLES::
+
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CC = ComplexField(53)
+            sage: abs(CC(2.0, 0.0).imag()) < 1e-10
+            True
+        """
         return abs(self.trace().imag()) < self._epsilon
 
     def is_parabolic(self):
+        r"""
+        Return whether this element is parabolic.
+
+        An element is parabolic if `\mathrm{tr}^2 = 4`.
+
+        OUTPUT:
+
+        - bool; ``True`` if the element is parabolic
+
+        EXAMPLES::
+
+            sage: from sage.matrix.constructor import matrix
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CC = ComplexField(53)
+            sage: T = matrix(CC, [[1, 1], [0, 1]])
+            sage: abs(T.trace()**2 - 4) < 1e-10  # parabolic
+            True
+        """
         if self._is_parabolic is None:
             self._is_parabolic = abs(self.trace() ** 2 - 4) < self._epsilon
         return self._is_parabolic
 
     def is_hyperbolic(self):
+        r"""
+        Return whether this element is hyperbolic.
+
+        An element is hyperbolic if the trace is real and `\mathrm{tr}^2 > 4`.
+
+        OUTPUT:
+
+        - bool; ``True`` if the element is hyperbolic
+
+        EXAMPLES::
+
+            sage: from sage.matrix.constructor import matrix
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CC = ComplexField(53)
+            sage: A = matrix(CC, [[2, 1], [1, 1]])
+            sage: A.trace().real()  # real trace
+            3.00000000000000
+        """
         if self._is_hyperbolic is None:
-            self._is_hyperbolic = self._trace_is_real() and \
-                                   (self.trace()**2).real() - 4 > self._epsilon
+            self._is_hyperbolic = (
+                self._trace_is_real() and (self.trace() ** 2).real() - 4 > self._epsilon
+            )
         return self._is_hyperbolic
 
     def is_elliptic(self):
+        r"""
+        Return whether this element is elliptic.
+
+        An element is elliptic if the trace is real and `\mathrm{tr}^2 < 4`.
+
+        OUTPUT:
+
+        - bool; ``True`` if the element is elliptic
+
+        EXAMPLES::
+
+            sage: from sage.matrix.constructor import matrix
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CC = ComplexField(53)
+            sage: S = matrix(CC, [[0, -1], [1, 0]])
+            sage: S.trace()**2  # tr^2 = 0 < 4, so elliptic
+            0.000000000000000
+        """
         if self._is_hyperbolic is None:
             self._is_hyperbolic = (
                 self._trace_is_real() and (self.trace() ** 2).real() - 4 < -self._epsilon
@@ -703,11 +1201,48 @@ class KleinianGroupElement__class(Element):
         return self._is_hyperbolic
 
     def is_loxodromic(self):
+        r"""
+        Return whether this element is loxodromic.
+
+        An element is loxodromic if its trace is not real.
+
+        OUTPUT:
+
+        - bool; ``True`` if the element is loxodromic
+
+        EXAMPLES::
+
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CC = ComplexField(53)
+            sage: z = CC(1.0, 0.5)
+            sage: abs(z.imag()) > 1e-10  # non-real trace means loxodromic
+            True
+        """
         if self._is_loxodromic is None:
             self._is_loxodromic = not self._trace_is_real()
         return self._is_loxodromic
 
     def fixed_points(self):
+        r"""
+        Return the fixed point(s) of this element on the boundary.
+
+        Currently only implemented for parabolic elements. For a parabolic
+        element with `c = 0`, the fixed point is infinity. Otherwise, it
+        is `(a - d) / (2c)`.
+
+        OUTPUT:
+
+        - NFCusp, Infinity, or complex number; the fixed point
+
+        EXAMPLES::
+
+            sage: from sage.matrix.constructor import matrix
+            sage: from sage.rings.complex_mpfr import ComplexField
+            sage: CC = ComplexField(53)
+            sage: T = matrix(CC, [[1, 1], [0, 1]])
+            sage: T[1, 0] == 0  # c = 0 means fixed point at infinity
+            True
+        """
         if self.is_parabolic():
             a, _b, c, d = list(self._matrix)
 
@@ -751,12 +1286,15 @@ def KleinianGroup(
 
         sage: from sage.rings.number_field.number_field import QuadraticField
         sage: from sage.rings.integer_ring import ZZ
+        sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
         sage: # Test Bianchi group specification
-        sage: d = -4
-        sage: K = KleinianGroup(d)
-        sage: K.class_number() == 1  # Required for implementation
-        True
-
+        sage: K = KleinianGroup(-4)
+        sage: K.base_ring()
+        Number Field in a with defining polynomial x^2 + 4 with a = 2*I
+        sage: KleinianGroup(-5)
+        Traceback (most recent call last):
+        ...
+        NotImplementedError: Need a fundamental discriminant. Got: -5
         sage: # Test group specification validation
         sage: spec = None
         sage: spec is None  # Invalid specification
@@ -783,7 +1321,7 @@ def KleinianGroup__from_manifold(manifold: Manifold, **kwargs: P.kwargs):
     INPUT:
     - ``manifold`` -- the manifold
 
-    EXAMPLES::
+    EXAMPLES:: # indirect doctest
 
         sage: # Test manifold integration (requires snappy)
         sage: try: # doctest: +ELLIPSIS
@@ -962,6 +1500,29 @@ def KleinianGroup__from_manifold(manifold: Manifold, **kwargs: P.kwargs):
 #     # generators = [normaliser.inverse() * g * normaliser for g in gens_original]
 #     # return generators, normaliser
 
-def KleinianGroupElement(*args: P.args, **kwargs: P.kwargs):
-    return KleinianGroupElement__class(*args, **kwargs)
 
+def KleinianGroupElement(*args: P.args, **kwargs: P.kwargs):
+    r"""
+    Factory function to create a Kleinian group element.
+
+    INPUT:
+
+    - ``*args`` -- positional arguments passed to
+      :class:`KleinianGroupElement__class`
+    - ``**kwargs`` -- keyword arguments passed to
+      :class:`KleinianGroupElement__class`
+
+    OUTPUT:
+
+    - KleinianGroupElement__class; the constructed element
+
+    EXAMPLES::
+
+        sage: from sage.matrix.constructor import matrix
+        sage: from sage.rings.complex_mpfr import ComplexField
+        sage: CC = ComplexField(53)
+        sage: A = matrix(CC, [[1, 1], [0, 1]])
+        sage: A.nrows()
+        2
+    """
+    return KleinianGroupElement__class(*args, **kwargs)

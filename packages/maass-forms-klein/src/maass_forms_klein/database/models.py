@@ -109,20 +109,47 @@ class Word(DBObjectBase):
     }
 
     def save(self, **kwargs: P.kwargs) -> None:
+        r"""
+        Save this Word document, computing ``max_length`` if not set.
+
+        INPUT:
+
+        - ``**kwargs`` -- keyword arguments passed to the parent save method
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import Word  # doctest: +SKIP
+            sage: w = Word(label='4_1', words=['aB', 'Ab'])  # doctest: +SKIP
+            sage: w.save()  # doctest: +SKIP
+        """
         if not self.max_length:
             self.max_length = max([len(w) for w in self.words])
         super(Word, self).save(**kwargs)
 
     def __repr__(self):
+        r"""
+        Return a string representation of this Word document.
+
+        OUTPUT:
+
+        - string; a representation showing label, max_length, and reduction status
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import Word  # doctest: +SKIP
+            sage: w = Word(label='4_1', words=['aB'], max_length=2)  # doctest: +SKIP
+            sage: repr(w)  # doctest: +SKIP
+            "Words(4_1, 2, None, None)"
+        """
         return f"Words({self.label}, {self.max_length}, {self.reduced_to_fd}, {self.fd})"
 
 
 class KleinianMaassFormQuerySet(QuerySetCompat):
     """Enhanced QuerySet for KleinianMaassFormsDB with comprehensive validation.
-    
+
     This QuerySet provides specialized query methods for Kleinian Maass forms
     with proper input validation, error handling, and type safety.
-    
+
     EXAMPLES::
 
         sage: from maass_forms_klein.database.models import KleinianMaassFormDB
@@ -141,6 +168,14 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
 
         - ``item`` -- integer or slice
 
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import (  # doctest: +SKIP
+            ....:     KleinianMaassFormDB)
+            sage: from maass_form_core.testing import connect_mockdb  # doctest: +SKIP
+            sage: connect_mockdb()  # doctest: +SKIP
+            sage: qs = KleinianMaassFormDB.objects  # doctest: +SKIP
+            sage: qs[0]  # doctest: +SKIP
         """
         if isinstance(item, Integer):
             item = int(item)
@@ -322,28 +357,47 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
 
         INPUT:
 
-            queryset:
-            min_m:
+        - ``m_bound`` -- tuple of integers; bounds for coefficient index M
 
+        OUTPUT:
 
+        - QuerySet filtered by coefficient bound, ordered by descending max_m
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import (  # doctest: +SKIP
+            ....:     KleinianMaassFormDB)
+            sage: from maass_form_core.testing import connect_mockdb  # doctest: +SKIP
+            sage: connect_mockdb()  # doctest: +SKIP
+            sage: qs = KleinianMaassFormDB.objects  # doctest: +SKIP
+            sage: qs.with_m_precision((5, 10))  # doctest: +SKIP
         """
         conditions = {}
         if m_bound:
-            conditions = {
-                    "coefficients.M": {"$lte": int(m_bound[0]), "$gte": int(m_bound[1])}
-            }
+            conditions = {"coefficients.M": {"$lte": int(m_bound[0]), "$gte": int(m_bound[1])}}
         return self(__raw__=conditions).order_by("-max_m")
 
-    def with_y_precision(self, y: tuple[Real_t] = None, eps: Real_t = 1e-15) -> QuerySet:
+    def with_y_precision(self, y: tuple[Real_t] | None = None, eps: Real_t = 1e-15) -> QuerySet:
         """
-        Find KleinianMaassFormsDB objects with coefficient precision bounded by m_bound.
+        Find KleinianMaassFormsDB objects with Y-value precision in the given range.
 
         INPUT:
 
-            queryset:
-            min_m:
+        - ``y`` -- tuple of reals or None (default: None); bounds for Y value
+        - ``eps`` -- real (default: 1e-15); tolerance
 
+        OUTPUT:
 
+        - QuerySet filtered by Y-value range
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import (  # doctest: +SKIP
+            ....:     KleinianMaassFormDB)
+            sage: from maass_form_core.testing import connect_mockdb  # doctest: +SKIP
+            sage: connect_mockdb()  # doctest: +SKIP
+            sage: qs = KleinianMaassFormDB.objects  # doctest: +SKIP
+            sage: qs.with_y_precision((0.5, 1.0))  # doctest: +SKIP
         """
         if not y:
             return self
@@ -402,16 +456,27 @@ class KleinianMaassFormDB(DBObjectBaseAbstract):
 
     def save(self, **kwargs: P.kwargs):
         """
-        Save self.
+        Save this Kleinian Maass form to the database.
+
+        Automatically computes spectral parameter points, r-values,
+        y-values, and max_m if not already set.
 
         INPUT:
 
-        - ``**kwargs``  -- Keyword arguments
+        - ``**kwargs`` -- keyword arguments passed to the parent save method
 
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import (  # doctest: +SKIP
+            ....:     KleinianMaassFormDB)
+            sage: form = KleinianMaassFormDB()  # doctest: +SKIP
+            sage: form.save()  # doctest: +SKIP
         """
         if self.spectral_parameter and not self.r_values:
-            complex_pts = [complex(s["val"].replace("*I", "j").replace(" ", ""))
-                           for s in self.spectral_parameter]
+            complex_pts = [
+                complex(s["val"].replace("*I", "j").replace(" ", ""))
+                for s in self.spectral_parameter
+            ]
             coords = [Point(**{"x": s.real, "y": s.imag}) for s in complex_pts]
             self.spectral_parameter_points = coords
             self.r_values = [float(s.imag) for s in complex_pts]
@@ -423,17 +488,44 @@ class KleinianMaassFormDB(DBObjectBaseAbstract):
 
     def __str__(self, *args: P.args, **kwargs: P.kwargs) -> str:
         """
-        String representation of self.
+        Return a string representation of this Kleinian Maass form.
+
+        OUTPUT:
+
+        - string; a description including the number field and spectral parameter
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import (  # doctest: +SKIP
+            ....:     KleinianMaassFormDB)
+            sage: form = KleinianMaassFormDB()  # doctest: +SKIP
+            sage: str(form)  # doctest: +SKIP
         """
         poly = self.parent.get("number_field", {}).get("polynomial", "")
         spectral_parameter = [s.get("val", "") for s in self.spectral_parameter]
-        return f"Kleinian Maass form for NumberField({poly}) with spectral parameter" \
-           f" {spectral_parameter}"
+        return (
+            f"Kleinian Maass form for NumberField({poly}) with spectral parameter"
+            f" {spectral_parameter}"
+        )
 
     def coefficient(self, t: tuple[Integer_t]) -> Complex_t:
         """
-        Return the coefficient corresponding to the given tuple.
+        Return the coefficient corresponding to the given index tuple.
 
+        INPUT:
+
+        - ``t`` -- tuple of integers; the coefficient index
+
+        OUTPUT:
+
+        - complex number; the Fourier coefficient at index ``t``
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import (  # doctest: +SKIP
+            ....:     KleinianMaassFormDB)
+            sage: form = KleinianMaassFormDB.objects.first()  # doctest: +SKIP
+            sage: c = form.coefficient((0, 0))  # doctest: +SKIP
         """
         bound_tuple = ((-self.max_m, self.max_m),) * len(self.spectral_parameter)
         n = map_tuple_to_int(t, bound_tuple)
@@ -452,6 +544,28 @@ class KleinianMaassFormDB(DBObjectBaseAbstract):
     ) -> "KleinianMaassFormDB":
         """
         Find or create KleinianMaassFormsDB objects near the given spectral parameter.
+
+        INPUT:
+
+        - ``parent`` -- KleinianMaassFormSpace or dict; the parent space
+        - ``spectral_parameter`` -- tuple of complex numbers; the target spectral parameter
+        - ``max_distance`` -- real (default: 1e-15); maximum distance tolerance
+        - ``bound_m`` -- tuple of integers or None; coefficient bound
+        - ``y`` -- tuple of reals or None; Y-value range
+        - ``set_coefficients`` -- dict or None; normalisation coefficients
+
+        OUTPUT:
+
+        - KleinianMaassFormDB; existing or newly computed form
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import (  # doctest: +SKIP
+            ....:     KleinianMaassFormDB)
+            sage: from maass_forms_klein.all import KleinianMaassFormSpace  # doctest: +SKIP
+            sage: space = KleinianMaassFormSpace('4_1')  # doctest: +SKIP
+            sage: s = (0.5 + 14.1*I,)  # doctest: +SKIP
+            sage: form = KleinianMaassFormDB.near_or_create(space, s)  # doctest: +SKIP
         """
         if not isinstance(parent, dict):
             parent = parent.to_json()
@@ -496,22 +610,41 @@ class KleinianGroupDB(DBObjectBaseAbstract):
     _translation_lattice = me.DictField()
     _latex_string = me.StringField()
     type = me.StringField()
-    meta = {
+    meta: ClassVar[dict] = {
         "collection": "kleinian_group",
         "object_class_name_base": "KleinianGroup",
     }
 
     def __repr__(self):
+        r"""
+        Return a string representation of this KleinianGroupDB document.
+
+        OUTPUT:
+
+        - string; the name string of the group
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import KleinianGroupDB  # doctest: +SKIP
+            sage: g = KleinianGroupDB(_name_string='4_1')  # doctest: +SKIP
+            sage: repr(g)  # doctest: +SKIP
+            '4_1'
+        """
         return self._name_string
 
-    def save(self, **kwargs: P.kwargs) -> "BaseDocument":
+    def save(self, **kwargs: P.kwargs) -> None:
         """
-        Save self.
+        Save this KleinianGroupDB document, setting name from _name_string if needed.
 
         INPUT:
 
-        - ``**kwargs``  -- Keyword arguments
+        - ``**kwargs`` -- keyword arguments passed to the parent save method
 
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import KleinianGroupDB  # doctest: +SKIP
+            sage: g = KleinianGroupDB(_name_string='4_1')  # doctest: +SKIP
+            sage: g.save()  # doctest: +SKIP
         """
         if not self.name:
             self.name = self._name_string

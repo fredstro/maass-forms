@@ -172,8 +172,39 @@ def newton_method_search(
     real_imag: str = "real",
 ) -> tuple[Real_t, tuple]:
     r"""
-    Search for eigenvalues of Maass forms for the space.
+    Search for eigenvalues of Maass forms using Newton's method.
 
+    Iteratively applies Newton steps to locate a zero of the function
+    :func:`h` in the interval ``[r0, r1]``, which corresponds to an
+    eigenvalue of the Laplacian.
+
+    INPUT:
+
+    - ``r0`` -- real; left endpoint of the search interval
+    - ``r1`` -- real; right endpoint of the search interval
+    - ``space`` -- KleinianMaassFormSpace; the ambient space
+    - ``M`` -- integer; truncation parameter
+    - ``Q`` -- integer; number of sample points
+    - ``Y1`` -- real; first height for coefficient comparison
+    - ``Y2`` -- real; second height for coefficient comparison
+    - ``set_coefficients`` -- dict; coefficients to fix for normalization
+    - ``coefficient_indices`` -- tuple of integers or None (default: None);
+      which coefficient indices to compare
+    - ``tolerance`` -- real (default: 1e-10); convergence tolerance
+    - ``verbose`` -- bool (default: False); whether to print debug info
+    - ``real_imag`` -- str (default: ``'real'``); which part to use
+
+    OUTPUT:
+
+    - tuple ``(r, f)`` where ``r`` is the found eigenvalue and ``f`` is the
+      residual
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.search import newton_method_search
+        sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+        sage: space = KleinianMaassFormSpace(-4)
+        sage: newton_method_search(6.0, 7.0, space, 3, 4, 0.5, 0.475, {})  # doctest: +SKIP
     """
     log.debug(f"step: {r0} {r1}:")
     r = newton_method_step(
@@ -294,19 +325,31 @@ def newton_method_step(
     the secant method on the interval ``[r0, r1]``.
 
     INPUT:
-    - ``r0`` -- initial guess
-    - ``r1`` -- final guess
-    - ``space`` -- space
-    - ``M`` -- M
-    - ``Q`` -- Q
-    - ``Y1`` -- Y1
-    - ``Y2`` -- Y2
-    - ``set_coefficients`` -- coefficients to be set
-    - ``coefficient_indices`` -- indices of the coefficients to be set
-    - ``real_imag`` -- version of the function to be used (default: ``real``)
-         - ``real`` use real part of C1 - C2
-         - ``imag`` use imaginary part of C1 - C2
-         - ``both`` use both real and imaginary parts
+
+    - ``r0`` -- real; left endpoint
+    - ``r1`` -- real; right endpoint
+    - ``space`` -- KleinianMaassFormSpace; the ambient space
+    - ``M`` -- integer; truncation parameter
+    - ``Q`` -- integer; number of sample points
+    - ``Y1`` -- real; first height
+    - ``Y2`` -- real; second height
+    - ``set_coefficients`` -- dict or None (default: None); coefficients to fix
+    - ``coefficient_indices`` -- tuple of integers or None (default: None);
+      which coefficient indices to compare
+    - ``tolerance`` -- real (default: 1e-10); threshold for sign-change check
+    - ``real_imag`` -- str (default: ``'real'``); which part to use:
+      ``'real'``, ``'imag'``, or ``'both'``
+
+    OUTPUT:
+
+    - Real; the next approximation to the eigenvalue
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.search import newton_method_step
+        sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+        sage: space = KleinianMaassFormSpace(-4)
+        sage: newton_method_step(6.0, 7.0, space, 3, 4, 0.5, 0.475)  # doctest: +SKIP
     """
     h0 = h(r0, space, M, Q, Y1, Y2, set_coefficients, coefficient_indices=coefficient_indices)
     log.debug(f"h(r0)({r0}) = {h0}")
@@ -334,6 +377,39 @@ def brute_force_search(
     tolerance: Real_t = 1e-10,
     verbose: bool = False,
 ):
+    r"""
+    Search for eigenvalues by applying Newton's method on each subinterval.
+
+    Divides ``[r0, r1]`` into ``numpts`` subintervals and applies
+    :func:`newton_method_search` on each, collecting any eigenvalues found.
+
+    INPUT:
+
+    - ``r0`` -- real; left endpoint of the search range
+    - ``r1`` -- real; right endpoint of the search range
+    - ``numpts`` -- integer; number of sample points (subintervals)
+    - ``space`` -- KleinianMaassFormSpace; the ambient space
+    - ``M`` -- integer; truncation parameter
+    - ``Q`` -- integer; number of sample points for coefficient computation
+    - ``Y1`` -- real; first height
+    - ``Y2`` -- real; second height
+    - ``set_coefficients`` -- dict or None (default: None); fixed coefficients
+    - ``coefficient_indices`` -- tuple of integers or None (default: None);
+      which coefficient indices to compare
+    - ``tolerance`` -- real (default: 1e-10); convergence tolerance
+    - ``verbose`` -- bool (default: False); whether to print debug info
+
+    OUTPUT:
+
+    - list of tuples ``(r, f)``; found eigenvalues and their residuals
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.modform.search import brute_force_search
+        sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+        sage: space = KleinianMaassFormSpace(-4)
+        sage: brute_force_search(6.0, 7.0, 10, space, 3, 4, 0.5, 0.475)  # doctest: +SKIP
+    """
     pts = numpy.linspace(r0, r1, numpts)
     res = []
     for n, r00 in enumerate(pts):

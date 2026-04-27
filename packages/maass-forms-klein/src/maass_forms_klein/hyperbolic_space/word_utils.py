@@ -56,23 +56,40 @@ def is_equivalent_mod_parabolic(w1, w2, gens):
 
 def word_list_sort_key(word):
     """
-    Sort key for list of words so that we first sort by word length, then alphanum (case-insensitive)
-    and finally by case.
+    Sort key for list of words so that we first sort by word length,
+    then alphanum (case-insensitive) and finally by case.
 
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.word_utils import word_list_sort_key
+        sage: sorted(['bA', 'a', 'AB', 'ab'], key=word_list_sort_key)
+        ['a', 'AB', 'ab', 'bA']
     """
     return len(word), word.lower(), word
+
 
 def word_to_str(word):
     """
     Convert word to string.
 
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.word_utils import word_to_str
+        sage: word_to_str('aB')
+        'aB'
     """
     return str(word)
 
+
 def normalize_word(word):
     """
-    Normalize a word.
+    Normalize a word by sorting letters case-insensitively.
 
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.word_utils import normalize_word
+        sage: normalize_word('bBaA')
+        'aAbB'
     """
     lw = list(word)
     lw.sort(key=lambda x: x.lower())
@@ -204,15 +221,32 @@ def word_to_element(word: str, gens: dict) -> Matrix:
 
 
 def word_to_circle(word: str, gens: dict) -> Circle:
+    """
+    Convert a word to the corresponding isometric circle.
+
+    INPUT:
+
+    - ``word`` -- (string) word in the generators
+    - ``gens`` -- (dictionary) generators of the group
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.word_utils import word_to_circle
+        sage: from sage.matrix.constructor import matrix
+        sage: gens = {'a': matrix([[0, 1], [1, 0]]), 'A': matrix([[0, 1], [1, 0]])}
+        sage: c = word_to_circle('a', gens)  # doctest: +SKIP
+    """
     matrix = word_to_element(word, gens)
     from maass_forms_klein.hyperbolic_space.geometry_utils import matrix_to_circle
+
     return matrix_to_circle(matrix)
 
 
 def translation_tuple_to_word(t: tuple, gens: dict) -> str:
     r"""
     Map a tuple (t_1, ..., t_n) to a string g1..g1g2...g2...gn...gn)
-    where each gi is repeated |t_i| times and if t_i is negative then the case of gi is swapped to indicate an inverse.
+    where each gi is repeated |t_i| times and if t_i is negative then the case
+    of gi is swapped to indicate an inverse.
 
     EXAMPLE:
 
