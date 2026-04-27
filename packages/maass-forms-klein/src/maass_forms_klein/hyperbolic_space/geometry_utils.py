@@ -30,10 +30,36 @@ Integer_t = Union[Integer, int]
 
 # Define get_epsilon locally to avoid import issues
 def get_epsilon(element: Real_t):
-    """Get machine epsilon for given precision."""
-    if hasattr(element, "base_ring"):
-        return element.base_ring().epsilon()
-    return 2 ** (4 - 53)
+    """
+    Get machine epsilon for given precision.
+
+    INPUT:
+
+    - ``element`` -- a numerical element whose precision determines epsilon
+
+    OUTPUT:
+
+    A small positive number representing machine epsilon x 16 for the given precision.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.geometry_utils import get_epsilon
+        sage: get_epsilon(1.0)
+        1.77...e-15
+        sage: from sage.rings.real_mpfr import RealField
+        sage: RF = RealField(100)
+        sage: get_epsilon(RF(1.0))
+        1.26...e-29
+
+    """
+    if not hasattr(element, "base_ring"):
+        dprec = 53
+    elif element.base_ring().epsilon() == 0:
+        return 0
+    else:
+        dprec = element.base_ring().prec()
+    return 2 ** (4 - dprec)
+
 
 P = ParamSpec("P")
 
