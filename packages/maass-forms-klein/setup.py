@@ -1,7 +1,6 @@
 import os
 import shutil
 import subprocess
-import sys
 import setuptools
 import sysconfig
 from contextlib import contextmanager
@@ -59,7 +58,8 @@ if HAS_SAGE:
             "maass_forms_klein.hyperbolic_space.upper_half_space",
             sources=[os.path.join("src/maass_forms_klein/hyperbolic_space/upper_half_space.pyx")],
             extra_compile_args=extra_compile_args,
-            include_dirs=INCLUDE_DIRS, library_dirs=LIBRARY_DIRS
+            include_dirs=INCLUDE_DIRS,
+            library_dirs=LIBRARY_DIRS,
         )
     ]
 
@@ -84,9 +84,10 @@ if HAS_SAGE:
             ),
         )
 else:
-    print(
-        "WARNING: SageMath/PassageMath not found. "
-        "Installing without Cython extensions.",
-        file=sys.stderr,
+    import warnings
+
+    warnings.warn(
+        "SageMath/PassageMath not found. Installing without Cython extensions.",
+        stacklevel=1,
     )
     setuptools.setup(packages=PACKAGES)

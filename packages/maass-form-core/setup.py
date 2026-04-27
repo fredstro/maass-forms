@@ -78,8 +78,7 @@ if HAS_SAGE:
         )
 else:
     print(
-        "WARNING: SageMath/PassageMath not found. "
-        "Installing without Cython extensions.",
+        "WARNING: SageMath/PassageMath not found. Installing without Cython extensions.",
         file=sys.stderr,
     )
     setuptools.setup()
