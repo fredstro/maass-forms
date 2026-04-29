@@ -1,0 +1,91 @@
+[build-system]
+requires = [
+    "setuptools>=75.0.0",
+    "cython>=3.0.8,<3.1.0",
+    "setuptools_scm[toml]>=6.2",
+    "passagemath-environment",
+    "passagemath-modules",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+root = "../.."
+git_describe_command = "git describe --dirty --tags --long --match core/v*"
+tag_regex = "^core/v(?P<version>.+)$"
+local_scheme = "no-local-version"
+fallback_version = "0.0.0"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+addopts = ["--import-mode=importlib"]
+
+[project]
+name = "maass_form_core"
+dynamic = ["version"]
+description = "Shared infrastructure for Maass forms computation"
+authors = [
+    {name = "Fredrik Stromberg", email = "fredrik314@gmail.com"},
+]
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">= 3.11"
+keywords = ["maass forms", "automorphic forms", "mathematical computing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Cython",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "passagemath-standard~=10.5.49",
+    "comp_manager>=0.0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "tox",
+    "mongomock",
+    "freezegun",
+    "ruff",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pre-commit",
+]
+
+[project.urls]
+homepage = "https://github.com/fredstro/maass-forms"
+repository = "https://github.com/fredstro/maass-forms"
+"bug tracker" = "https://github.com/fredstro/maass-forms/issues"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+extend-exclude = ["*.pyx", "*.ipynb"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+    "SIM108", # use ternary operator instead of if-else
+]
+
+[tool.ruff.lint.per-file-ignores]
+"all.py" = ["F401"]
+"__init__.py" = ["F401"]

@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimixzed / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -104,10 +104,12 @@ venv.bak/
 # Pyre type checker
 .pyre/
 # Version
-/src/knot_maass/version.py
+/src/maass_forms_klein/version.py
 # Since there might be .c files that should be included
 # we ignore explicit files
-/src/knot_maass/functions/besselk.c
+/src/maass_forms_klein/functions/besselk.c
 *.term
 *.sage-chat
 *.c
+
+.idea/*

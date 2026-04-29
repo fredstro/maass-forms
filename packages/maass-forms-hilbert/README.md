@@ -1,4 +1,4 @@
-# hilbert-maass
+# maass-forms-hilbert
 Algorithms for Hilbert Maass forms
 # Installing
 

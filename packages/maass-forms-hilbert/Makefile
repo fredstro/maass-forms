@@ -32,7 +32,7 @@ sdist:
 	sage -python setup.py sdist
 
 install: clean sdist
-	sage -pip install --no-build-isolation dist/hilbert_maass-*.gz
+	sage -pip install --no-build-isolation dist/maass_forms_hilbert-*.gz
 
 test:
 	sage -t src/*
@@ -49,25 +49,25 @@ tox:
 	sage --python -m tox src -c tox.ini -e $(TOX_ARGS)
 
 docker:
-	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) -t hilbert_maass-$(TAG) .
+	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) -t maass_forms_hilbert-$(TAG) .
 
 docker-rebuild:
-	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) --no-cache -t hilbert_maass-$(TAG) .
+	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) --no-cache -t maass_forms_hilbert-$(TAG) .
 
 docker-test: docker
-	docker run -it hilbert_maass-$(TAG) test
+	docker run -it maass_forms_hilbert-$(TAG) test
 
 docker-examples: docker
-	docker run -p $(NBPORT):$(NBPORT) -it -e GIT_BRANCH=$(GIT_BRANCH) -e NBPORT=$(NBPORT) --init hilbert_maass-$(TAG) examples $(EXAMPLES_ARGS)
+	docker run -p $(NBPORT):$(NBPORT) -it -e GIT_BRANCH=$(GIT_BRANCH) -e NBPORT=$(NBPORT) --init maass_forms_hilbert-$(TAG) examples $(EXAMPLES_ARGS)
 
 docker-tox: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) -e TOX_ARGS=$(TOX_ARGS) --init hilbert_maass-$(TAG) tox
+	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) -e TOX_ARGS=$(TOX_ARGS) --init maass_forms_hilbert-$(TAG) tox
 
 docker-shell: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init hilbert_maass-$(TAG) shell
+	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init maass_forms_hilbert-$(TAG) shell
 
 docker-sage: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init hilbert_maass-$(TAG) run
+	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init maass_forms_hilbert-$(TAG) run
 
 
 clean:

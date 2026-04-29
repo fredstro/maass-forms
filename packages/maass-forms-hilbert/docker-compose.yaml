@@ -1,0 +1,50 @@
+#version: '3.9'
+services:
+    mongodb:
+        image: mongo:7.0
+        container_name: mongodb
+        restart: unless-stopped
+        command: mongod  --quiet --bind_ip_all
+        environment:
+            - MONGODB_DATA_DIR=/data/db
+            - MONDODB_LOG_DIR=/dev/null
+#            - MONGO_INITDB_ROOT_USERNAME=dba
+#            - MONGO_INITDB_DATABASE=test
+        volumes:
+            - mongodbdata:/data/db
+        networks:
+            - backend
+        ports:
+            - 27019:27017
+    notebook:
+        platform: linux/amd64
+        build:
+            context: .
+            dockerfile: Dockerfile.dev
+        container_name: maass-forms-hilbert
+        image: maass-forms-hilbert/latest
+        working_dir: /home/sage/maass-forms-hilbert
+        restart: always
+        command: sage -n jupyter --no-browser --ip='0.0.0.0' --port=8889\
+                            --notebook-dir=examples\
+                            --NotebookApp.custom_display_url=http://127.0.0.1:8889\
+                            --NotebookApp.use_redirect_file=False\
+                            --NotebookApp.browser=x-www-browser
+
+        volumes:
+            - examples:/home/sage/maass-forms-hilbert/examples
+        depends_on:
+            - mongodb
+        networks:
+            - backend
+        ports:
+            - 8889:8889
+
+networks:
+  backend:
+    driver: bridge
+volumes:
+  mongodbdata:
+    driver: local
+  examples:
+    driver: local

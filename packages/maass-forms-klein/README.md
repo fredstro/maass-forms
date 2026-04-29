@@ -1,9 +1,11 @@
-# knot-maass
+# maass-forms-klein
 Algorithms for Maass forms on knot complements
 
 
 ## Requirements
-- SageMath v9.6+ (https://www.sagemath.org/)
+- SageMath v10.3+ (https://www.sagemath.org/)
+- Snappy 3.0.3  (run `sage -i snappy` to install it)
+
 
 ## Development and testing
 
@@ -51,7 +53,7 @@ Run relint on the local source with docker version of sage:
 
 `make docker-tox REMOTE_SRC=0 TOX_ARGS=relint`
 
-Run a jupyter notebook server with a sage kernel that has `knot_maass` installed
+Run a jupyter notebook server with a sage kernel that has `maass_forms_klein` installed
 and uses the local source files (note that the )
 
 `make docker-examples REMOTE_SRC=0`

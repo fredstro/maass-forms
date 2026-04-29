@@ -14,7 +14,7 @@ make clean
 sage setup.py install
 case $1 in
     test)
-      echo "Docker container running Sage doctests for the knot_maass package."
+      echo "Docker container running Sage doctests for the maass_forms_klein package."
       sage -t src
       ;;
     tox)
@@ -25,10 +25,13 @@ case $1 in
     examples)
       echo "Docker container with Jupyter Notebook interface to run example notebooks."
       echo "NOTE: The Jupyter Notebook server is only accessible using the URL from outside the container."
-      sage -n jupyter --no-browser --ip='0.0.0.0' --port=$NBPORT\
+      sage -n jupyter --no-browser --ip='*' --port=$NBPORT\
                             --notebook-dir=examples\
+                            --Application.log_level=10\
                             --NotebookApp.custom_display_url=http://127.0.0.1:$NBPORT\
-                            --NotebookApp.use_redirect_file=False\
+                            --NotebookApp.use_redirect_file=True\
+                            --NotebookApp.allow_remote_access=True\
+                            --NotebookApp.allow_root=True\
                             --NotebookApp.browser=x-www-browser
       ;;
     run)

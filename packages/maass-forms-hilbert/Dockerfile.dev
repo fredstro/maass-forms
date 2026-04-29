@@ -1,0 +1,17 @@
+ARG REMOTE_SRC=1
+ARG GIT_BRANCH=develop
+
+FROM  --platform=linux/x86_64 sagemath/sagemath:10.2 as base
+RUN sudo apt-get update
+RUN sudo apt-get -y install git make
+
+RUN sage -pip install --no-build-isolation hilbert_modular_group
+COPY --chown=sage comp_manager-0.0.0-py3-none-any.whl /tmp
+RUN sage -pip install /tmp/comp_manager-0.0.0-py3-none-any.whl
+
+COPY --chown=sage . maass-forms-hilbert
+WORKDIR "maass-forms-hilbert"
+RUN make install
+#COPY entrypoint.sh /entrypoint.sh
+#ENTRYPOINT ["/entrypoint.sh"]
+#CMD ["run"]

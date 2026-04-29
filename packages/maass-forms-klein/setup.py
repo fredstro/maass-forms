@@ -1,72 +1,86 @@
 import os
 import shutil
 import subprocess
-import sys
-
 import setuptools
-from sage_setup.extensions import create_extension
+import sysconfig
+from contextlib import contextmanager
 from setuptools.extension import Extension
-import Cython.Compiler.Main
 from Cython.Build import cythonize
-from sage.env import SAGE_LIB
 
-debug = False
-gdb_debug = True
-if os.environ.get('SAGE_DEBUG', None) == 'yes':
-    print('Enabling Cython debugging support')
-    debug = True
-    Cython.Compiler.Main.default_options['gdb_debug'] = True
-    Cython.Compiler.Main.default_options['output_dir'] = 'build'
-    gdb_debug = True
+# Find correct value for SAGE_LIB which is needed to compile the Cython extensions.
+try:
+    from sage.env import SAGE_LIB
+except ModuleNotFoundError:
+    SAGE_LIB = os.getenv("SAGE_LIB") or sysconfig.get_path("purelib")
+# Check if sage is installed in SAGE_LIB
+if not os.path.isdir(SAGE_LIB + "/sage"):
+    raise ModuleNotFoundError("Sagemath or passagemath needs to be installed.")
 
-LIBRARY_DIRS = []
 INCLUDE_DIRS = []
-if shutil.which('brew') is not None:
-    proc = subprocess.Popen("/opt/homebrew/bin/brew --prefix", shell=True,
-                            stdout=subprocess.PIPE, stdin=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, close_fds=True)
-    HOMEBREW_PREFIX = proc.stdout.readline().decode('utf-8').strip()
-    HOMEBREW_LIB = HOMEBREW_PREFIX + '/lib'
+LIBRARY_DIRS = []
+if shutil.which("brew") is not None:
+    proc = subprocess.Popen(
+        "brew --prefix",
+        shell=True,
+        stdout=subprocess.PIPE,
+        stdin=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        close_fds=True,
+    )
+    HOMEBREW_PREFIX = proc.stdout.readline().decode("utf-8").strip()
+    HOMEBREW_LIB = HOMEBREW_PREFIX + "/lib"
     LIBRARY_DIRS.append(HOMEBREW_LIB)
-    HOMEBREW_INC = HOMEBREW_PREFIX + '/include'
+    HOMEBREW_INC = HOMEBREW_PREFIX + "/include"
     INCLUDE_DIRS.append(HOMEBREW_INC)
 
-INCLUDE_DIRS += ['src']
-extra_compile_args = ['-Wno-unused-function',
-                      '-Wno-implicit-function-declaration',
-                      '-Wno-unused-variable',
-                      '-Wno-deprecated-declarations',
-                      '-Wno-deprecated-register',
-                      '-Wno-unreachable-code',
-                      '-Wno-unreachable-code-fallthrough']
+# Extension modules using Cython
+extra_compile_args = [
+    "-Wno-unused-function",
+    "-Wno-implicit-function-declaration",
+    "-Wno-unused-variable",
+    "-Wno-deprecated-declarations",
+    "-Wno-deprecated-register",
+]
 
 ext_modules = [
     Extension(
-        'knot_maass.functions.besselk_dp',
-        sources=[os.path.join('src/knot_maass/functions/besselk_dp.pyx')],
+        'maass_forms_klein.functions.besselk_dp',
+        sources=[os.path.join('src/maass_forms_klein/functions/besselk_dp.pyx')],
         extra_compile_args=extra_compile_args,
         include_dirs=INCLUDE_DIRS, library_dirs=LIBRARY_DIRS
     ),
     Extension(
-        'knot_maass.hyperbolic_space.upper_half_space',
-        sources=[os.path.join('src/knot_maass/hyperbolic_space/upper_half_space.pyx')],
+        'maass_forms_klein.hyperbolic_space.upper_half_space',
+        sources=[os.path.join('src/maass_forms_klein/hyperbolic_space/upper_half_space.pyx')],
         extra_compile_args=extra_compile_args,
         include_dirs=INCLUDE_DIRS, library_dirs=LIBRARY_DIRS
     )
 ]
 
 print("ext modules=",ext_modules)
-setuptools.setup(
-    packages=['knot_maass',
-              'knot_maass.functions',
-              'knot_maass.hyperbolic_space',
-              'knot_maass.modform'],
-    ext_modules=cythonize(
-        ext_modules,
-        include_path=['src', SAGE_LIB],
-        compiler_directives={
-            'embedsignature': True,
-            'language_level': '3',
-        },
-    ),
-)
+try:
+    from sage.misc.package_dir import cython_namespace_package_support
+except ImportError:
+
+    @contextmanager
+    def cython_namespace_package_support():
+        yield
+
+
+with cython_namespace_package_support():
+    setuptools.setup(
+        packages=['maass_forms_klein',
+                  'maass_forms_klein.functions',
+                  'maass_forms_klein.database',
+                  'maass_forms_klein.utils',
+                  'maass_forms_klein.hyperbolic_space',
+                  'maass_forms_klein.modform'],
+        ext_modules=cythonize(
+            ext_modules,
+            include_path=['src', SAGE_LIB],
+            compiler_directives={
+                'embedsignature': True,
+                'language_level': '3',
+            },
+        ),
+    )

@@ -1,0 +1,22 @@
+"""
+Common database patterns and abstractions for Maass forms.
+
+Provides shared MongoDB/MongoEngine infrastructure:
+- PointDB embedded document for complex number storage
+- MaassFormQuerySet with SageMath Integer coercion
+"""
+
+from maass_form_core.database.models import PointDB
+
+__all__ = [
+    "PointDB",
+    "MaassFormQuerySet",
+]
+
+
+def __getattr__(name):
+    if name == "MaassFormQuerySet":
+        from maass_form_core.database.queryset import MaassFormQuerySet
+
+        return MaassFormQuerySet
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

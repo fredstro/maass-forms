@@ -81,4 +81,4 @@ __pypackages__/
 
 *.pgf
 # Version
-src/hilbert_maass/version.py
+src/maass_forms_hilbert/version.py

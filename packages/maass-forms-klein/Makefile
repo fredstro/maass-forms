@@ -14,8 +14,17 @@ GIT_BRANCH=main
 NBPORT=8888
 # Arguments for tox
 TOX_ARGS=doctest,coverage,pycodestyle,relint,codespell,flake8
+# Bind notebook example directory to a local directory
+LOCAL_EXAMPLES=0
 
+ifeq (0, $(LOCAL_EXAMPLES))
+  BINDMOUNT=
+else
+  BINDMOUNT=-v $(LOCAL_EXAMPLES):/home/sage/maass_forms_klein/examples
+endif
+$(info $$LOCAL_EXAMPLES is [${LOCAL_EXAMPLES}])
 
+$(info $$BINDMOUNT is [${BINDMOUNT}])
 ifeq (0,$(REMOTE_SRC))
   TAG=local
   GIT_BRANCH=
@@ -30,6 +39,9 @@ build:
 
 sdist:
 	sage -python setup.py sdist
+
+sinstall: clean sdist
+	sage -pip install --no-build-isolation dist/*.gz
 
 install:
 	sage -python setup.py install
@@ -49,34 +61,34 @@ tox:
 	sage --python -m tox src -c tox.ini -e $(TOX_ARGS)
 
 docker:
-	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) -t knot_maass-$(TAG) .
+	docker build --platform=linux/x86_64 --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) -t maass_forms_klein-$(TAG) .
 
 docker-rebuild:
-	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) --no-cache -t knot_maass-$(TAG) .
+	docker build --platform=linux/x86_64 --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) --no-cache -t maass_forms_klein-$(TAG) .
 
 docker-test: docker
-	docker run --platform=linux/x86_64 -it -e GIT_BRANCH=$(GIT_BRANCH) --init knot_maass-$(TAG) test
+	docker run --platform=linux/x86_64 -it -e GIT_BRANCH=$(GIT_BRANCH) --init maass_forms_klein-$(TAG) test
 
 docker-examples: docker
-	docker run -p $(NBPORT):$(NBPORT) -it -e GIT_BRANCH=$(GIT_BRANCH) -e NBPORT=$(NBPORT) --init knot_maass-$(TAG) examples $(EXAMPLES_ARGS)
+	docker run --platform=linux/x86_64 -p $(NBPORT):$(NBPORT) -it -e GIT_BRANCH=$(GIT_BRANCH) -e NBPORT=$(NBPORT) $(BINDMOUNT) --init maass_forms_klein-$(TAG) examples $(EXAMPLES_ARGS)
 
 docker-tox: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) -e TOX_ARGS=$(TOX_ARGS) --init knot_maass-$(TAG) tox
+	docker run --platform=linux/x86_64 -it -e GIT_BRANCH=$(GIT_BRANCH) -e TOX_ARGS=$(TOX_ARGS) --init maass_forms_klein-$(TAG) tox
 
 docker-shell: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init knot_maass-$(TAG) shell
+	docker run --platform=linux/x86_64 -it -e GIT_BRANCH=$(GIT_BRANCH) --init maass_forms_klein-$(TAG) shell
 
 docker-sage: docker
-	docker run -it -e GIT_BRANCH=$(GIT_BRANCH) --init knot_maass-$(TAG) run
+	docker run --platform=linux/x86_64 -it -e GIT_BRANCH=$(GIT_BRANCH) --init maass_forms_klein-$(TAG) run
 
 
 clean:
-	rm -rf src/knot_maass/*/*.c
-	rm -rf src/knot_maass/*/*.so
-	rm -rf src/knot_maass/*/*.cpp
-	rm -rf knot_maass.egg-info
+	rm -rf src/maass_forms_klein/*/*.c
+	rm -rf src/maass_forms_klein/*/*.so
+	rm -rf src/maass_forms_klein/*/*.cpp
+	rm -rf maass_forms_klein.egg-info
 	rm -rf build
 	rm -rf dist
 	rm -rf Library
-.PHONY: build sdist install test examples clean shell tox docker docker-examples docker-examples docker-rebuild \
+.PHONY: build sdist sinstall install test examples clean shell tox docker docker-examples docker-examples docker-rebuild \
 		docker-shell docker-test docker-tox

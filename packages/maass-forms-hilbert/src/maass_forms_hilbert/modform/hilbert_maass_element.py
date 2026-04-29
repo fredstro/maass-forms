@@ -1,0 +1,1058 @@
+"""
+Classes For Hilbert-Maass forms
+
+"""
+
+import json
+import logging
+from copy import copy
+from typing import TYPE_CHECKING, ParamSpec
+
+from hilbert_modgroup.hilbert_modular_group_class import HilbertModularGroup_class
+from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement__class
+from matplotlib import pyplot as plt
+from sage.all import CC
+from sage.arith.srange import xsrange
+
+# from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
+from sage.functions.other import imag, real
+from sage.matrix.constructor import matrix
+from sage.plot.animate import Animation, animate
+from sage.plot.misc import setup_for_eval_on_grid
+from sage.rings.complex_mpfr import ComplexField, ComplexNumber
+from sage.rings.number_field.number_field_base import NumberField as NumberField_class
+from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
+from sage.rings.real_mpfr import RealNumber as RealNumber_class
+from sage.structure.element import Matrix, ModuleElement
+
+from maass_forms_hilbert.functions.functions import bessel_prod
+from maass_forms_hilbert.functions.functions_cy import exp_trace_prod_dp
+from maass_forms_hilbert.modform.utils import (
+    Integer_t,
+    Real_t,
+    cartesian_product_from_M,
+    complex_tuple_to_json,
+    ideal_coordinates,
+)
+
+from .coefficients import HilbertMaassCoefficients
+from .compute_coefficients import compute_coefficients
+
+if TYPE_CHECKING:
+    from .hilbert_maass_space import HilbertMaassFormSpace
+
+P = ParamSpec("P")
+log = logging.getLogger(__name__)
+
+
+class HilbertMaassForm_Element(ModuleElement):
+    def __init__(
+        self,
+        parent: "HilbertMaassFormSpace",
+        spectral_parameter: tuple[ComplexNumber | RealNumber_class],
+        coefficients: Matrix | HilbertMaassCoefficients = None,
+        **kwargs: P.kwargs,
+    ) -> None:
+        r"""
+        Initialize a Hilbert-Maass form element.
+
+        INPUT:
+
+        - ``parent`` -- HilbertMaassFormSpace object representing the parent space.
+        - ``spectral_parameter`` -- tuple of complex numbers representing the spectral parameter.
+        - ``coefficients`` -- HilbertMaassCoefficients object containing the coefficients.
+
+        OUTPUT:
+        None.
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_element import HilbertMaassForm_Element
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm, HilbertMaassFormSpace
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: element = HilbertMaassForm_Element(H, (CC(0,1),CC(0,1)))
+            sage: group = HilbertModularGroup(2)
+            sage: element2 = HilbertMaassForm(group, [0 + 1j, 0 + 1j])
+            sage: element2.parent() == element.parent()
+            True
+            sage: element2.spectral_parameter() == element.spectral_parameter()
+            True
+            sage: element2.coefficients() == element.coefficients()
+            True
+            sage: element2 == element
+            True
+        """
+        super().__init__(parent, **kwargs)
+        self.cuspidal = parent.is_cuspidal()
+        self._spectral_parameter = spectral_parameter
+        self._number_field = parent.number_field()
+        if hasattr(self._spectral_parameter[0], "parent") and hasattr(
+            self._spectral_parameter[0].parent(), "prec"
+        ):
+            self._complex_field = ComplexField(self._spectral_parameter[0].parent().prec())
+        else:
+            self._complex_field = ComplexField(prec=53)
+        self.has_coefficients = False
+        if not coefficients:
+            self._coefficients = None
+            # {c: {} for c in range(self.parent().group().ncusps())}
+        elif isinstance(coefficients, HilbertMaassCoefficients):
+            self._coefficients = coefficients
+        else:
+            raise ValueError("coefficients must be a HilbertMaassCoefficients object")
+            # self._coefficients = HilbertMaassCoefficients(coefficients, self.parent().group())
+
+    def __reduce__(self):
+        r"""
+        Reduce for pickling.
+
+        OUTPUT:
+
+        - tuple for reconstructing the object
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_element import HilbertMaassForm_Element
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm, HilbertMaassFormSpace
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: element = HilbertMaassForm_Element(H, (CC(0,1),CC(0,1)))
+            sage: element.__reduce__() # +NORMALIZE_WHITESPACE
+            (<class 'maass_forms_hilbert.modform.hilbert_maass_element.HilbertMaassForm_Element'>,
+             (HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal Order generated by a
+             in Number Field in a with defining polynomial x^2 - 2 with a = 1.414213562373095?),
+            (1.00000000000000*I, 1.00000000000000*I), None))
+        """
+        return self.__class__, (
+            self.parent(),
+            self.spectral_parameter(),
+            self._coefficients,
+        )
+
+    def __hash__(self):
+        r"""
+        Return a hash value for self.
+
+        OUTPUT:
+
+        - integer hash value
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_element import HilbertMaassForm_Element
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm, HilbertMaassFormSpace
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: element = HilbertMaassForm_Element(H, (CC(0,1),CC(0,1)))
+            sage: hash(element) == hash(element)  # hash is consistent
+            True
+
+        """
+        coeffs_json = self.coefficients().to_json() if self.coefficients() else {}
+        # Convert dict to string to make it hashable
+        coeffs_str = (
+            json.dumps(coeffs_json, sort_keys=True)
+            if isinstance(coeffs_json, dict)
+            else str(coeffs_json)
+        )
+        return hash((str(self.parent().to_json()), str(self.spectral_parameter()), coeffs_str))
+
+    def __repr__(self):
+        r"""
+        Return string representation of self.
+
+        OUTPUT:
+
+        - string
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_element import HilbertMaassForm_Element
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm, HilbertMaassFormSpace
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: element = HilbertMaassForm_Element(H, (CC(0,1),CC(0,1)))
+            sage: repr(element) # +NORMALIZE_WHITESPACE
+            'Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over
+                Maximal Order generated by a in Number Field in a with defining polynomial x^2 - 2
+                with a = 1.414213562373095?) with spectral parameter
+                (1.00000000000000*I, 1.00000000000000*I)'
+        """
+        return (
+            f"Hilbert Maass form for {self.parent()} with spectral parameter"
+            f" {self.spectral_parameter()}"
+        )
+
+    def to_json(self):
+        """
+        Json representation of self.
+
+        EXAMPLES:
+
+            sage: from maass_forms_hilbert.all import HilbertMaassFormSpace, HilbertMaassForm_Element
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: element = HilbertMaassForm_Element(H, (CC(0,1),CC(0,1)))
+            sage: json_data = element.to_json()
+            sage: json_data
+            {'coefficients': {},
+             'parent': {'cuspidal': False,
+             'number_field': {'names': ['a'], 'polynomial': 'x^2 - 2'}},
+             'spectral_parameter': [{'prec': 53, 'val': '1.00000000000000*I'},
+             {'prec': 53, 'val': '1.00000000000000*I'}]}
+
+            Convert the JSON representation back to an instance of `HilbertMaassElement`:
+
+            sage: new_element = HilbertMaassForm_Element.from_json(json_data)
+            sage: new_element == element
+            True
+        """
+        return {
+            "parent": self.parent().to_json(),
+            "spectral_parameter": complex_tuple_to_json(self.spectral_parameter()),
+            "coefficients": self.coefficients().to_json() if self.coefficients() else {},
+        }
+
+    @classmethod
+    def from_json(cls, data):
+        r"""
+        Construct a HilbertMaassForm_Element from JSON data.
+
+        INPUT:
+
+        - ``data`` -- dict or JSON string
+
+        OUTPUT:
+
+        - HilbertMaassForm_Element
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_element import HilbertMaassForm_Element
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm, HilbertMaassFormSpace
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: element = HilbertMaassForm_Element(H, (CC(0,1),CC(0,1)))
+            sage: json_data = element.to_json()
+            sage: element == HilbertMaassForm_Element.from_json(json_data)
+            True
+        """
+        from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
+
+        if isinstance(data, str):
+            data = json.loads(data)
+        parent = HilbertMaassFormSpace.from_json(data=data["parent"])
+        spectral_parameter = tuple(
+            ComplexField(x["prec"])(x["val"]) for x in data["spectral_parameter"]
+        )
+        if not data["coefficients"]:
+            return cls(parent, spectral_parameter)
+        coefficients = HilbertMaassCoefficients.from_json(data["coefficients"])
+        return cls(parent, spectral_parameter, coefficients)
+
+    def is_cuspidal(self):
+        r"""
+        Return whether this form is cuspidal.
+
+        OUTPUT:
+
+        - bool
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_element import HilbertMaassForm_Element
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm, HilbertMaassFormSpace
+            sage: H = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+            sage: element = HilbertMaassForm_Element(H, (CC(0,1),CC(0,1)))
+            sage: element.is_cuspidal()
+            False
+        """
+        return self.cuspidal
+
+    def __eq__(self, other):
+        r"""
+        Check equality with another HilbertMaassForm_Element.
+
+        INPUT:
+
+        - ``other`` -- another HilbertMaassForm_Element
+
+        OUTPUT:
+
+        - True if equal, False otherwise
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm, HilbertMaassFormSpace
+            sage: group = HilbertModularGroup(5)
+            sage: element1 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: from maass_forms_hilbert.all import HilbertMaassForm_Element
+            sage: space = HilbertMaassFormSpace(group, cuspidal=False)
+            sage: element2 = HilbertMaassForm_Element(space, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element1 == element2
+            True
+            sage: element3 = HilbertMaassForm_Element(space, [1.5 + 0.5j, 0.5 + 1j])
+            sage: element1 == element3
+            False
+        """
+        if not isinstance(other, HilbertMaassForm_Element):
+            return False
+        return (
+            self.parent() == other.parent()
+            and self.spectral_parameter() == other.spectral_parameter()
+            and self.coefficients() == other.coefficients()
+        )
+
+    def __ne__(self, other):
+        r"""
+        Check inequality with another HilbertMaassForm_Element.
+
+        INPUT:
+
+        - ``other`` -- another HilbertMaassForm_Element
+
+        OUTPUT:
+
+        - True if not equal, False otherwise
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm, HilbertMaassFormSpace
+            sage: group = HilbertModularGroup(5)
+            sage: element1 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: from maass_forms_hilbert.all import HilbertMaassForm_Element
+            sage: space = HilbertMaassFormSpace(group, cuspidal=False)
+            sage: element2 = HilbertMaassForm_Element(space, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element1 != element2
+            False
+            sage: element3 = HilbertMaassForm_Element(space, [1.5 + 0.5j, 0.5 + 1j])
+            sage: element1 != element3
+            True
+        """
+        return not self.__eq__(other)
+
+    def __call__(self, z: list | tuple, **kwargs: P.kwargs) -> ComplexNumber:
+        r"""
+        Evaluate the Maass form at a point z.
+
+        INPUT:
+
+        - ``z`` -- list or tuple (point in upper half-plane)
+
+        OUTPUT:
+
+        - ComplexNumber, value at z
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element((1.0, 1.0))  # doctest: +SKIP
+            0.000000000000000
+        """
+        if self._coefficients is None:
+            raise ValueError("Coefficients must be computed first")
+        if self.parent().group().ncusps() > 1:
+            # TODO: support multiple cusps: find closest cusp and use correct Fourier expansion
+            raise NotImplementedError("Only one cusp supported for now")
+        if isinstance(z, UpperHalfPlaneProductElement__class):
+            x = z.real()
+            y = z.imag()
+        else:
+            x = [real(zi) for zi in z]
+            y = [imag(zi) for zi in z]
+            if not all(yi > 0 for yi in y):
+                raise ValueError("y must be positive")
+        summa = 0
+        ideala = 0
+        for V in cartesian_product_from_M(self.coefficients().M()):
+            V = tuple(V)
+            v = self.parent().dual_ideal_element(V, ideala)
+            bes = bessel_prod(v, tuple(y), self.spectral_parameter())
+            exp_arg = tuple([x[i] * v for i, v in enumerate(v)])
+            term = bes * exp_trace_prod_dp(exp_arg)
+            summa += self.coefficients()[V] * term
+        return summa
+
+    def spectral_parameter(self):
+        r"""
+        Return the spectral parameter of self.
+
+        OUTPUT:
+
+        - tuple of complex or real numbers
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: group = HilbertModularGroup(5)
+            sage: element = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element.spectral_parameter()
+            (0.500000000000000 + 0.500000000000000*I,
+             0.500000000000000 + 1.00000000000000*I)
+        """
+        return tuple(self._spectral_parameter)
+
+    # def pullback(self):
+    #     r"""
+    #     Return the pullback associated to self.
+    #
+    #     OUTPUT:
+    #
+    #     - pullback object
+    #
+    #     EXAMPLES::
+    #
+    #         sage: from hilbert_modgroup.all import HilbertModularGroup
+    #         sage: from maass_forms_hilbert.all import HilbertMaassForm
+    #         sage: group = HilbertModularGroup(5)
+    #         sage: element = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+    #         sage: element.pullback()
+    #     """
+    #     return self._pullback
+
+    def coefficients(self):
+        r"""
+        Return the coefficients of self.
+
+        OUTPUT:
+
+        - HilbertMaassCoefficients
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element.coefficients()
+        """
+        return self._coefficients
+
+    def C(self, key):
+        """
+        Return an individual Fourier coefficient of self.
+        """
+        if not self._coefficients:
+            raise IndexError("Need to compute coefficients first.")
+        return self._coefficients[key]
+
+    def __mul__(self, other):
+        r"""
+        Multiply self by a scalar.
+
+        INPUT:
+
+        - ``other`` -- real, complex, or integer
+
+        OUTPUT:
+
+        - HilbertMaassForm_Element
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: 2 * element
+            Traceback (most recent call last):
+            ...
+            ValueError: The coefficients of the Hilbert Maass form have not been computed yet.
+            sage: element.compute_coefficients(M=((-2,2), (-2,2)))
+            Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
+            sage: 2 * element
+            Hilbert Maass form for HilbertMaassFormSpace...
+            sage: coefficient = element.coefficients()[(0,0)]; coefficient
+            0.103392113906340 - 0.994640674204497*I
+            sage: two_times = (2 * element).coefficients()[(0,0)]
+            sage: two_times == 2 * coefficient # implicit doctest
+            True
+            sage: times_two = (element * 2).coefficients()[(0,0)]
+            sage: times_two == coefficient * 2 # implicit doctest:
+            True
+
+        TESTS::
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element * 'a'
+            Traceback (most recent call last):
+            ...
+            ValueError: The coefficients of the Hilbert Maass form have not been computed yet.
+            sage: 'a' * element
+            Traceback (most recent call last):
+            ...
+            TypeError: can't multiply sequence by non-int of type 'HilbertMaassForm_Element'
+
+        """
+        if self._coefficients is None:
+            raise ValueError(
+                "The coefficients of the Hilbert Maass form have not been computed yet."
+            )
+        result = copy(self)
+        result._coefficients._coefficients = other * result._coefficients._coefficients
+        return result
+
+    def _rmul_(self, other):
+        """
+        Multiply self by a scalar from the right.
+
+        INPUT:
+        - other -- real, complex, or integer
+
+        OUTPUT:
+        - HilbertMaassForm
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: 2 * element
+            Traceback (most recent call last):
+            ...
+            ValueError: The coefficients of the Hilbert Maass form have not been computed yet.
+            sage: element.compute_coefficients(M=((-2,2), (-2,2)))
+            Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
+            sage: 2 * element
+            Hilbert Maass form for HilbertMaassFormSpace...
+            sage: coefficient = element.coefficients()[(0,0)]; coefficient
+            0.103392113906340 - 0.994640674204497*I
+            sage: two_times = (2 * element).coefficients()[(0,0)]
+            sage: two_times == 2 * coefficient # implicit doctest
+            True
+        """
+        return self.__mul__(other)
+
+    def __copy__(self):
+        r"""
+        Return a copy of self.
+
+        OUTPUT:
+
+        - HilbertMaassForm_Element
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: copy(element) == element
+            True
+        """
+        coefficients = copy(self._coefficients)
+        return self.__class__(self.parent(), self._spectral_parameter, coefficients)
+
+    # def _lmul_(self, other):
+    #     r"""
+    #     Left-multiply self by a scalar.
+    #
+    #     INPUT:
+    #
+    #     - ``other`` -- real, complex, or integer
+    #
+    #     OUTPUT:
+    #
+    #     - HilbertMaassForm_Element
+    #
+    #     EXAMPLES::
+    #
+    #         sage: from hilbert_modgroup.all import HilbertModularGroup
+    #         sage: from maass_forms_hilbert.all import HilbertMaassForm
+    #         sage: group = HilbertModularGroup(5)
+    #         sage: element = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+    #         sage: element._lmul_(2) # doctest: +NORMALIZE_WHITESPACE
+    #         Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over
+    #         Maximal Order generated by 1/2*a + 1/2 in Number Field in a with
+    #         defining polynomial x^2 - 5 with a = 2.236067977499790?) with spectral parameter
+    #         (0.500000000000000 + 0.500000000000000*I, 0.500000000000000 + 1.00000000000000*I)
+    #         sage: element._lmul_(2) == 2 * element
+    #         True
+    #     """
+    #     result = copy(self)
+    #     if self._coefficients is not None:
+    #         result._coefficient = self._coefficients * other
+    #     return result
+
+    def __add__(self, other):
+        r"""
+        Add two HilbertMaassForm_Element objects.
+
+        INPUT:
+
+        - ``other`` -- HilbertMaassForm_Element
+
+        OUTPUT:
+
+        - HilbertMaassForm_Element
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element1 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element2 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: result = element1 + element2
+            sage: result.spectral_parameter()
+            (0.500000000000000 + 0.500000000000000*I, 0.500000000000000 + 1.00000000000000*I)
+        """
+        return self._add_(other)
+
+    def _add_(self, other):
+        r"""
+        Add two HilbertMaassForm_Element objects.
+
+        INPUT:
+
+        - ``other`` -- HilbertMaassForm_Element
+
+        OUTPUT:
+
+        - HilbertMaassForm_Element
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element1 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element2 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element1 + element2 # doctest: +NORMALIZE_WHITESPACE
+            Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal
+             Order generated by 1/2*a + 1/2 in Number Field in a with defining polynomial x^2 - 5
+             with a = 2.236067977499790?) with spectral parameter
+             (0.500000000000000 + 0.500000000000000*I, 0.500000000000000 + 1.00000000000000*I)
+
+        """
+        if not isinstance(other, self.__class__):
+            raise ValueError("Addition is only defined for HilbertMaassForms_Elements objects")
+        if other.parent() != self.parent():
+            raise ValueError(
+                "Addition is only defined for HilbertMaassForms_Elements objects "
+                "with the same parent"
+            )
+        # Note that the sum will be supported on the intersection
+        # of the indices of the individual forms.
+        result = copy(self)
+        # Note that indices may differ...
+        coefficients = self._coefficients if self._coefficients else {}
+        coefficients_other = other._coefficients if other._coefficients else {}
+        if not coefficients:
+            coefficients_new = coefficients_other
+        elif not coefficients_other:
+            coefficients_new = coefficients
+        else:
+            coefficients_new = self._coefficients + other._coefficients
+
+        result._coefficients = coefficients_new
+        return result
+
+    def __sub__(self, other):
+        r"""
+        Subtract two HilbertMaassForm_Element objects.
+
+        INPUT:
+
+        - ``other`` -- HilbertMaassForm_Element
+
+        OUTPUT:
+
+        - HilbertMaassForm_Element
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element1 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element2 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element1 - element2 # doctest: +NORMALIZE_WHITESPACE
+            Traceback (most recent call last):
+            ...
+            ValueError: The coefficients of the Hilbert Maass form have not been computed yet.
+        """
+        return self._sub_(other)
+
+    def _sub_(self, other):
+        r"""
+        Subtract two HilbertMaassForm_Element objects.
+
+        INPUT:
+
+        - ``other`` -- HilbertMaassForm_Element
+
+        OUTPUT:
+
+        - HilbertMaassForm_Element
+
+        EXAMPLES::
+
+            sage: from hilbert_modgroup.all import HilbertModularGroup
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: group = HilbertModularGroup(5)
+            sage: element1 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element2 = HilbertMaassForm(group, [0.5 + 0.5j, 0.5 + 1j])
+            sage: element1 - element2 # doctest: +NORMALIZE_WHITESPACE
+            Traceback (most recent call last):
+            ...
+            ValueError: The coefficients of the Hilbert Maass form have not been computed yet.
+            sage: element1.compute_coefficients(M=((-2,2), (-2,2)))
+            Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
+            sage: element2.compute_coefficients(M=((-2,2), (-2,2)))
+            Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
+            sage: element1 - element2 # doctest: +NORMALIZE_WHITESPACE
+            Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over
+                Maximal Order generated by 1/2*a + 1/2 in Number Field in a with defining
+                polynomial x^2 - 5 with a = 2.236067977499790?) with spectral parameter
+                (0.500000000000000 + 0.500000000000000*I, 0.500000000000000 + 1.00000000000000*I)
+            sage: (element1 - element1).coefficients()
+            Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
+        """
+        return self + other * -1
+
+    def galois_conjugate(self, i):
+        r"""
+        Return the Galois conjugate of self with respect to the i-th element of the Galois group.
+
+        This method applies the i-th Galois automorphism to the coefficients of the Hilbert Maass form.
+
+        INPUT:
+
+        - ``i`` -- integer; index in the Galois group
+
+        OUTPUT:
+
+        - a Hilbert Maass form resulting from the Galois action
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
+            sage: from maass_forms_hilbert.modform.hilbert_maass_element import HilbertMaassForm_Element
+            sage: K = QuadraticField(5)
+            sage: H = HilbertMaassFormSpace(K, cuspidal=False)
+            sage: F = H.an_element()
+            sage: F.compute_coefficients(M=((-2,2), (-2,2)))
+            Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
+            sage: G = F.galois_conjugate(0)
+            sage: G.parent() == F.parent()
+            True
+        """
+        if not isinstance(i, Integer_t):
+            raise ValueError("Conjugate no. must be an integer")
+        indices_used = []
+        galois_group = self._number_field.galois_group()
+        galois_map = galois_group[i]
+        coordinate_ideal = self.coefficients().coordinate_ideals()[0]
+        coefficients = []
+        for k in self._coefficients.keys(as_elements=True):
+            mapped_index = galois_map(k)
+            coordinates_mapped = ideal_coordinates(coordinate_ideal, mapped_index)
+            indices_used.append(coordinates_mapped)
+            coefficients.append((self._coefficients[k],))
+
+        coeffs = HilbertMaassCoefficients(
+            matrix(coefficients),
+            M=self.coefficients().M(),
+            Y=self.coefficients().Y(),
+            Q=self.coefficients().Q(),
+            spectral_parameter=self.spectral_parameter(),
+            space=self.parent(),
+            coordinate_ideals=self.coefficients().coordinate_ideals(),
+            set_coefficients=self.coefficients().set_coefficients(),
+            index_tuples=[indices_used],
+            check=False,
+        )
+        return HilbertMaassForm(self.parent(), self.spectral_parameter(), coefficients=coeffs)
+
+    def action_by_unit(self, u):
+        r"""
+        Apply the action of a unit on self through the coefficients.
+
+        This method applies the action of a unit element from the number field
+        to the Hilbert Maass form by transforming the coefficients.
+
+        INPUT:
+
+        - ``u`` -- a unit in the number field
+
+        OUTPUT:
+
+        - a Hilbert Maass form resulting from the unit action
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
+            sage: from maass_forms_hilbert.modform.hilbert_maass_element import HilbertMaassForm_Element
+            sage: K = QuadraticField(5)
+            sage: H = HilbertMaassFormSpace(K, cuspidal=False)
+            sage: F = H.an_element()
+            sage: F.compute_coefficients(M=((-2,2), (-2,2)))
+            Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
+            sage: u = K.unit_group().gen(0)
+            sage: G = F.action_by_unit(u)
+            sage: G.parent() == F.parent()
+            True
+        """
+        if u not in self.parent().number_field():
+            raise ValueError("Unit must be in the number field")
+        if u not in self.parent().number_field().unit_group() and not u.is_unit():
+            raise ValueError("Unit must be a unit")
+        indices_used = []
+        coordinate_ideal = self.coefficients().coordinate_ideals()[0]
+        coefficients = []
+        for k in self._coefficients.keys(as_elements=True):
+            mapped_index = k * u
+            coordinates_mapped = ideal_coordinates(coordinate_ideal, mapped_index)
+            indices_used.append(coordinates_mapped)
+            coefficients.append((self._coefficients[k],))
+
+        coeffs = HilbertMaassCoefficients(
+            matrix(coefficients),
+            M=self.coefficients().M(),
+            Y=self.coefficients().Y(),
+            Q=self.coefficients().Q(),
+            spectral_parameter=self.spectral_parameter(),
+            space=self.parent(),
+            coordinate_ideals=self.coefficients().coordinate_ideals(),
+            set_coefficients=self.coefficients().set_coefficients(),
+            index_tuples=[indices_used],
+            check=False,
+        )
+        return HilbertMaassForm(self.parent(), self.spectral_parameter(), coefficients=coeffs)
+
+    def compute_coefficients(
+        self,
+        s: tuple = None,
+        ideala: NumberFieldFractionalIdeal = None,
+        idealb: NumberFieldFractionalIdeal = None,
+        M: tuple[tuple[Integer_t]] = None,
+        Y: tuple = None,
+        Q: tuple = None,
+        set_coefficients: dict = None,
+        prec: int = 53,
+        sgn: str = "-",
+        returnV: bool = False,
+    ) -> "HilbertMaassCoefficients | tuple":
+        r"""
+
+        INPUT:
+
+        - ``ideala``  -- NumberField Fractional Ideal corresponding to cusp.
+        - ``idealb``  --
+        - ``s``       --
+        - ``M``  --
+        - ``Y``  --
+        - ``prec``  --
+        - ``cuspidal``  --
+        - ``sgn``  --
+        - ``returnV``  --
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.all import HilbertMaassForm
+            sage: spectral_parameter = (CC(1.5,1.5),)*2
+            sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
+            sage: C = F.compute_coefficients(spectral_parameter, M = (-1,1), Q=(10,10)) # long time
+            sage: C[(0,0)] # abs tol 1e-10 # long time
+            0.245523867043680 - 0.593475166148685*I
+            sage: F = HilbertMaassForm(QuadraticField(2), spectral_parameter, cuspidal=False)
+            sage: C = F.compute_coefficients(spectral_parameter, M = (-3,3)) # long time (100s)
+            sage: C[(0,0)] # abs tol 1e-10 # long time (100s)
+            0.246135995159601 - 0.594112478881342*I
+
+        """
+        s = s or self.spectral_parameter()
+        if not s:
+            raise ValueError(
+                "Spectral parameter must be set in the HilbertMaassForm or passed as parameter"
+            )
+        C = compute_coefficients(
+            space=self.parent(),
+            spectral_parameter=s,
+            ideala=ideala,
+            idealb=idealb,
+            M=M,
+            Y=Y,
+            Q=Q,
+            set_coefficients=set_coefficients,
+        )
+        self._coefficients = C
+        return C
+
+    def animation(
+        self,
+        num_steps: Integer_t = 100,
+        y_start: Real_t = 0,
+        y_stop: Real_t = 1,
+        x_start: Real_t = 0,
+        x_stop: Real_t = 0,
+        **kwargs: P.kwargs,
+    ) -> Animation:
+        r"""
+        Create an animation of the Hilbert Maass form.
+
+        This method creates an animation by generating a sequence of plots of the
+        Hilbert Maass form, varying the y-coordinate in each frame.
+
+        INPUT:
+
+        - ``num_steps`` -- integer (default: 100); number of frames in the animation
+        - ``y_start`` -- real number (default: 0); starting y-value
+        - ``y_stop`` -- real number (default: 1); ending y-value
+        - ``x_start`` -- real number (default: 0); starting x-value (not used in current implementation)
+        - ``x_stop`` -- real number (default: 0); ending x-value (not used in current implementation)
+        - ``**kwargs`` -- additional keyword arguments passed to the plot method
+
+        OUTPUT:
+
+        - Animation object
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
+            sage: K = QuadraticField(2)
+            sage: H = HilbertMaassFormSpace(K, cuspidal=False)
+            sage: F = H.an_element()
+            sage: F.compute_coefficients(M=((-2,2), (-2,2)))  # long time (100s)
+            Coefficients of a Hilbert Maass form with M=((-2, 2), (-2, 2)) and 1 cusp
+            sage: anim = F.animation(num_steps=5, y_start=0.1, y_stop=3) # long time (100s)
+            sage: type(anim) # long time (100s)
+            <class 'sage.plot.animate.Animation'>
+        """
+        plt.rcParams.update({"figure.max_open_warning": 0})
+        num_steps = kwargs.get("num_steps", 100)
+        h = (y_stop - y_start) / num_steps
+        glist = []
+        for i in range(num_steps):
+            g = self.plot(yset=[y_start + h * (i + 1)], **kwargs)
+            g.save_image = g.savefig
+            glist.append(g)
+        return animate(glist)
+
+    def plot(self, **kwargs):
+        """
+        Density plot of self along one copy of the hyperbolic upper half-plane with
+        other parameters set to fixed values (by default set to i).
+
+        Note: You need to compute Fourier coefficients before plotting.
+
+        PLOT OPTIONS:
+
+        - ``plot_points`` -- (default: `200`); the minimal number of plot points.
+
+        - ``xmin`` -- starting x value.
+        - ``xmax`` -- ending x value.
+        - ``ymin`` -- starting y value.
+        - ``ymax`` -- ending y value.
+        - ``xset`` -- list of fixed x values (default: 0).
+        - ``yset`` -- list of fixed y values (default: 1).
+        - ``cmap`` -- color map (default: `jet`).
+
+        EXAMPLES::
+
+            sage: from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
+            sage: F = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False).an_element()
+            sage: F.plot()
+            Traceback (most recent call last):
+            ...
+            ValueError: Coefficients must be computed first
+            sage: F.compute_coefficients(M=1)
+            Coefficients of a Hilbert Maass form with M=((-1, 1), (-1, 1)) and 1 cusp
+            sage: F.plot()
+            <Figure size 800x399.99 with 1 Axes>
+        """
+        n = self.parent().number_field().degree()
+        xset = kwargs.get("xset", [0] * (n - 1))
+        yset = kwargs.get("yset", [1] * (n - 1))
+        xmin = kwargs.get("xmin", -4)
+        xmax = kwargs.get("xmax", 4)
+        ymin = kwargs.get("ymin", 0.0001)
+        ymax = kwargs.get("ymax", 4)
+        show_axis = kwargs.get("show_axis", False)
+        plot_points_x = kwargs.get("plot_points_x", 50)
+        plot_points_y = kwargs.get("plot_points_y", 50)
+        cmap = kwargs.get("cmap", ["jet"])
+        # Create grid points
+        fixed_zs = [CC(x, y) for x, y in zip(xset, yset, strict=False)]
+
+        def function_to_eval(x, y):
+            return abs(self([*fixed_zs, CC(x, y)]))
+
+        g, ranges = setup_for_eval_on_grid(
+            [function_to_eval],
+            [[xmin, xmax], [ymin, ymax]],
+            [plot_points_x, plot_points_y],
+        )
+        g = g[0]
+        xy_data_array = [
+            [g(x, y) for x in xsrange(*ranges[0], include_endpoint=True)]
+            for y in xsrange(*ranges[1], include_endpoint=True)
+        ]
+        res = []
+        for cmapi in cmap:
+            g = plt.figure(figsize=(xmax - xmin, ymax - ymin))
+            ax = g.add_subplot(111)
+            ax.imshow(
+                xy_data_array,
+                origin="lower",
+                cmap=cmapi,
+                extent=(xmin, xmax, ymin, ymax),
+                interpolation="catrom",
+            )
+            if not show_axis:
+                ax.set_frame_on(False)
+                ax.get_xaxis().set_visible(False)
+                ax.get_yaxis().set_visible(False)
+            res.append(g)
+        if len(res) == 1:
+            return res[0]
+        return res
+
+
+def HilbertMaassForm(
+    group: "HilbertModularGroup_class | HilbertMaassFormSpace | NumberField_class",
+    spectral_parameter: tuple[ComplexNumber | RealNumber_class],
+    **kwargs: P.kwargs,
+) -> HilbertMaassForm_Element:
+    """
+    Create a Hilbert Maass form
+
+    INPUT:
+
+    - ``group``  -- Hilbert modular group or space of Hilbert maass forms
+    - ``spectral_parameter`` -- tuple of complex numbers
+
+
+    EXAMPLES::
+
+        sage: from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
+        sage: space = HilbertMaassFormSpace(QuadraticField(2), cuspidal=False)
+        sage: from maass_forms_hilbert.modform.hilbert_maass_element import HilbertMaassForm
+        sage: spectral_parameter = (0.5 + 0.5j, 0.5 + 1j)
+        sage: HilbertMaassForm(space, (0.5, 1.5))
+        Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal Order...
+        sage: HilbertMaassForm(QuadraticField(2), spectral_parameter)
+        Hilbert Maass form for HilbertMaassFormSpace(Hilbert Modular Group PSL(2) over Maximal Order...
+
+    """
+    from .hilbert_maass_space import HilbertMaassFormSpace
+
+    coefficients = kwargs.pop("coefficients", None)
+    if isinstance(group, HilbertMaassFormSpace):
+        space = group
+    else:
+        space = HilbertMaassFormSpace(group, **kwargs)
+    return HilbertMaassForm_Element(
+        space, spectral_parameter=spectral_parameter, coefficients=coefficients
+    )
