@@ -33,16 +33,45 @@ class UpperHalfSpace(FreeModule_generic):
 
 
     def __init__(self, base_ring, degree = 3, sparse=False, category=None):
+        r"""
+        Initialize upper half-space over ``base_ring``.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpace
+            sage: U = UpperHalfSpace(RR, 3)
+            sage: U
+            UpperHalfSpace(Real Field with 53 bits of precision)
+        """
         # base_ring should be a real field
         if base_ring.base_ring() != base_ring:
             raise ValueError("base_ring should be the ring of integers, rationals or reals")
         super().__init__(base_ring, 3, 3)
 
     def __repr__(self):
+        r"""
+        String representation.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpace
+            sage: UpperHalfSpace(RR, 3)
+            UpperHalfSpace(Real Field with 53 bits of precision)
+        """
         return 'UpperHalfSpace({})'.format(self.base_ring())
 
     def _an_element_(self):
-        return self.element_class([0, 0, 1])
+        r"""
+        Return a default element of the upper half-space.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpace
+            sage: U = UpperHalfSpace(RR, 3)
+            sage: U._an_element_()
+            0.000000000000000 + 0.000000000000000i + 1.00000000000000j
+        """
+        return self._element_constructor_([0, 0, 1])
 
     def _element_constructor_(self, e: Any, *args: P.args, **kwargs: P.kwargs):
         r"""
@@ -107,7 +136,7 @@ class UpperHalfSpace(FreeModule_generic):
             sage: z=UpperHalfSpaceElement([1+I*1,0])
             sage: UpperHalfSpace(RR, 2).coerce(z)
             1.00000000000000 + 1.00000000000000i + 0.000000000000000j
-            sage: w=UpperHalfSpaceElement([1+I*1,0.0])
+            sage: w=UpperHalfSpaceElement([1+I*1,0])
             sage: z - w
             0 + 0i + 0j
         """
@@ -173,16 +202,61 @@ cdef class UpperHalfSpaceElement__class(FreeModuleElement_generic_dense):
                 f"+ {self[2]}j")
 
     cpdef x0(self):
+        r"""
+        Return the real part of the complex coordinate.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement
+            sage: z = UpperHalfSpaceElement((1, 2, 3))
+            sage: z.x0()
+            1
+        """
         return self[0]
 
     cpdef x1(self):
+        r"""
+        Return the imaginary part of the complex coordinate.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement
+            sage: z = UpperHalfSpaceElement((1, 2, 3))
+            sage: z.x1()
+            2
+        """
         return self[1]
 
     cpdef y(self):
+        r"""
+        Return the height coordinate.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement
+            sage: z = UpperHalfSpaceElement((1, 2, 3))
+            sage: z.y()
+            3
+            sage: w = UpperHalfSpaceElement((1, 2, 3.1))
+            sage: w.y()
+            3.10000000000000
+
+        """
         return self[2]
 
-    cdef norm(self):
+    cpdef norm(self):
+        r"""
+        Return norm of self.
+        
+        EXAMPLES::
+        
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement
+            sage: z = UpperHalfSpaceElement((1, 2, 3))
+            sage: z.norm()
+            14
+        """
         return self[0] ** 2 + self[1] ** 2 + self[2] ** 2
+
     cpdef z(self):
         r"""
         Return x0 + i x1 component of self.
@@ -240,7 +314,7 @@ cdef class UpperHalfSpaceElement__class(FreeModuleElement_generic_dense):
         if A.nrows() == 2 and A.ncols() == 2:
             a, b, c, d = A.list()
         else:
-            raise ValueError("Input must be coercable to a matrix in SL(2,C).")
+            raise ValueError("Input must be coercible to a matrix in SL(2,C).")
         eps = a.parent().epsilon()
         if check and abs(a * d - b * c  - 1) > 16 * eps:
             raise ValueError(f"Matrix must be in SL(2,C): det(A)-1 = "
@@ -368,12 +442,12 @@ def UpperHalfSpaceElement(entries: Iterable | Any) -> UpperHalfSpaceElement__cla
         sage: UpperHalfSpaceElement(1.0)
         1.00000000000000 + 0.000000000000000i + 0.000000000000000j
     """
-    if isinstance(entries, (UpperHalfSpaceElement__class, list, tuple, Vector)):
-        x = entries[0]
-        if hasattr(x, 'base_ring'):
-            base_ring = x.base_ring()
-        else:
-            base_ring = RealField(53)
-    else:
+    if hasattr(entries, "base_ring"):
         base_ring = entries.base_ring()
+    elif isinstance(entries, (UpperHalfSpaceElement__class, list, tuple, Vector)):
+        base_ring = Sequence(entries).universe()
+    else:
+        raise ValueError(f"Can not create an upper half-space element from {entries}")
+    if hasattr(base_ring, "base_ring"):
+        base_ring = base_ring.base_ring()
     return UpperHalfSpace(base_ring, 3)(entries)

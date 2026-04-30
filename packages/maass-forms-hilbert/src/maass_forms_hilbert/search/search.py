@@ -74,7 +74,7 @@ def create_grid_non_circular(grid_limits: tuple[tuple[Real_t]], grid_numbers: tu
              [0., 1.]]),
         array([[0., 0.],
              [1., 1.]])),
-        The Cartesian product of ({0, 1}, {0, 1}))
+        The Cartesian product of 2 copies of {0, 1})
     """
     # Check that size match
     if len(grid_limits) != len(grid_numbers):

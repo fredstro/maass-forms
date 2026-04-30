@@ -2,7 +2,7 @@ import logging
 from typing import Any, Optional
 
 # Configure logging
-logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
 
 # Core imports with error handling
@@ -36,11 +36,18 @@ except ImportError as e:
 
 # Database models with optional import (requires MongoDB)
 try:
-    from maass_forms_klein.database.models import KleinianMaassFormDB, KleinianGroupDB
+    from maass_forms_klein.database.models import (
+        KleinianMaassFormDB,
+        KleinianGroupDB,
+        Point,
+        ParallelogramDB,
+    )
 except ImportError as e:
     log.warning(f"Cannot import database models (MongoDB not available?): {e}")
     KleinianMaassFormDB = None
     KleinianGroupDB = None
+    Point = None
+    ParallelogramDB = None
 
 # Custom exceptions
 try:
@@ -51,7 +58,7 @@ try:
         InvalidGroupError,
         ComputationError,
         DatabaseError,
-        ValidationError
+        ValidationError,
     )
 except ImportError as e:
     log.error(f"Cannot import custom exceptions: {e}")
@@ -65,37 +72,35 @@ except ImportError as e:
 
 # Explicit exports for API clarity
 __all__ = [
-    # Core mathematical objects
-    'KleinianMaassFormSpace',
-    'KleinianMaassFormElement', 
-    'KleinianMaassFormCoefficients',
-    'KleinianGroup',
-    'UpperHalfSpaceElement',
-    # Utility functions and types
-    'Integer_t',
-    'Real_t',
-    'map_tuple_to_int',
-    'map_int_to_tuple',
-    # Database models (optional)
-    'KleinianMaassFormDB',
-    'KleinianGroupDB',
-    # Custom exceptions
-    'KnotMaassError',
-    'InvalidSpectralParameterError',
-    'InvalidSpaceError',
-    'InvalidGroupError',
-    'ComputationError',
-    'DatabaseError',
-    'ValidationError'
+    "ComputationError",
+    "DatabaseError",
+    "Integer_t",
+    "InvalidGroupError",
+    "InvalidSpaceError",
+    "InvalidSpectralParameterError",
+    "KleinianGroup",
+    "KleinianGroupDB",
+    "KleinianMaassFormCoefficients",
+    "KleinianMaassFormDB",
+    "KleinianMaassFormElement",
+    "KleinianMaassFormSpace",
+    "KnotMaassError",
+    "ParallelogramDB",
+    "Point",
+    "Real_t",
+    "UpperHalfSpaceElement",
+    "ValidationError",
+    "map_int_to_tuple",
+    "map_tuple_to_int",
 ]
 
 
 def _check_imports() -> dict[str, bool]:
     """Check which optional components are available.
-    
+
     OUTPUT:
     - Dict mapping component names to availability status
-    
+
     EXAMPLES::
         sage: from maass_forms_klein.all import _check_imports
         sage: status = _check_imports()
@@ -103,39 +108,43 @@ def _check_imports() -> dict[str, bool]:
         True
     """
     return {
-        'core_modform': all(x is not None for x in [KleinianMaassFormSpace, KleinianMaassFormElement]),
-        'hyperbolic_space': all(x is not None for x in [KleinianGroup, UpperHalfSpaceElement]),
-        'utilities': all(x is not None for x in [Integer_t, Real_t, map_tuple_to_int]),
-        'database': all(x is not None for x in [KleinianMaassFormDB, KleinianGroupDB]),
-        'exceptions': KnotMaassError is not Exception
+        "core_modform": all(
+            x is not None for x in [KleinianMaassFormSpace, KleinianMaassFormElement]
+        ),
+        "hyperbolic_space": all(x is not None for x in [KleinianGroup, UpperHalfSpaceElement]),
+        "utilities": all(x is not None for x in [Integer_t, Real_t, map_tuple_to_int]),
+        "database": all(x is not None for x in [KleinianMaassFormDB, KleinianGroupDB]),
+        "exceptions": KnotMaassError is not Exception,
     }
 
 
 def version_info() -> dict[str, Any]:
     """Get version and dependency information.
-    
+
     OUTPUT:
     - Dict with version and availability information
-    
+
     EXAMPLES::
         sage: from maass_forms_klein.all import version_info
         sage: info = version_info()
         sage: 'maass_forms_klein_version' in info
         True
     """
-    info = {'available_components': _check_imports()}
-    
+    info = {"available_components": _check_imports()}
+
     try:
         from maass_forms_klein import __version__
-        info['maass_forms_klein_version'] = __version__
+
+        info["maass_forms_klein_version"] = __version__
     except Exception:
-        info['maass_forms_klein_version'] = 'unknown'
-    
+        info["maass_forms_klein_version"] = "unknown"
+
     # Check SageMath version
     try:
         from sage.version import version as sage_version
-        info['sage_version'] = sage_version
+
+        info["sage_version"] = sage_version
     except ImportError:
-        info['sage_version'] = 'not available'
-    
+        info["sage_version"] = "not available"
+
     return info

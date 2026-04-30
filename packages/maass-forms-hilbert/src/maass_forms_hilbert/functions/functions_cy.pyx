@@ -1,8 +1,8 @@
 r"""
 Functions.
 """
-from maass_forms_hilbert.functions.bessel.besselk_dp cimport besselk_dp_c
-from .bessel.besselk_dp import besselk_dp
+from maass_form_core.functions.bessel.besselk_dp cimport besselk_dp_c
+from maass_form_core.functions.bessel.besselk_dp import besselk_dp
 cimport cysignals
 from cysignals.memory cimport sig_free, check_malloc
 cdef extern from "complex.h":

@@ -28,8 +28,8 @@ Also algorithms for incomplete gamma function.
 
     EXAMPLES::
 
-        sage: from maass_forms_hilbert.functions.bessel.besselk_dp import besselk_dp, besselk_dp_pow
-        sage: from maass_forms_hilbert.functions.bessel.besselk_dp import besselk_dp_rec
+        sage: from maass_form_core.functions.bessel.besselk_dp import besselk_dp, besselk_dp_pow
+        sage: from maass_form_core.functions.bessel.besselk_dp import besselk_dp_rec
         sage: from sage.all import RealField, ComplexField
         sage: besselk_dp(10.0, 5.0) # tol 1e-14
         -0.7183327166568183
@@ -124,7 +124,7 @@ cpdef besselk_dp(double R, double x, double prec=1e-14, int pref=1, algorithm="d
 
     EXAMPLES::
 
-        sage: from maass_forms_hilbert.functions.bessel.besselk_dp import besselk_dp
+        sage: from maass_form_core.functions.bessel.besselk_dp import besselk_dp
         sage: besselk_dp(0.0, 1.0) # tol 2e-14
         0.42102443824070833
         sage: besselk_dp(10.0, 5.0) # tol 2e-14
@@ -255,7 +255,7 @@ cpdef double besselk_dp_rec(
 
     EXAMPLES::
 
-        sage: from maass_forms_hilbert.functions.bessel.besselk_dp import besselk_dp_rec
+        sage: from maass_form_core.functions.bessel.besselk_dp import besselk_dp_rec
         sage: besselk_dp_rec(10.0, 5.0, prec=1e-15, pref=1) # tol 2e-13
         -0.7183327166568183
         sage: besselk_dp_rec(10.0, 3.0, prec=1e-15) # tol 2e-15
@@ -394,7 +394,7 @@ cpdef double besselk_dp_pow(double R, double x, double prec=1e-12, int pref=0):
         
     EXAMPLES::
 
-        sage: from maass_forms_hilbert.functions.bessel.besselk_dp import besselk_dp_pow
+        sage: from maass_form_core.functions.bessel.besselk_dp import besselk_dp_pow
         sage: besselk_dp_pow(10.0, 3.0) # tol 7e-15
         -6.3759939798739404e-08
         sage: besselk_dp_pow(10.0, 3.0, pref=1) # tol 2e-14
@@ -588,7 +588,7 @@ cpdef loggamma_dp(double x, double R, double prec=1e-16):
 
     EXAMPLES::
 
-        sage: from maass_forms_hilbert.functions.bessel.besselk_dp import loggamma_dp
+        sage: from maass_form_core.functions.bessel.besselk_dp import loggamma_dp
         sage: loggamma_dp(1.0, 3.0) # tol 1e-15
         (-3.2441442995897556 + 1.053350771068613j)
         sage: import mpmath
@@ -669,7 +669,7 @@ cpdef besselk_real_dp(double r, double x, double eps=0, int verbose=0):
 
     EXAMPLES::
 
-        sage: from maass_forms_hilbert.functions.bessel.besselk_dp import besselk_real_dp
+        sage: from maass_form_core.functions.bessel.besselk_dp import besselk_real_dp
         sage: from sage.functions.bessel import bessel_K
         sage: # Test with r=0, should give K_0(1)
         sage: result = besselk_real_dp(0.0, 1.0)  # doctest: +ELLIPSIS

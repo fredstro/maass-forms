@@ -1,11 +1,19 @@
-from maass_forms_klein.modform.utils import Integer_t, Real_t, Complex_t
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING
+
 from sage.categories.sets_cat import cartesian_product
 from sage.matrix.constructor import matrix
 from sage.modules.free_module_element import vector
-from sage.structure.element import Vector, Matrix
+from sage.structure.element import Matrix, Vector
 from sage.structure.parent import Parent
 
 from maass_forms_klein.hyperbolic_space.utils import P
+from maass_forms_klein.modform.utils import Complex_t, Integer_t, Real_t
+
+if TYPE_CHECKING:
+    from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
 
 
 class KleinianMaassFormCoefficients(Parent):
@@ -13,14 +21,19 @@ class KleinianMaassFormCoefficients(Parent):
     Class for coefficients of Kleinian Maass forms.
     """
 
-    def __init__(self, coefficients: list | Matrix, M: Integer_t,
-                 spectral_parameter: Complex_t | Real_t,
-                 space: 'KleinianMaassFormSpace',
-                 Y: Real_t = None,
-                 coordinate_indices: list = None,
-                 coordinate_values: list = None,
-                 set_coefficients: dict = None,
-                 check: bool = True, **kwargs: P.kwargs) -> None:
+    def __init__(
+        self,
+        coefficients: list | Matrix,
+        M: Integer_t,
+        spectral_parameter: Complex_t | Real_t,
+        space: "KleinianMaassFormSpace",
+        Y: Real_t | None = None,
+        coordinate_indices: list | None = None,
+        coordinate_values: list | None = None,
+        set_coefficients: dict | None = None,
+        check: bool = True,
+        **kwargs: P.kwargs,
+    ) -> None:
         r"""
         INPUT:
 
@@ -31,7 +44,6 @@ class KleinianMaassFormCoefficients(Parent):
 
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
             sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
-            sage: from maass_forms_hilbert.all import HilbertMaassFormSpace, HilbertMaassCoefficients
             sage: H = KleinianMaassFormSpace(-4)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
             sage: Cmat = Matrix(RR, [1,2,3,4,5,6,7,8,9])
@@ -48,7 +60,7 @@ class KleinianMaassFormCoefficients(Parent):
         self._space = space
         self._Y = Y
         if not coordinate_indices:
-            coordinate_indices = cartesian_product([range(-M, M+1), range(-M, M+1)])
+            coordinate_indices = cartesian_product([range(-M, M + 1), range(-M, M + 1)])
         self._coordinate_indices = [vector(x, immutable=True) for x in coordinate_indices]
         if not coordinate_values:
             coordinate_values = space.group().dual_translation_lattice_vectors(M)
@@ -64,7 +76,6 @@ class KleinianMaassFormCoefficients(Parent):
 
             sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
             sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
-            sage: from maass_forms_hilbert.all import HilbertMaassFormSpace, HilbertMaassCoefficients
             sage: H = KleinianMaassFormSpace(-4)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
             sage: Cmat = Matrix(RR, [1,2,3,4,5,6,7,8,9])
@@ -97,21 +108,21 @@ class KleinianMaassFormCoefficients(Parent):
              'spectral_parameter': '(0.500000000000000 + 1.00000000000000*I, 0.50000000000000...
         """
         json_dict = {
-                'M': self._M,
-                'Y': str(self._Y),
-                'coefficients': [str(x) for x in self._coefficients],
-                'prec': int(self._coefficients.base_ring().prec()),
-                'spectral_parameter': str(self._spectral_parameter),
-                'set_coefficients': {str(k): str(v) for k, v in self._set_coefficients.items()},
-                'coordinate_indices': [str(x) for x in self._coordinate_indices],
-                'coordinate_values': [str(x) for x in self._coordinate_values],
-            }
-        if kwargs.get('include_space', False):
-            json_dict['space'] = self._space.to_json()
+            "M": self._M,
+            "Y": str(self._Y),
+            "coefficients": [str(x) for x in self._coefficients],
+            "prec": int(self._coefficients.base_ring().prec()),
+            "spectral_parameter": str(self._spectral_parameter),
+            "set_coefficients": {str(k): str(v) for k, v in self._set_coefficients.items()},
+            "coordinate_indices": [str(x) for x in self._coordinate_indices],
+            "coordinate_values": [str(x) for x in self._coordinate_values],
+        }
+        if kwargs.get("include_space", False):
+            json_dict["space"] = self._space.to_json()
         else:
-            json_dict['space'] = {
-                'cuspidal': self._space.is_cuspidal(),
-                'group': self._space.group().name()
+            json_dict["space"] = {
+                "cuspidal": self._space.is_cuspidal(),
+                "group": self._space.group().name(),
             }
         return json_dict
 
@@ -121,7 +132,8 @@ class KleinianMaassFormCoefficients(Parent):
 
         EXAMPLES::
 
-            sage: from maass_forms_klein.all import KleinianMaassFormSpace, KleinianMaassFormCoefficients
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
             sage: H = KleinianMaassFormSpace(-4)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
             sage: Cmat = Matrix(RR, [1,2,3,4,5,6,7,8,9])
@@ -137,7 +149,8 @@ class KleinianMaassFormCoefficients(Parent):
 
         EXAMPLES::
 
-            sage: from maass_forms_klein.all import KleinianMaassFormSpace, KleinianMaassFormCoefficients
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
             sage: H = KleinianMaassFormSpace(-4)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
             sage: Cmat = Matrix(RR, [1,2,3,4,5,6,7,8,9])
@@ -161,7 +174,8 @@ class KleinianMaassFormCoefficients(Parent):
 
         EXAMPLES::
 
-            sage: from maass_forms_klein.all import KleinianMaassFormSpace, KleinianMaassFormCoefficients
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
             sage: H = KleinianMaassFormSpace(-4)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
             sage: Cmat = Matrix(RR, [1,2,3,4,5,6,7,8,9])
@@ -174,10 +188,35 @@ class KleinianMaassFormCoefficients(Parent):
         return f"Coefficients of a Kleinian Maass form with M={self._M}"
 
     def __hash__(self):
-        self._coefficients.set_immutable()
-        return hash((self._coefficients, self._Y, self._M, str(self._index_tuples),
-                     self._spectral_parameter, self._space,
-                     str(self._set_coefficients)))
+        r"""
+        Return the hash of this coefficient object.
+
+        The coefficient matrix is made immutable before hashing.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
+            sage: H = KleinianMaassFormSpace(-4)
+            sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
+            sage: Cmat = vector(RR, [1,2,3,4,5,6,7,8,9])
+            sage: C = KleinianMaassFormCoefficients(Cmat, 1, spectral_parameter, H)
+            sage: isinstance(hash(C), int)
+            True
+        """
+        return hash(json.dumps(self.to_json()))
+
+        return hash(
+            (
+                self._coefficients,
+                self._Y,
+                self._M,
+                str(self._coordinate_indices),
+                self._spectral_parameter,
+                self._space,
+                str(self._set_coefficients),
+            )
+        )
 
     def __getitem__(self, item) -> Complex_t:
         """
@@ -189,7 +228,8 @@ class KleinianMaassFormCoefficients(Parent):
 
         EXAMPLES:
 
-            sage: from maass_forms_klein.all import KleinianMaassFormSpace, KleinianMaassFormCoefficients
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
             sage: H = KleinianMaassFormSpace(-4)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
             sage: Cmat = vector(RR, [1,2,3,4,5,6,7,8,9])
@@ -215,6 +255,20 @@ class KleinianMaassFormCoefficients(Parent):
         return self._coefficients.column(0)[index]
 
     def __iter__(self):
+        r"""
+        Iterate over the coefficient rows.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
+            sage: H = KleinianMaassFormSpace(-4)
+            sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
+            sage: Cmat = vector(RR, [1,2,3,4,5,6,7,8,9])
+            sage: C = KleinianMaassFormCoefficients(Cmat, 1, spectral_parameter, H)
+            sage: len(list(C))
+            9
+        """
         yield from self._coefficients
 
     def keys(self, as_elements=False) -> list:
@@ -225,7 +279,8 @@ class KleinianMaassFormCoefficients(Parent):
 
         EXAMPLES:
 
-            sage: from maass_forms_klein.all import KleinianMaassFormSpace, KleinianMaassFormCoefficients
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
             sage: H = KleinianMaassFormSpace(-4)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
             sage: Cmat = vector(RR, [1,2,3,4,5,6,7,8,9])
@@ -265,7 +320,8 @@ class KleinianMaassFormCoefficients(Parent):
 
         EXAMPLE:
 
-            sage: from maass_forms_klein.all import KleinianMaassFormSpace, KleinianMaassFormCoefficients
+            sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+            sage: from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
             sage: H = KleinianMaassFormSpace(-4)
             sage: spectral_parameter = (CC(0.5,1),CC(0.5,1))
             sage: Cmat = vector(RR, [1,2,3,4,5,6,7,8,9])

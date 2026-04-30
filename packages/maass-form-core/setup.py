@@ -1,9 +1,11 @@
 import os
 import shutil
 import subprocess
-import setuptools
+import sys
 import sysconfig
 from contextlib import contextmanager
+
+import setuptools
 
 # Detect SageMath/PassageMath. Cython extensions require it, but we allow
 # installation without it so that the pure-Python parts remain usable.
@@ -14,15 +16,6 @@ except ModuleNotFoundError:
     SAGE_LIB = os.getenv("SAGE_LIB") or sysconfig.get_path("purelib")
 
 HAS_SAGE = SAGE_LIB is not None and os.path.isdir(SAGE_LIB + "/sage")
-
-PACKAGES = [
-    "maass_forms_klein",
-    "maass_forms_klein.functions",
-    "maass_forms_klein.database",
-    "maass_forms_klein.utils",
-    "maass_forms_klein.hyperbolic_space",
-    "maass_forms_klein.modform",
-]
 
 if HAS_SAGE:
     from Cython.Build import cythonize
@@ -55,12 +48,12 @@ if HAS_SAGE:
 
     ext_modules = [
         Extension(
-            "maass_forms_klein.hyperbolic_space.upper_half_space",
-            sources=[os.path.join("src/maass_forms_klein/hyperbolic_space/upper_half_space.pyx")],
-            extra_compile_args=extra_compile_args,
+            "maass_form_core.functions.bessel.besselk_dp",
+            ["src/maass_form_core/functions/bessel/besselk_dp.pyx"],
             include_dirs=INCLUDE_DIRS,
+            extra_compile_args=extra_compile_args,
             library_dirs=LIBRARY_DIRS,
-        )
+        ),
     ]
 
     try:
@@ -73,7 +66,6 @@ if HAS_SAGE:
 
     with cython_namespace_package_support():
         setuptools.setup(
-            packages=PACKAGES,
             ext_modules=cythonize(
                 ext_modules,
                 include_path=["src", SAGE_LIB],
@@ -81,13 +73,12 @@ if HAS_SAGE:
                     "embedsignature": True,
                     "language_level": "3",
                 },
+                annotate=True,
             ),
         )
 else:
-    import warnings
-
-    warnings.warn(
-        "SageMath/PassageMath not found. Installing without Cython extensions.",
-        stacklevel=1,
+    print(
+        "WARNING: SageMath/PassageMath not found. Installing without Cython extensions.",
+        file=sys.stderr,
     )
-    setuptools.setup(packages=PACKAGES)
+    setuptools.setup()

@@ -1,11 +1,9 @@
 [build-system]
 requires = [
-    "setuptools>=49.6.0",
-    "wheel>=0.36.2",
-    "cython>=3.0.8,<3.1.0",
+    "setuptools>=82.0.1",
+    "cython>=3.1.0,<3.3.0",
     "setuptools_scm[toml]>=6.2",
-    "passagemath-modules",
-        ]
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,12 +11,11 @@ name = "maass_forms_klein"
 dynamic = ["version"]
 description = "Algorithms for Kleinian Maass forms on hyperbolic 3-manifolds"
 authors = [
-    {name = "Fredrik Stromberg", email = "fredrik314@gmail.com"}
+    { name = "Fredrik Stromberg", email = "fredrik314@gmail.com" }
 ]
 readme = "README.md"
 license = "GPL-3.0-or-later"
-#license-files = ["LICENSE.txt"]
-#license = {file = "LICENSE.txt"}
+requires-python = ">= 3.11"
 keywords = ["kleinian groups", "maass forms", "hyperbolic 3-manifolds"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -28,17 +25,14 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Cython",
     "Topic :: Scientific/Engineering :: Mathematics",
-    "Topic :: Scientific/Engineering :: Information Analysis",
 ]
-requires-python = ">= 3.11"
 dependencies = [
-    "comp_manager>=0.0.1",
-    "maass_forms_hilbert",
+    "maass_form_core",
     "pythran",
     "snappy",
     "snappy-manifolds",
     "jupyter"
-    ]
+]
 [project.optional-dependencies]
 dev = [
     "build",
@@ -48,8 +42,8 @@ dev = [
     "pytest-mock",
     "mongomock",
     "freezegun",
-    "mongoengine",
-    "ruff"
+    "ruff",
+    "pre-commit",
 ]
 notebook = [
     "jupyter"
@@ -70,14 +64,19 @@ fallback_version = "0.0.0"
 [tool.setuptools.package-data]
 maass_forms_klein = ["src/maass_forms_klein/openapi/*"]
 
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+addopts = ["--import-mode=importlib"]
+
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 fix = true
 unsafe-fixes = false
+extend-exclude = [".virtual_documents", ".ipynb_checkpoints"]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 10
+max-complexity = 12
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "N", "B", "A", "C", "T", "Q", "RUF"]
@@ -85,10 +84,15 @@ select = ["E", "F", "W", "N", "B", "A", "C", "T", "Q", "RUF"]
 # and use 'id' for the unique id.
 # Also ignore PEP8 naming rules for mathematical variable conventions (matching maass-forms-hilbert).
 ignore = [
-    "A001", "A002",  # Allow shadowing builtins
-    "N801", "N806", "N803", "N802",  # Allow mathematical variable names
+    "A001", "A002", # Allow shadowing builtins
+    "N801", "N806", "N803", "N802", # Allow mathematical variable names
 ]
 [tool.ruff.lint.per-file-ignores]
+# Complex mathematical algorithms that are inherently high-complexity
+"**/parallelogram.py" = ["C901"]
+"**/utils.py" = ["C901"]
+"**/compute_coefficients.py" = ["C901"]
+"**/kleinian_group.py" = ["C901"]
 "all.py" = [
-  "F401", # Unused import - these files are by definition collections of imports.
+    "F401", # Unused import - these files are by definition collections of imports.
 ]

@@ -3,7 +3,6 @@ import re
 from maass_forms_klein.hyperbolic_space.types import Circle
 from sage.matrix.constructor import matrix
 from sage.structure.element import Matrix
-from sage.symbolic.ring import SymbolicRing
 
 
 def find_inverse_word(word: str) -> str:
@@ -57,23 +56,40 @@ def is_equivalent_mod_parabolic(w1, w2, gens):
 
 def word_list_sort_key(word):
     """
-    Sort key for list of words so that we first sort by word length, then alphanum (case-insensitive)
-    and finally by case.
+    Sort key for list of words so that we first sort by word length,
+    then alphanum (case-insensitive) and finally by case.
 
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.word_utils import word_list_sort_key
+        sage: sorted(['bA', 'a', 'AB', 'ab'], key=word_list_sort_key)
+        ['a', 'AB', 'ab', 'bA']
     """
     return len(word), word.lower(), word
+
 
 def word_to_str(word):
     """
     Convert word to string.
 
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.word_utils import word_to_str
+        sage: word_to_str('aB')
+        'aB'
     """
     return str(word)
 
+
 def normalize_word(word):
     """
-    Normalize a word.
+    Normalize a word by sorting letters case-insensitively.
 
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.word_utils import normalize_word
+        sage: normalize_word('bBaA')
+        'aAbB'
     """
     lw = list(word)
     lw.sort(key=lambda x: x.lower())
@@ -101,13 +117,14 @@ def reduce_word(word, n: int = 0):
     if n and 2 * n > len_word_in:
         return word
     # hard-coded list is quicker ...
-    for pair in ['aA', 'bB', 'lL', 'mM', 'Aa', 'Bb', 'Ll', 'Mm']:
+    for pair in ["aA", "bB", "lL", "mM", "Aa", "Bb", "Ll", "Mm"]:
         word = word.replace(pair, "")
     # If no change in word we just return it
     if len_word_in == len(word):
         return word
     # Otherwise, we might need to do another reduction
     return reduce_word(word, n + 1)
+
 
 def expand_parentheses(word):
     """
@@ -125,16 +142,17 @@ def expand_parentheses(word):
         sage: expand_parentheses('(a(ab)^2)^2')
         'aababaabab'
     """
-    if '(' in word and not ')' in word or ')' in word and not '(' in word:
+    if ("(" in word and ")" not in word) or (")" in word and "(" not in word):
         raise ValueError(f"Unmatched parentheses in {word}")
-    if '(' not in word:
+    if "(" not in word:
         return word
-    for w, n in re.findall(r'\(([^()]*)\)\^(-?\d+)', word):
+    for w, n in re.findall(r"\(([^()]*)\)\^(-?\d+)", word):
         wnew = expand_parentheses(w)
         if int(n) < 0:
             wnew = wnew.swapcase()
-        word = word.replace(f'({w})^{n}', wnew * abs(int(n)))
+        word = word.replace(f"({w})^{n}", wnew * abs(int(n)))
     return expand_parentheses(word)
+
 
 def expand_word(word: str) -> str:
     """
@@ -152,21 +170,23 @@ def expand_word(word: str) -> str:
         sage: expand_word('a^3*b^-1*a*b^-10')
         'aaaBaBBBBBBBBBB'
     """
-    word = word.replace('*', '')
+    word = word.replace("*", "")
     word = expand_parentheses(word)
     # Replace any a^2 with aa etc.
-    replacements = re.findall(r'(\w)\^(\d+)', word)
+    replacements = re.findall(r"(\w)\^(\d+)", word)
     # Need to make sure that we match b^10 before b^1
     replacements.sort(key=lambda x: len(x[1]), reverse=True)
     for w, n in replacements:
         word = word.replace(f"{w}^{n}", w * int(n))
     # Replace any a^-2 with AA etc.
-    replacements = re.findall(r'(\w)\^(-\d+)', word)
+    replacements = re.findall(r"(\w)\^(-\d+)", word)
     replacements.sort(key=lambda x: len(x[1]), reverse=True)
     for w, n in replacements:
         winv = w.swapcase()
         word = word.replace(f"{w}^{n}", winv * abs(int(n)))
     return word
+
+
 def word_to_element(word: str, gens: dict) -> Matrix:
     """
     Convert a word to a matrix.
@@ -196,20 +216,37 @@ def word_to_element(word: str, gens: dict) -> Matrix:
         try:
             g = g * gens[w]
         except KeyError:
-            raise ValueError(f"Generator dict has no key `{w}`")
+            raise ValueError(f"Generator dict has no key `{w}`") from None
     return g
 
 
 def word_to_circle(word: str, gens: dict) -> Circle:
+    """
+    Convert a word to the corresponding isometric circle.
+
+    INPUT:
+
+    - ``word`` -- (string) word in the generators
+    - ``gens`` -- (dictionary) generators of the group
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.word_utils import word_to_circle
+        sage: from sage.matrix.constructor import matrix
+        sage: gens = {'a': matrix([[0, 1], [1, 0]]), 'A': matrix([[0, 1], [1, 0]])}
+        sage: c = word_to_circle('a', gens)  # doctest: +SKIP
+    """
     matrix = word_to_element(word, gens)
     from maass_forms_klein.hyperbolic_space.geometry_utils import matrix_to_circle
+
     return matrix_to_circle(matrix)
 
 
 def translation_tuple_to_word(t: tuple, gens: dict) -> str:
     r"""
     Map a tuple (t_1, ..., t_n) to a string g1..g1g2...g2...gn...gn)
-    where each gi is repeated |t_i| times and if t_i is negative then the case of gi is swapped to indicate an inverse.
+    where each gi is repeated |t_i| times and if t_i is negative then the case
+    of gi is swapped to indicate an inverse.
 
     EXAMPLE:
 
@@ -220,7 +257,8 @@ def translation_tuple_to_word(t: tuple, gens: dict) -> str:
     'LMM'
     """
     return "".join(
-        [(gens[i] if t[i] > 0 else gens[i].swapcase()) * abs(t[i]) for i in range(len(t))])
+        [(gens[i] if t[i] > 0 else gens[i].swapcase()) * abs(t[i]) for i in range(len(t))]
+    )
 
 
 def change_letters_in_word(word: str, new_names: dict) -> str:
@@ -238,12 +276,14 @@ def change_letters_in_word(word: str, new_names: dict) -> str:
         sage: from maass_forms_klein.hyperbolic_space.word_utils import change_letters_in_word
         sage: change_letters_in_word('aC', {'a': 'A', 'c': 'B'})
         'Ab'
+        sage: change_letters_in_word('A', {'a': 'ab'})
+        'BA'
     """
 
     new_word = []
     for letter in word:
         if letter.isupper():
-            new_letter = new_names[letter.lower()].swapcase()
+            new_letter = find_inverse_word(new_names[letter.lower()])
         else:
             new_letter = new_names[letter]
         new_word.append(new_letter)

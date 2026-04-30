@@ -1,37 +1,24 @@
 [build-system]
 requires = [
-    "setuptools>=75.0.0",
-    "cython>=3.0.8,<3.1.0",
+    "setuptools>=82.0.1",
+    "cython>=3.1.0,<3.3.0",
     "setuptools_scm[toml]>=6.2",
-    "passagemath-environment",
-    "passagemath-modules",
 ]
 build-backend = "setuptools.build_meta"
-
-[tool.setuptools_scm]
-root = "../.."
-git_describe_command = "git describe --dirty --tags --long --match core/v*"
-tag_regex = "^core/v(?P<version>.+)$"
-local_scheme = "no-local-version"
-fallback_version = "0.0.0"
-
-[tool.pytest.ini_options]
-pythonpath = ["src", "."]
-addopts = ["--import-mode=importlib"]
 
 [project]
 name = "maass_form_core"
 dynamic = ["version"]
 description = "Shared infrastructure for Maass forms computation"
 authors = [
-    {name = "Fredrik Stromberg", email = "fredrik314@gmail.com"},
+    { name = "Fredrik Stromberg", email = "fredrik314@gmail.com" },
 ]
 readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">= 3.11"
 keywords = ["maass forms", "automorphic forms", "mathematical computing"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
@@ -39,19 +26,20 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 dependencies = [
-    "passagemath-standard~=10.5.49",
-    "comp_manager>=0.0.2",
+    "passagemath-standard~=10.8.1",
+    "passagemath-plot~=10.8.2",
+    "comp_manager>=0.0.3",
 ]
-
 [project.optional-dependencies]
 dev = [
+    "build",
     "tox",
-    "mongomock",
-    "freezegun",
-    "ruff",
     "pytest",
     "pytest-cov",
     "pytest-mock",
+    "mongomock",
+    "freezegun",
+    "ruff",
     "pre-commit",
 ]
 
@@ -60,9 +48,23 @@ homepage = "https://github.com/fredstro/maass-forms"
 repository = "https://github.com/fredstro/maass-forms"
 "bug tracker" = "https://github.com/fredstro/maass-forms/issues"
 
+[tool.setuptools_scm]
+root = "../.."
+git_describe_command = "git describe --dirty --tags --long --match core/v*"
+tag_regex = "^core/v(?P<version>.+)$"
+local_scheme = "no-local-version"
+fallback_version = "0.0.0"
+
+[tool.setuptools.package-data]
+maass_form_core = ["**/*.pxd"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+addopts = ["--import-mode=importlib"]
+
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 src = ["src"]
 extend-exclude = ["*.pyx", "*.ipynb"]
 
@@ -71,18 +73,18 @@ max-complexity = 10
 
 [tool.ruff.lint]
 select = [
-    "E",      # pycodestyle errors
-    "W",      # pycodestyle warnings
-    "F",      # Pyflakes
-    "I",      # isort
-    "B",      # flake8-bugbear
-    "C4",     # flake8-comprehensions
-    "UP",     # pyupgrade
-    "SIM",    # flake8-simplify
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # Pyflakes
+    "I", # isort
+    "B", # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "SIM", # flake8-simplify
 ]
 ignore = [
-    "E501",   # line too long (handled by formatter)
-    "B008",   # do not perform function calls in argument defaults
+    "E501", # line too long (handled by formatter)
+    "B008", # do not perform function calls in argument defaults
     "SIM108", # use ternary operator instead of if-else
 ]
 

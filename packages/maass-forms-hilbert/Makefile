@@ -5,6 +5,21 @@ endif
 ifeq (,$(DOCKER)$(shell which sage))
   $(error "No sage in $(PATH). Please install sage first or add the relevant path.")
 endif
+
+# Warn if no virtual environment is active (skip for docker targets)
+define check_venv
+	@if [ -z "$$VIRTUAL_ENV" ]; then \
+		echo ""; \
+		echo "WARNING: No virtual environment is active."; \
+		echo "It is recommended to run this in the 'venv_test' virtual environment."; \
+		echo ""; \
+		read -p "Continue without a virtual environment? [y/N] " answer; \
+		case "$$answer" in \
+			[yY]*) ;; \
+			*) echo "Aborted."; exit 1 ;; \
+		esac; \
+	fi
+endef
 # Command line arguments:
 # Set to 0 to use local source instead of GIT
 REMOTE_SRC=0
@@ -13,7 +28,7 @@ GIT_BRANCH=main
 # Port for notebook
 NBPORT=8888
 # Arguments for tox
-TOX_ARGS=doctest,coverage,pycodestyle,relint,codespell,flake8
+TOX_ARGS=doctest,coverage,relint,codespell,ruff
 
 
 ifeq (0,$(REMOTE_SRC))
@@ -26,18 +41,23 @@ endif
 EXAMPLES_ARGS:=$(GIT_BRANCH) $(NBPORT)
 
 build:
+	$(call check_venv)
 	sage -python setup.py build_ext --inplace $* 2>&1
 
 sdist:
+	$(call check_venv)
 	sage -python setup.py sdist
 
 install: clean sdist
+	$(call check_venv)
 	sage -pip install --no-build-isolation dist/maass_forms_hilbert-*.gz
 
 test:
+	$(call check_venv)
 	sage -t src/*
 
 examples:
+	$(call check_venv)
 	sage -n jupyter --no-browser --ip='0.0.0.0' --port=$(NBPORT)\
                             --notebook-dir=examples\
                             --NotebookApp.custom_display_url=http://127.0.0.1:$(NBPORT)\
@@ -45,8 +65,9 @@ examples:
                             --NotebookApp.browser=x-www-browser
 
 tox:
+	$(call check_venv)
 	sage -pip install tox
-	sage --python -m tox src -c tox.ini -e $(TOX_ARGS)
+	sage --python -m tox -c tox.ini -e $(TOX_ARGS)
 
 docker:
 	docker build --build-arg GIT_BRANCH=$(GIT_BRANCH) --build-arg REMOTE_SRC=$(REMOTE_SRC) -t maass_forms_hilbert-$(TAG) .
@@ -71,6 +92,7 @@ docker-sage: docker
 
 
 clean:
+	$(call check_venv)
 	rm -rf src/*.c
 	rm -rf src/*/*.c
 	rm -rf src/*.so
