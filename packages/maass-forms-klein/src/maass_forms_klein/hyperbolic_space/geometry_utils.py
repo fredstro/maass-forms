@@ -71,7 +71,8 @@ def reduce_cover(
     max_n: Integer_t = 10,
     fix_circles: list[str] | None = None,
     verbose: int = 0,
-) -> list[tuple[str, Circle]]:
+    return_words: bool = False,
+) -> list[tuple[str, Circle] | str]:
     r"""
     Given a list of group elements that cover a rectangle find a smaller covering subset.
 
@@ -83,7 +84,7 @@ def reduce_cover(
     - ``max_n`` -- (default: 10) maximum subdivision level for coverage checks
     - ``fix_circles`` -- (optional) list of words that should not be removed
     - ``verbose`` -- (default: 0) verbosity level
-
+    - ``return_words`` -- (default: False) whether to return words instead of circles
     OUTPUT:
 
     A reduced list of tuples ``(word, Circle)`` that still covers the rectangle.
@@ -132,6 +133,8 @@ def reduce_cover(
         else:
             new_list.append((x, c))
     new_list.sort(key=lambda x: word_list_sort_key(x[0]))
+    if return_words:
+        return [w[0] for w in new_list]
     return new_list
 
 
