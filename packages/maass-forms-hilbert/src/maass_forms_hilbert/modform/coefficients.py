@@ -211,7 +211,7 @@ class HilbertMaassCoefficients(ModuleElement):
         """
         return {
             "M": tuple((int(M0[0]), int(M0[1])) for M0 in self._M),
-            "coefficients": [[str(x) for x in r] for r in self._coefficients],
+            "coefficients": [[str(x) for x in r] for r in self._coefficients.rows()],
             "prec": int(self._coefficients.base_ring().prec()),
             "spectral_parameter": complex_tuple_to_json(self._spectral_parameter),
             "set_coefficients": coefficient_dict_to_json(self._set_coefficients),
