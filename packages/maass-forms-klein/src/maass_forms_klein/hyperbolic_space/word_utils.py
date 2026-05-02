@@ -1,8 +1,9 @@
 import re
 
-from maass_forms_klein.hyperbolic_space.types import Circle
 from sage.matrix.constructor import matrix
 from sage.structure.element import Matrix
+
+from maass_forms_klein.hyperbolic_space.types import Circle
 
 
 def find_inverse_word(word: str) -> str:
@@ -234,7 +235,8 @@ def word_to_circle(word: str, gens: dict) -> Circle:
         sage: from maass_forms_klein.hyperbolic_space.word_utils import word_to_circle
         sage: from sage.matrix.constructor import matrix
         sage: gens = {'a': matrix([[0, 1], [1, 0]]), 'A': matrix([[0, 1], [1, 0]])}
-        sage: c = word_to_circle('a', gens)  # doctest: +SKIP
+        sage: word_to_circle('a', gens)
+        Circle(center=(-0.000000000000000, 0.000000000000000), radius=1.00000000000000)
     """
     matrix = word_to_element(word, gens)
     from maass_forms_klein.hyperbolic_space.geometry_utils import matrix_to_circle

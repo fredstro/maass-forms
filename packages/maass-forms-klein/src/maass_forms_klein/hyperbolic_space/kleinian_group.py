@@ -337,10 +337,13 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         EXAMPLES::
 
             sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
-            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
-            sage: gens = G.generators()  # doctest: +SKIP
-            sage: len(gens) > 0  # doctest: +SKIP
+            sage: G = KleinianGroup('4_1')
+            sage: gens = G.generators()
+            sage: len(gens) > 0
             True
+            sage: gens[0]
+            [         -1 2*z^3 - 2*z]
+            [    z^3 + z   2*z^2 + 1]
         """
         if prec:
             CF = ComplexField(prec=prec)
@@ -367,10 +370,13 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         EXAMPLES::
 
             sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
-            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
-            sage: named = G.named_generators()  # doctest: +SKIP
-            sage: isinstance(named, dict)  # doctest: +SKIP
+            sage: G = KleinianGroup('4_1')
+            sage: named = G.named_generators()
+            sage: isinstance(named, dict)
             True
+            sage: named['a']
+            [         -1 2*z^3 - 2*z]
+            [    z^3 + z   2*z^2 + 1]
         """
         if only_parabolic and not include_parabolic:
             return {}
@@ -399,11 +405,21 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
 
         EXAMPLES::
 
+            sage: import warnings
             sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
-            sage: G = KleinianGroup('4_1')  # doctest: +SKIP
-            sage: cov = G.covering_generators()  # doctest: +SKIP
-            sage: isinstance(cov, dict)  # doctest: +SKIP
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
+            sage: G = KleinianGroup('4_1')
+            sage: with warnings.catch_warnings():
+            ....:   warnings.filterwarnings("ignore", category=DeprecationWarning)
+            ....:   cov = G.covering_generators()
+            sage: isinstance(cov, dict)
             True
+            sage: len(cov)
+            7
+            sage: cov['ABab'] # abs tol 1e-14
+            [   0.500000000000000 - 0.866025403784437*I 5.55111512312578e-17 + 0.999999999999999*I]
+            [  -0.866025403784438 + 0.500000000000000*I  1.00000000000000 + 5.55111512312578e-16*I]
         """
         if self._covering_generators:
             return self._covering_generators
