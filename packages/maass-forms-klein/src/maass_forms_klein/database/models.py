@@ -1,19 +1,18 @@
 import logging
-from typing import ClassVar, ParamSpec, Union
+
+# Lazy imports to avoid circular dependencies
+from typing import TYPE_CHECKING, ClassVar, ParamSpec, Union
 
 import mongoengine as me
+from comp_manager.core.models import DBObjectBase, DBObjectBaseAbstract
+from comp_manager.core.queryset import QuerySetCompat
+from comp_manager.utils import insert_object
 from mongoengine import QuerySet
 from sage.rings.complex_mpfr import ComplexField
 from sage.rings.integer import Integer
 
-from comp_manager.core.models import DBObjectBase, DBObjectBaseAbstract
-from comp_manager.core.queryset import QuerySetCompat
-from comp_manager.utils import insert_object
-from maass_forms_klein.exceptions import ValidationError, InvalidSpaceError
-from maass_forms_klein.modform.utils import Real_t, Complex_t, Integer_t, map_tuple_to_int
-
-# Lazy imports to avoid circular dependencies
-from typing import TYPE_CHECKING
+from maass_forms_klein.exceptions import InvalidSpaceError, ValidationError
+from maass_forms_klein.modform.utils import Complex_t, Integer_t, Real_t, map_tuple_to_int
 
 if TYPE_CHECKING:
     from maass_forms_klein.modform.kmaass_element import KleinianMaassFormElement
