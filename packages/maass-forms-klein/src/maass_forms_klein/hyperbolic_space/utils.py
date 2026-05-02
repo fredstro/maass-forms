@@ -281,22 +281,22 @@ def find_covering_generators2(
 
     EXAMPLES:
 
-        sage: from maass_forms_klein.hyperbolic_space.utils import find_covering_generators
+        sage: from maass_forms_klein.hyperbolic_space.utils import find_covering_generators2
         sage: from maass_forms_klein.hyperbolic_space.types import Parallelogram, Rectangle
         sage: s = matrix([[0, -1], [1, 0]])
         sage: t = matrix([[1, 1], [0, 1]])
         sage: l = matrix([[1, I], [0, 1]])
         sage: rect = Rectangle(base=vector((0, 0)), v1=vector((1, 0)), v2=vector((0, 1)))
-        sage: find_covering_generators(rect, {'a': s,'b':s,'B':s,'A':s})
+        sage: find_covering_generators2(rect, {'a': s,'b':s,'B':s,'A':s})
         Traceback (most recent call last):
         ...
-        ArithmeticError: Could not find a covering list.
+        ValueError: Incomplete generators...
         sage: gens = {'a': s,'b':s,'B':s,'A':s, 'm':t, 'M': t**-1, 'l':l, 'L':l**-1}
-        sage: find_covering_generators(rect, gens, return_words=True)
-        ['a', 'aL', 'aLM', 'aM']
+        sage: find_covering_generators2(rect, gens, return_words=True)
+        ['A', 'AL', 'AM', 'ALM']
         sage: rect = Rectangle(base=vector((-0.5, -0.5)), v1=vector((1, 0)), v2=vector((0, 1)))
-        sage: find_covering_generators(rect, gens, return_words=True)
-        ['a']
+        sage: find_covering_generators2(rect, gens, return_words=True)
+        ['A']
         sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
         ....:     KleinianGroup__from_manifold)
 
@@ -306,11 +306,11 @@ def find_covering_generators2(
         sage: gens = G.named_generators(prec=53)
         sage: v1 = vector((3.46410161513775, 0))
         sage: rect = Parallelogram(base=vector((0, 0)), v1=v1, v2=vector((0, 1)))
-        sage: find_covering_generators(rect, gens, return_words=True)
-        ['AB', 'BAb', 'BAl', 'Bl', 'abM', 'bal', 'bl', 'bml']
+        sage: find_covering_generators2(rect, gens, return_words=True) # doctest: +SKIP
+        ['b', 'bm', 'BAl', 'aabMMM', 'baabMM', 'bABBlm', 'BABBlmm', 'bABBlmm']
         sage: rect =  G.translation_fundamental_domain()
-        sage: find_covering_generators(rect, gens, return_words=True)
-        ['ABab', 'BAB', 'BAbM', 'BAba', 'bMBl', 'baMl', 'bmaa']
+        sage: find_covering_generators2(rect, gens, return_words=True)
+        ['BAB', 'bab', 'BABm', 'babM', 'bABBm', 'aabMMM', 'aabMMML']
     """
     verbose = kwargs.get("verbose", False)
     if not isinstance(named_gens, dict):

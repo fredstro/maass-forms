@@ -209,9 +209,27 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
         EXAMPLES::
 
             sage: import json
-            sage: # to_json returns a dict with group data
-            sage: data = {"type": "KleinianGroup", "_gens": [], "_named_gens": {}}
-            sage: isinstance(data, dict) and data["type"] == "KleinianGroup"
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup_class
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: import snappy
+            sage: M = snappy.Manifold("4_1")
+            sage: G = KleinianGroup(M)
+            sage: json_data = G.to_json()
+            sage: isinstance(json_data, dict)
+            True
+            sage: isinstance(json.dumps(json_data), str)
+            True
+            sage: sorted(json_data.keys())
+            ['_covering_generators',
+             '_covering_generators_words',
+             '_gens',
+             '_latex_string',
+             '_manifold',
+             '_name_string',
+             '_named_gens',
+             '_translation_lattice',
+             'type']
+            sage: KleinianGroup_class.from_json(json_data) == G
             True
         """
         return {
@@ -1063,10 +1081,14 @@ class KleinianGroupElement__class(Element):
 
             sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....:     KleinianGroup, KleinianGroupElement)
             sage: CC = ComplexField(53)
+            sage: G = KleinianGroup(-4)
             sage: A = matrix(CC, [[1, 1], [0, 1]])
-            sage: A.nrows() == 2
-            True
+            sage: g = KleinianGroupElement(A, G)
+            sage: type(g).__name__
+            'KleinianGroupElement__class'
         """
         if isinstance(x, Matrix):
             self._matrix = x
@@ -1086,10 +1108,14 @@ class KleinianGroupElement__class(Element):
 
             sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....:     KleinianGroup, KleinianGroupElement)
             sage: CC = ComplexField(53)
+            sage: G = KleinianGroup(-4)
             sage: A = matrix(CC, [[1, 1], [0, 1]])
-            sage: A.nrows()
-            2
+            sage: g = KleinianGroupElement(A, G)
+            sage: g._matrix_() == A
+            True
         """
         return self._matrix
 
@@ -1105,9 +1131,13 @@ class KleinianGroupElement__class(Element):
 
             sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....:     KleinianGroup, KleinianGroupElement)
             sage: CC = ComplexField(53)
+            sage: G = KleinianGroup(-4)
             sage: A = matrix(CC, [[1, 1], [0, 1]])
-            sage: A.trace()
+            sage: g = KleinianGroupElement(A, G)
+            sage: g.trace()
             2.00000000000000
         """
         return self._matrix.trace()
@@ -1123,9 +1153,15 @@ class KleinianGroupElement__class(Element):
 
         EXAMPLES::
 
+            sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....:     KleinianGroup, KleinianGroupElement)
             sage: CC = ComplexField(53)
-            sage: abs(CC(2.0, 0.0).imag()) < 1e-10
+            sage: G = KleinianGroup(-4)
+            sage: A = matrix(CC, [[1, 1], [0, 1]])
+            sage: g = KleinianGroupElement(A, G)
+            sage: g._trace_is_real()
             True
         """
         return abs(self.trace().imag()) < self._epsilon
@@ -1144,9 +1180,13 @@ class KleinianGroupElement__class(Element):
 
             sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....:     KleinianGroup, KleinianGroupElement)
             sage: CC = ComplexField(53)
+            sage: G = KleinianGroup(-4)
             sage: T = matrix(CC, [[1, 1], [0, 1]])
-            sage: abs(T.trace()**2 - 4) < 1e-10  # parabolic
+            sage: g = KleinianGroupElement(T, G)
+            sage: g.is_parabolic()
             True
         """
         if self._is_parabolic is None:
@@ -1167,10 +1207,14 @@ class KleinianGroupElement__class(Element):
 
             sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....:     KleinianGroup, KleinianGroupElement)
             sage: CC = ComplexField(53)
+            sage: G = KleinianGroup(-4)
             sage: A = matrix(CC, [[2, 1], [1, 1]])
-            sage: A.trace().real()  # real trace
-            3.00000000000000
+            sage: g = KleinianGroupElement(A, G)
+            sage: g.is_hyperbolic()
+            True
         """
         if self._is_hyperbolic is None:
             self._is_hyperbolic = (
@@ -1192,10 +1236,14 @@ class KleinianGroupElement__class(Element):
 
             sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....:     KleinianGroup, KleinianGroupElement)
             sage: CC = ComplexField(53)
+            sage: G = KleinianGroup(-4)
             sage: S = matrix(CC, [[0, -1], [1, 0]])
-            sage: S.trace()**2  # tr^2 = 0 < 4, so elliptic
-            0.000000000000000
+            sage: g = KleinianGroupElement(S, G)
+            sage: g.is_elliptic()
+            True
         """
         if self._is_hyperbolic is None:
             self._is_hyperbolic = (
@@ -1215,10 +1263,15 @@ class KleinianGroupElement__class(Element):
 
         EXAMPLES::
 
+            sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....:     KleinianGroup, KleinianGroupElement)
             sage: CC = ComplexField(53)
-            sage: z = CC(1.0, 0.5)
-            sage: abs(z.imag()) > 1e-10  # non-real trace means loxodromic
+            sage: G = KleinianGroup(-4)
+            sage: L = matrix(CC, [[CC(1, 0.5), 1], [0, 1/CC(1, 0.5)]])
+            sage: g = KleinianGroupElement(L, G)
+            sage: g.is_loxodromic()
             True
         """
         if self._is_loxodromic is None:
@@ -1241,10 +1294,16 @@ class KleinianGroupElement__class(Element):
 
             sage: from sage.matrix.constructor import matrix
             sage: from sage.rings.complex_mpfr import ComplexField
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import (
+            ....:     KleinianGroup, KleinianGroupElement)
             sage: CC = ComplexField(53)
-            sage: T = matrix(CC, [[1, 1], [0, 1]])
-            sage: T[1, 0] == 0  # c = 0 means fixed point at infinity
-            True
+            sage: G = KleinianGroup(-4)
+            sage: A = matrix(CC, [[2, 1], [1, 1]])
+            sage: g = KleinianGroupElement(A, G)
+            sage: g.fixed_points()
+            Traceback (most recent call last):
+            ...
+            NotImplementedError: Fixed point only implemented for parabolic elements
         """
         if self.is_parabolic():
             a, _b, c, d = list(self._matrix)
