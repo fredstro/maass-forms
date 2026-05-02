@@ -474,14 +474,14 @@ def find_covering_generators2(
             f"The parallelogram {rect} is not covered by the circles:{new_reduced_list}"
         )
     # Remove duplicates
-    covering_generators = [reduce_word(w) for w in covering_generators]
+    covering_generators = [reduce_word(w[0]) for w in covering_generators]
     covering_generators = list(set(covering_generators))
     # Reduce the cover and see if still covering
     if verbose > 0:
-        log.debug("covering_generators1=", covering_generators)
-    covering_generators = reduce_cover(rect, covering_generators, named_gens)
+        log.debug(f"covering_generators1={covering_generators}")
+    covering_generators = reduce_cover(rect, covering_generators, named_gens, return_words=True)
     if verbose > 0:
-        log.debug("covering_generators2=", covering_generators)
+        log.debug(f"covering_generators2={covering_generators}")
     if covering_generators:
         if check and not check_generators(covering_generators, named_gens=named_gens):
             # First attempt we add back one of the generators
@@ -689,6 +689,8 @@ def check_generators(sub_gens: list[str], named_gens: dict | None = None) -> boo
     for word in sub_gens:
         g = FG.one()
         for letter in word:
+            if letter not in gens_dict:
+                raise ValueError(f"Invalid generator: {letter}")
             g *= gens_dict.get(letter)
         if g != FG.one():
             new_gens.append(g)
