@@ -191,7 +191,7 @@ class KleinianMaassFormElement(Element):
         else:
             # Create empty coefficient structure
             self._coefficients = KleinianMaassFormCoefficients(
-                [], 0, self._spectral_parameter, self.parent()
+                [], 0, 0, self._spectral_parameter, self.parent()
             )
 
     def __repr__(self) -> str:

@@ -1,22 +1,24 @@
-import numpy
+import logging
 
-from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
-from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
-from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+import numpy
 from maass_form_core.utils.json_converters import dict_from_json
 from sage.all import CC
-from sage.functions.other import real, imag, ceil
+from sage.functions.other import ceil, imag, real
 from sage.matrix.constructor import matrix
 from sage.matrix.matrix0 import Matrix
-from sage.misc.cachefunc import cached_function as cached_function_default, cached_method
+from sage.misc.cachefunc import cached_function as cached_function_default
+from sage.misc.cachefunc import cached_method
 from sage.modules.free_module_element import vector
-from sage.rings.complex_mpfr import ComplexNumber, ComplexField
+from sage.rings.complex_mpfr import ComplexField, ComplexNumber
 from sage.rings.real_mpfr import RealField
-from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement
-from maass_forms_klein.modform.utils import Integer_t, Real_t, Complex_t, bessel_function, get_prec
-from maass_forms_klein.hyperbolic_space.utils import get_lattice_values
 from sage.structure.sequence import Sequence
-import logging
+
+from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpaceElement
+from maass_forms_klein.hyperbolic_space.utils import get_lattice_values
+from maass_forms_klein.modform.coefficients import KleinianMaassFormCoefficients
+from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+from maass_forms_klein.modform.utils import Complex_t, Integer_t, Real_t, bessel_function, get_prec
 
 log = logging.getLogger(__name__)
 
@@ -265,6 +267,7 @@ def compute_coefficients(
     coefficients = KleinianMaassFormCoefficients(
         C,
         M,
+        Q,
         spectral_parameter,
         space,
         Y,
