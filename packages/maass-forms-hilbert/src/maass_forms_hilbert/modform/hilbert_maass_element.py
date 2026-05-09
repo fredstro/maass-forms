@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, ParamSpec
 
 from hilbert_modgroup.hilbert_modular_group_class import HilbertModularGroup_class
 from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement__class
+from maass_form_core.functions.functions_cy import exp_trace_prod_dp
 from matplotlib import pyplot as plt
 from sage.all import CC
 from sage.arith.srange import xsrange
@@ -26,7 +27,6 @@ from sage.rings.real_mpfr import RealNumber as RealNumber_class
 from sage.structure.element import Matrix, ModuleElement
 
 from maass_forms_hilbert.functions.functions import bessel_prod
-from maass_forms_hilbert.functions.functions_cy import exp_trace_prod_dp
 from maass_forms_hilbert.modform.utils import (
     Integer_t,
     Real_t,

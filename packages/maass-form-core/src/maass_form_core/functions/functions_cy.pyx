@@ -27,7 +27,7 @@ cpdef exp_trace_prod_dp(x, symmetry=0):
 
     EXAMPLES::
 
-        sage: from maass_forms_hilbert.functions.functions_cy import exp_trace_prod_dp
+        sage: from maass_form_core.functions.functions_cy import exp_trace_prod_dp
         sage: exp_trace_prod_dp((1.0,1.5)) # abs tol 1e-15
         (-1+6.123233995736766e-16j)
     """
@@ -61,7 +61,7 @@ cpdef bessel_prod_dp2(double v0, double v1, double y0, double y1,
 
     EXAMPLES::
 
-        sage: from maass_forms_hilbert.functions.functions_cy import bessel_prod_dp2
+        sage: from maass_form_core.functions.functions_cy import bessel_prod_dp2
         sage: bessel_prod_dp2(1,1, 1,1, CC(0.5,1.0), CC(0.5,1.0), 1) # abs tol 1e-14
         1.6758678170356153e-05
         sage: bessel_prod_dp2(1,1, 1,1, CC(0.6,1.0), CC(0.6,1.0), 0)
@@ -104,7 +104,7 @@ cpdef bessel_prod_dp_gen(tuple v, tuple y, tuple s, str sgn='+'):
     
         EXAMPLES::
 
-        sage: from maass_forms_hilbert.functions.functions_cy import bessel_prod_dp_gen
+        sage: from maass_form_core.functions.functions_cy import bessel_prod_dp_gen
         sage: bessel_prod_dp_gen((1,1), (1,1), (CC(0.5,1.0), CC(0.5,1.0)), '+') # abs tol 1e-14
         1.6758678170356153e-05
 

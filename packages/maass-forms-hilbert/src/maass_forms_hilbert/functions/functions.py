@@ -1,7 +1,7 @@
+from maass_form_core.functions.functions_cy import bessel_prod_dp2
 from sage.misc.cachefunc import cached_function
 from sage.misc.misc_c import prod
 
-from maass_forms_hilbert.functions.functions_cy import bessel_prod_dp2
 from maass_forms_hilbert.modform.utils import Complex_t, Integer_t, Real_t
 
 try:

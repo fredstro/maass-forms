@@ -1,9 +1,9 @@
 from comp_manager.utils import insert_object
+from maass_form_core.testing import connect_mockdb, patched_create_coll  # noqa: F401
 from sage.matrix.constructor import matrix
 from sage.misc.mrange import cartesian_product_iterator
 from sage.rings.cc import CC
 
-from maass_form_core.testing import connect_mockdb, patched_create_coll  # noqa: F401
 from maass_forms_hilbert.modform.coefficients import HilbertMaassCoefficients
 
 fixtures_inserted = False

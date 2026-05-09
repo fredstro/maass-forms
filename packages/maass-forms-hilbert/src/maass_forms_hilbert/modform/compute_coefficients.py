@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from hilbert_modgroup.upper_half_plane import UpperHalfPlaneProductElement
+from maass_form_core.functions.functions_cy import bessel_prod_dp2, exp_trace_prod_dp
 from sage.categories.sets_cat import cartesian_product
 from sage.functions.other import ceil, real
 from sage.matrix.constructor import diagonal_matrix, matrix
@@ -11,8 +12,6 @@ from sage.rings.complex_mpfr import ComplexField, ComplexNumber
 from sage.rings.infinity import Infinity
 from sage.rings.number_field.number_field_ideal import NumberFieldFractionalIdeal
 from sage.rings.real_mpfr import RR, RealField, RealNumber
-
-from maass_forms_hilbert.functions.functions_cy import bessel_prod_dp2, exp_trace_prod_dp
 
 from ..functions.functions import bessel_prod
 from .coefficients import HilbertMaassCoefficients, log

@@ -54,6 +54,13 @@ if HAS_SAGE:
             extra_compile_args=extra_compile_args,
             library_dirs=LIBRARY_DIRS,
         ),
+        Extension(
+            "maass_form_core.functions.functions_cy",
+            ["src/maass_form_core/functions/functions_cy.pyx"],
+            include_dirs=INCLUDE_DIRS,
+            extra_compile_args=extra_compile_args,
+            library_dirs=LIBRARY_DIRS,
+        ),
     ]
 
     try:
