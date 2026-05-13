@@ -210,7 +210,11 @@ def compute_coefficients(
         sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
         sage: space = KleinianMaassFormSpace(-4)
         sage: s = CC(0.5, 6.62211934)
-        sage: C = compute_coefficients(space, s, M=1, Q=3, Y=0.5)  # doctest: +SKIP
+        sage: C = compute_coefficients(space, s, M=1, Q=3, Y=0.5)
+        sage: C[(1,0)]
+        1.00000000000000
+        sage: C[(-1,0)] # abs tol 1e-2
+        1.0
     """
     if not M:
         M = ceil((abs(spectral_parameter) + 12) / (6.28318530717959))
@@ -260,10 +264,10 @@ def compute_coefficients(
     skip_step = 0
     for n, _v in enumerate(dual_lattice_values):
         if n in normalisation:
-            C.append(normalisation[n])
+            C.append([normalisation[n]])
             skip_step += 1
         else:
-            C.append(CC(X[n - skip_step]))
+            C.append([CC(X[n - skip_step])])
     coefficients = KleinianMaassFormCoefficients(
         C,
         M,
