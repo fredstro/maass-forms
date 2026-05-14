@@ -22,6 +22,7 @@ from .utils import (
     dual_ideal,
     dual_ideal_element,
     get_Q_from_bounds,
+    ideal_basis_matrix,
     ideal_coordinates,
     ideal_generator,
     is_tuple_zero,
@@ -989,38 +990,100 @@ def find_max_y(
     raise ArithmeticError("Could not find max Y")
 
 
-def error_estimate_lattice_sum(
-    space, M: Integer_t, Y: Real_t | tuple[Real_t] = None, Q: Integer_t = 100
-):
+def actual_tail_sum(space, M: Integer_t, Y: Real_t = None, Q: Integer_t = 100):
     """
-    Estimate of the truncated lattice sum.
+    Return the estimate of the truncated lattice sum from Equation 5.2 of the article.
 
     INPUT:
 
     - ``space`` - HilbertMaassFormSpace
-    - ``M`` - integer
-    - ``Y`` - real
-    - ``Q`` -  integer
+    - ``M`` - Integer
+    - ``Y`` - Real
+    - ``Q`` -  Integer
 
     EXAMPLES::
 
-        sage: from maass_forms_hilbert.modform.compute_coefficients import error_estimate_lattice_sum
+        sage: from maass_forms_hilbert.modform.compute_coefficients import actual_tail_sum
         sage: from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
         sage: space = HilbertMaassFormSpace(2)
-        sage: error_estimate_lattice_sum(space, 1)
-        2.07760704355973
+        sage: actual_tail_sum(space, 20, 0.55)
+        3.44069786315208e-21
+        sage: space = HilbertMaassFormSpace(5)
+        sage: actual_tail_sum(space, 30, 0.31)
+        9.44541005162014e-11
     """
     n = space.number_field().absolute_degree()
     if not Y:
-        Y = find_max_y(space, M)
-    if not isinstance(Y, tuple):
-        Y = (Y,) * space.number_field().absolute_degree()
+        Y = find_max_y(space, ((-M, M),) * n)[0]
     ideala = space.number_field().ideal(1)
     coordinates = cartesian_product_from_M(((-Q, Q),) * n)
     return sum(
         [
-            (-(vector(dual_ideal_element(x, ideala)) * Y[0]).norm(1) * RR.pi() * 2).exp()
+            (-(vector(dual_ideal_element(x, ideala))).norm(1) * Y * RR.pi() * 2).exp()
             for x in coordinates
-            if vector(x).norm(Infinity) >= M
+            if vector(x).norm(Infinity) > M
         ]
     )
+
+
+def tail_sum_formula_gen(space, M: Integer_t, Y: Real_t = None):
+    """
+    Return value of error estimate for general number field from Equation 5.3 of the article.
+
+    INPUT:
+
+    - ``space`` - HilbertMaassFormSpace
+    - ``M`` - Integer
+    - ``Y`` - Real
+
+    EXAMPLES::
+
+        sage: from maass_forms_hilbert.modform.compute_coefficients import tail_sum_formula_gen
+        sage: from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
+        sage: space = HilbertMaassFormSpace(2)
+        sage: tail_sum_formula_gen(space, 20, 0.55)
+        5.4188622597365765e-12
+        sage: space = HilbertMaassFormSpace(5)
+        sage: tail_sum_formula_gen(space, 30, 0.31)
+        1.656644109567389e-08
+    """
+    n = space.number_field().absolute_degree()
+    if not Y:
+        Y = find_max_y(space, ((-M, M),) * n)[0]
+    delta = RR.pi() * 2 * Y
+    ideala = space.number_field().ideal(1)
+    B = ideal_basis_matrix(ideala).transpose().norm(1)
+    B1 = 2 * B / delta
+    val = B1 if B1 > 1 else 1
+    return n * val * (M + 2) ** (n - 1) * (-delta * B**-1 * (M + 1)).exp()
+
+
+def tail_sum_formula_quad(space, M: Integer_t, Y: Real_t = None):
+    """
+    Return value of error estimate for quadratic field from Equation 5.4 of the article.
+
+    INPUT:
+
+    - ``space`` - HilbertMaassFormSpace
+    - ``M`` - Integer
+    - ``Y`` - Real
+
+    EXAMPLES::
+
+        sage: from maass_forms_hilbert.modform.compute_coefficients import tail_sum_formula_quad
+        sage: from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
+        sage: space = HilbertMaassFormSpace(2)
+        sage: tail_sum_formula_quad(space, 20, 0.55)
+        2.19166092241365e-19
+        sage: space = HilbertMaassFormSpace(5)
+        sage: tail_sum_formula_quad(space, 30, 0.31)
+        3.80320923718002e-9
+    """
+    n = space.number_field().absolute_degree()
+    if not Y:
+        Y = find_max_y(space, ((-M, M),) * n)[0]
+    D = space.number_field().discriminant()
+    d = D / 4 if D % 4 == 0 else D
+    delta = RR.pi() * 2 * Y
+    val = delta**-2 if delta**-2 > 1 else 1
+    return 4 * RR(d).sqrt() * (3 * M + 5) * val * (-delta * M / RR(d).sqrt()).exp()
