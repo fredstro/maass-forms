@@ -1,0 +1,95 @@
+# Pre-commit hooks for the maass-forms monorepo.
+#
+# Install with::
+#
+#     pip install pre-commit
+#     pre-commit install
+#
+# Run on all files (e.g. before opening a PR)::
+#
+#     pre-commit run --all-files
+#
+# Hooks mirror the linting performed by each package's ``tox`` envs
+# (ruff, codespell, relint) plus a handful of generic file-hygiene
+# checks. Configuration for ruff lives in the root ``pyproject.toml``
+# and per-package ``pyproject.toml`` files; relint patterns live in
+# each package's ``.relint.yaml``.
+
+default_language_version:
+  python: python3
+
+# .ipynb files and Cython sources are checked/built separately via tox.
+exclude: |
+  (?x)^(
+    .*\.pyx
+    | .*\.c
+    | .*\.cpp
+    | .*\.so
+    | .*\.html
+    | .*\.ipynb
+    | .*\.ipynb_checkpoints/.*
+    | .*\.virtual_documents/.*
+    | .*\.egg-info/.*
+    | .*/build/.*
+    | .*/dist/.*
+    | .*/\.tox/.*
+  )$
+
+repos:
+  # ---------------------------------------------------------------
+  # Generic file hygiene
+  # ---------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude_types: [diff]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # ---------------------------------------------------------------
+  # Python linting & formatting (matches ``tox -e ruff``)
+  # ---------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # ---------------------------------------------------------------
+  # Spell-check (matches ``tox -e codespell``)
+  # ---------------------------------------------------------------
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        files: ^packages/.*/src/.*\.(py|rst|md)$
+
+  # ---------------------------------------------------------------
+  # Sage-style forbidden-pattern checks (matches ``tox -e relint``)
+  # Local hook because relint runs per-package against the package's
+  # own ``.relint.yaml`` config.
+  # ---------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: relint-klein
+        name: relint (maass-forms-klein)
+        language: python
+        additional_dependencies: [relint]
+        entry: relint -c packages/maass-forms-klein/.relint.yaml
+        files: ^packages/maass-forms-klein/src/.*\.(py|pyx|rst)$
+        pass_filenames: true
+      - id: relint-hilbert
+        name: relint (maass-forms-hilbert)
+        language: python
+        additional_dependencies: [relint]
+        entry: relint -c packages/maass-forms-hilbert/.relint.yaml
+        files: ^packages/maass-forms-hilbert/src/.*\.(py|pyx|rst)$
+        pass_filenames: true
