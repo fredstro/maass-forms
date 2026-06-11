@@ -15,9 +15,6 @@
 # and per-package ``pyproject.toml`` files; relint patterns live in
 # each package's ``.relint.yaml``.
 
-default_language_version:
-  python: python3
-
 # .ipynb files and Cython sources are checked/built separately via tox.
 exclude: |
   (?x)^(
@@ -71,6 +68,15 @@ repos:
     hooks:
       - id: codespell
         files: ^packages/.*/src/.*\.(py|rst|md)$
+
+  # ---------------------------------------------------------------
+  # YAML linting (beyond ``check-yaml``'s syntax-only check)
+  # ---------------------------------------------------------------
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-d, relaxed]
 
   # ---------------------------------------------------------------
   # Sage-style forbidden-pattern checks (matches ``tox -e relint``)
