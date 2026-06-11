@@ -48,6 +48,8 @@ the modest truncation ``M = 3, Q = 4``::
     True
 """
 
+import contextlib
+import functools
 import logging
 import os
 
@@ -74,11 +76,27 @@ ARITHMETIC_LOCATORS = ("coprime", "prime_power")
 #: Snappy manifold identifiers known to give rise to arithmetic Kleinian
 #: groups (commensurable with a Bianchi group). The only such knot
 #: complement among prime knots up to 10 crossings is the figure-eight
-#: ``4_1``, commensurable with ``PSL(2, O_{-3})``. All other manifolds
-#: are assumed to be non-arithmetic.
+#: ``4_1``, commensurable with ``PSL(2, O_{-3})``. Used as a fast-path
+#: cache; snappy's own :meth:`Manifold.is_arithmetic` is consulted as a
+#: fallback for other named manifolds.
 KNOWN_ARITHMETIC_MANIFOLDS = frozenset({"4_1"})
 
-global use_database_global
+#: Default upper bound on ``r`` for the secant iteration; iterates that
+#: leave ``[0, DEFAULT_R_MAX]`` are abandoned. Override per call via the
+#: ``r_max`` argument of :func:`secant_iteration`.
+DEFAULT_R_MAX = 100.0
+
+#: Iteration-count thresholds at which :func:`secant_iteration` checks
+#: whether the residual has decayed sufficiently. After
+#: ``DIVERGENCE_GUARD_ITER`` iterations a residual above
+#: ``DIVERGENCE_GUARD_THRESHOLD`` is taken as divergence; after
+#: ``SLOW_CONVERGENCE_GUARD_ITER`` iterations a residual above
+#: ``SLOW_CONVERGENCE_GUARD_THRESHOLD`` is taken as failure to converge.
+DIVERGENCE_GUARD_ITER = 20
+DIVERGENCE_GUARD_THRESHOLD = 1.0
+SLOW_CONVERGENCE_GUARD_ITER = 30
+SLOW_CONVERGENCE_GUARD_THRESHOLD = 1e-2
+
 try:
     import mongoengine
     from comp_manager.utils import insert_object, load_object
@@ -89,6 +107,41 @@ try:
 except ImportError:
     use_database_global = False
     KleinianMaassFormDB = None  # type: ignore[assignment]
+
+
+@functools.lru_cache(maxsize=None)
+def _is_named_manifold_arithmetic(manifold_name: str) -> bool:
+    """Return True if snappy's own ``Manifold(name).is_arithmetic()`` says so.
+
+    Result is cached because snappy's check can be expensive (covers and
+    invariants). Any exception (snappy missing, name not recognised,
+    arithmeticity undecided) is treated as a negative answer.
+    """
+    if not manifold_name:
+        return False
+    try:
+        from snappy import Manifold
+
+        return bool(Manifold(manifold_name).is_arithmetic())
+    except Exception:
+        return False
+
+
+@contextlib.contextmanager
+def _sage_num_threads(num_threads: Integer_t | None):
+    """Temporarily set ``SAGE_NUM_THREADS`` and restore the prior value on exit."""
+    if num_threads is None:
+        yield
+        return
+    previous = os.environ.get("SAGE_NUM_THREADS")
+    os.environ["SAGE_NUM_THREADS"] = str(num_threads)
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("SAGE_NUM_THREADS", None)
+        else:
+            os.environ["SAGE_NUM_THREADS"] = previous
 
 log = logging.getLogger(__name__)
 
@@ -141,15 +194,18 @@ def compute_on_interval(
     - ``y`` -- real or None (default: None); height parameter
     - ``Q`` -- integer or None (default: None); number of sample points
     - ``set_coefficients`` -- dict or None (default: None); normalisation
-    - ``num_threads`` -- integer or None (default: None); thread count
-      (sets ``SAGE_NUM_THREADS`` if provided)
+    - ``num_threads`` -- integer or None (default: None); thread count.
+      When provided, ``SAGE_NUM_THREADS`` is set for the duration of this
+      call and the prior value (if any) is restored on return.
     - ``use_database`` -- bool (default: True); load/save via MongoDB
       (only effective if database support is available at import time)
 
     OUTPUT:
 
-    - generator of ``(input_tuple, KleinianMaassFormElement)`` pairs, as
-      returned by Sage's ``@parallel`` decorator
+    - list of ``(input_tuple, KleinianMaassFormElement)`` pairs (the
+      parallel results are materialised eagerly so that any
+      ``SAGE_NUM_THREADS`` override is in effect for the whole
+      computation)
 
     EXAMPLES:
 
@@ -178,15 +234,14 @@ def compute_on_interval(
         spectral_parameter = CF(0.5, r)
         log.debug("Queueing spectral parameter %s", spectral_parameter)
         input_params.append((space, spectral_parameter, bound_m, y, Q, set_coefficients, use_db))
-    if num_threads is not None:
-        os.environ["SAGE_NUM_THREADS"] = str(num_threads)
-    # Prime the pullback-point cache so parallel workers don't race on it.
-    smax = 0.0
-    for r in input_params:
-        smax = max(smax, float(abs(r[1])))
-    for si in range(1, ceil(smax) + 1):
-        get_pb_pts_set_params(space, M=input_params[0][2], Y=y, Q_set=Q, smax=si)
-    return compute_one_spectral_parameter(input_params)
+    with _sage_num_threads(num_threads):
+        # Prime the pullback-point cache so parallel workers don't race on it.
+        smax = 0.0
+        for r in input_params:
+            smax = max(smax, float(abs(r[1])))
+        for si in range(1, ceil(smax) + 1):
+            get_pb_pts_set_params(space, M=input_params[0][2], Y=y, Q_set=Q, smax=si)
+        return list(compute_one_spectral_parameter(input_params))
 
 
 @parallel()
@@ -280,15 +335,18 @@ def is_arithmetic_group(space: KleinianMaassFormSpace) -> bool:
     arithmetic, in the sense that Hecke-type coefficient relations are
     available.
 
-    Two cases return ``True``:
+    Three cases return ``True``:
 
     * The group is a Bianchi group over an imaginary quadratic field
       ``K`` (constructed from a fundamental discriminant); detected by
       the base ring being an imaginary quadratic ``NumberField``.
     * The group comes from a Snappy manifold whose identifier is listed
-      in :data:`KNOWN_ARITHMETIC_MANIFOLDS`. The figure-eight knot
-      complement ``4_1`` is the only such case in the supported range;
-      it is commensurable with the Bianchi group ``PSL(2, O_{-3})``.
+      in :data:`KNOWN_ARITHMETIC_MANIFOLDS` (a fast-path cache; the
+      figure-eight knot complement ``4_1`` is the only such case in the
+      supported range, commensurable with ``PSL(2, O_{-3})``).
+    * The group comes from a named Snappy manifold for which snappy's
+      own :meth:`Manifold.is_arithmetic` returns ``True``. The result is
+      memoised per manifold name.
 
     All other manifolds (and any user-supplied generator set with a
     generic complex base ring) are treated as non-arithmetic.
@@ -319,6 +377,8 @@ def is_arithmetic_group(space: KleinianMaassFormSpace) -> bool:
     manifold = getattr(group, "_manifold", "") or ""
     if manifold in KNOWN_ARITHMETIC_MANIFOLDS:
         return True
+    if manifold and _is_named_manifold_arithmetic(manifold):
+        return True
     base = group.base_ring()
     if not isinstance(base, NumberField):
         return False
@@ -326,8 +386,8 @@ def is_arithmetic_group(space: KleinianMaassFormSpace) -> bool:
         return False
     # A manifold-derived group whose base ring happens to be a degree-2
     # imaginary quadratic field is still treated as non-arithmetic
-    # unless its identifier is explicitly whitelisted above, because the
-    # group may sit non-trivially inside PSL(2, O_K).
+    # unless snappy's check or the whitelist confirmed arithmeticity
+    # above, because the group may sit non-trivially inside PSL(2, O_K).
     return not manifold
 
 
@@ -470,12 +530,15 @@ def coeff_diff_fun(
         )
     CF = ComplexField(prec)
     spectral_parameter = CF(0.5, r)
+    # ``with_m_precision`` orders by ``-max_m`` (highest precision first),
+    # so ``candidates[0]`` is the best stored match. Only when there is no
+    # match at all do we recompute.
     candidates = list(
         KleinianMaassFormDB.objects.with_m_precision(bound_m)
         .with_y_precision(y)
         .near(spectral_parameter)
     )
-    if len(candidates) == 1:
+    if candidates:
         f = load_object(candidates[0])
     else:
         list(
@@ -579,7 +642,11 @@ def check_coefficients_of_computed_object(
         return None
     f = load_object(form_db)
     coeffs = f.coefficients()
-    diff = (coeffs[check_rel[1]] - coeffs[check_rel[0]]).real()
+    # Use the complex magnitude so that an imaginary-part discrepancy
+    # also counts as a relation failure. (The earlier version dropped
+    # the imaginary part via ``.real()``, which silently passed forms
+    # whose coefficients agreed only on the real axis.)
+    diff = coeffs[check_rel[1]] - coeffs[check_rel[0]]
     t = abs(diff)
     if t <= cvalue:
         log.debug("%s\t%s", spectral_parameter.imag(), t)
@@ -604,6 +671,7 @@ def secant_iteration(
     f_0: tuple | None = None,
     tolerance: Real_t = 1e-12,
     max_iter: Integer_t = 40,
+    r_max: Real_t = DEFAULT_R_MAX,
 ):
     r"""
     Single iteration of the secant method for refining a candidate eigenvalue ``r_1`` using a
@@ -624,6 +692,8 @@ def secant_iteration(
     - ``f_0`` -- tuple or None; cached ``coeff_diff_fun`` value at ``r_0``
     - ``tolerance`` -- real (default: 1e-12); convergence tolerance
     - ``max_iter`` -- integer (default: 40); hard iteration cap
+    - ``r_max`` -- real (default: :data:`DEFAULT_R_MAX`); upper bound on
+      ``r``. Iterates outside ``[0, r_max]`` are abandoned.
 
     OUTPUT:
 
@@ -666,7 +736,7 @@ def secant_iteration(
         log.debug("Secant slope vanished; aborting.")
         return None
     r_new = r_1 - f_1[0] * delta_r / delta_f
-    if r_new < 0 or r_new > 100:
+    if r_new < 0 or r_new > r_max:
         return None
     q = coeff_diff_fun(space, relation, r_new, bound_m, y, set_coefficients, prec)
     log.debug("r_new=%s q=%s", r_new, q)
@@ -674,9 +744,12 @@ def secant_iteration(
         return r_new
     if count >= max_iter:
         return None
-    if count >= 20 and abs(q[0]) > 1:
+    if count >= DIVERGENCE_GUARD_ITER and abs(q[0]) > DIVERGENCE_GUARD_THRESHOLD:
         return None
-    if count >= 30 and (abs(q[0]) > 0.01 or abs(q[1]) > 0.01):
+    if count >= SLOW_CONVERGENCE_GUARD_ITER and (
+        abs(q[0]) > SLOW_CONVERGENCE_GUARD_THRESHOLD
+        or abs(q[1]) > SLOW_CONVERGENCE_GUARD_THRESHOLD
+    ):
         return None
     return secant_iteration(
         space=space,
@@ -692,6 +765,7 @@ def secant_iteration(
         f_0=f_1,
         tolerance=tolerance,
         max_iter=max_iter,
+        r_max=r_max,
     )
 
 

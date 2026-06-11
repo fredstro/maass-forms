@@ -13,6 +13,7 @@ and Broyden's method reduces to the secant method.
 from maass_forms_klein.search.search import (
     ARITHMETIC_LOCATORS,
     GENERAL_LOCATORS,
+    brute_force_search,
     check_coefficients_of_computed_object,
     coeff_diff_fun,
     compute_on_interval,
@@ -20,6 +21,7 @@ from maass_forms_klein.search.search import (
     create_grid,
     distance_between_points,
     is_arithmetic_group,
+    newton_method_search,
     search_eigenvalues_via_relation,
     secant_iteration,
     sorting,
@@ -28,6 +30,7 @@ from maass_forms_klein.search.search import (
 __all__ = [
     "ARITHMETIC_LOCATORS",
     "GENERAL_LOCATORS",
+    "brute_force_search",
     "check_coefficients_of_computed_object",
     "coeff_diff_fun",
     "compute_on_interval",
@@ -35,6 +38,7 @@ __all__ = [
     "create_grid",
     "distance_between_points",
     "is_arithmetic_group",
+    "newton_method_search",
     "search_eigenvalues_via_relation",
     "secant_iteration",
     "sorting",
