@@ -1026,7 +1026,7 @@ def actual_tail_sum(space, M: Integer_t, Y: Real_t = None, Q: Integer_t = 100):
     )
 
 
-def tail_sum_formula_gen(space, M: Integer_t, Y: Real_t = None):
+def tail_sum_formula_gen(space, M: Integer_t, Y: Real_t | None = None):
     """
     Return value of error estimate for general number field from Equation 5.3 of the article.
 
@@ -1048,13 +1048,13 @@ def tail_sum_formula_gen(space, M: Integer_t, Y: Real_t = None):
         1.656644109567389e-08
     """
     n = space.number_field().absolute_degree()
-    if not Y:
+    if Y is None:
         Y = find_max_y(space, ((-M, M),) * n)[0]
     delta = RR.pi() * 2 * Y
     ideala = space.number_field().ideal(1)
     B = ideal_basis_matrix(ideala).transpose().norm(1)
     B1 = 2 * B / delta
-    val = B1 if B1 > 1 else 1
+    val = max(B1, 1)
     return n * val * (M + 2) ** (n - 1) * (-delta * B**-1 * (M + 1)).exp()
 
 
@@ -1085,5 +1085,5 @@ def tail_sum_formula_quad(space, M: Integer_t, Y: Real_t = None):
     D = space.number_field().discriminant()
     d = D / 4 if D % 4 == 0 else D
     delta = RR.pi() * 2 * Y
-    val = delta**-2 if delta**-2 > 1 else 1
+    val = max(delta**-2, 1)
     return 4 * RR(d).sqrt() * (3 * M + 5) * val * (-delta * M / RR(d).sqrt()).exp()
