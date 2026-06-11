@@ -20,6 +20,7 @@ from .utils import (
     Real_t,
     cartesian_product_from_M,
     dual_ideal,
+    dual_ideal_basis_matrix,
     dual_ideal_element,
     get_Q_from_bounds,
     ideal_basis_matrix,
@@ -990,16 +991,21 @@ def find_max_y(
     raise ArithmeticError("Could not find max Y")
 
 
-def actual_tail_sum(space, M: Integer_t, Y: Real_t = None, Q: Integer_t = 100):
+def actual_tail_sum(space, M: Integer_t, Y: Real_t | None = None, Q: Integer_t = 100):
     """
     Return the estimate of the truncated lattice sum from Equation 5.2 of the article.
 
     INPUT:
 
     - ``space`` - HilbertMaassFormSpace
-    - ``M`` - Integer
-    - ``Y`` - Real
-    - ``Q`` -  Integer
+    - ``M`` - Integer; truncation bound, the sum is over coordinates with
+      ``||x||_inf > M``
+    - ``Y`` - Real (optional); if ``None``, auto-tuned via :func:`find_max_y`
+    - ``Q`` -  Integer (default: 100); lattice cutoff. Coordinates are drawn from
+      ``[-Q, Q]^n``, so ``Q`` must be large enough that the contribution from
+      ``||x||_inf > Q`` is negligible relative to the desired precision. In
+      practice ``Q`` should be chosen so that the exponential decay dominates
+      well before the cutoff; ``Q >> M`` is usually sufficient.
 
     EXAMPLES::
 
@@ -1013,16 +1019,16 @@ def actual_tail_sum(space, M: Integer_t, Y: Real_t = None, Q: Integer_t = 100):
         9.44541005162014e-11
     """
     n = space.number_field().absolute_degree()
-    if not Y:
+    if Y is None:
         Y = find_max_y(space, ((-M, M),) * n)[0]
     ideala = space.number_field().ideal(1)
+    two_pi_Y = 2 * RR.pi() * Y
+    B_dual = dual_ideal_basis_matrix(ideala)
     coordinates = cartesian_product_from_M(((-Q, Q),) * n)
     return sum(
-        [
-            (-(vector(dual_ideal_element(x, ideala))).norm(1) * Y * RR.pi() * 2).exp()
-            for x in coordinates
-            if vector(x).norm(Infinity) > M
-        ]
+        (-(B_dual * vector(x)).norm(1) * two_pi_Y).exp()
+        for x in coordinates
+        if max(abs(xi) for xi in x) > M
     )
 
 
@@ -1058,7 +1064,7 @@ def tail_sum_formula_gen(space, M: Integer_t, Y: Real_t | None = None):
     return n * val * (M + 2) ** (n - 1) * (-delta * B**-1 * (M + 1)).exp()
 
 
-def tail_sum_formula_quad(space, M: Integer_t, Y: Real_t = None):
+def tail_sum_formula_quad(space, M: Integer_t, Y: Real_t | None = None):
     """
     Return value of error estimate for quadratic field from Equation 5.4 of the article.
 
@@ -1080,7 +1086,7 @@ def tail_sum_formula_quad(space, M: Integer_t, Y: Real_t = None):
         3.80320923718002e-9
     """
     n = space.number_field().absolute_degree()
-    if not Y:
+    if Y is None:
         Y = find_max_y(space, ((-M, M),) * n)[0]
     D = space.number_field().discriminant()
     d = D / 4 if D % 4 == 0 else D
