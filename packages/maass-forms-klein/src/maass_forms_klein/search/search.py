@@ -109,6 +109,19 @@ except ImportError:
     KleinianMaassFormDB = None  # type: ignore[assignment]
 
 
+def _require_db(feature: str) -> None:
+    """Raise ``RuntimeError`` if MongoDB support is unavailable.
+
+    Centralising the check means every DB-touching function has a single
+    consistent error message, and a missing gate in a new call site is
+    a single ``_require_db(...)`` call away.
+    """
+    if not use_database_global:
+        raise RuntimeError(
+            f"{feature} requires database support (comp_manager + mongoengine)."
+        )
+
+
 @functools.lru_cache(maxsize=None)
 def _is_named_manifold_arithmetic(manifold_name: str) -> bool:
     """Return True if snappy's own ``Manifold(name).is_arithmetic()`` says so.
@@ -197,6 +210,13 @@ def compute_on_interval(
     - ``num_threads`` -- integer or None (default: None); thread count.
       When provided, ``SAGE_NUM_THREADS`` is set for the duration of this
       call and the prior value (if any) is restored on return.
+
+      Note that ``SAGE_NUM_THREADS`` only controls Sage's internal
+      thread pools; the worker-process count used by the underlying
+      ``@parallel()``-decorated job dispatch is unaffected and defaults
+      to all available CPUs. If a hard worker-count cap is required,
+      change ``@parallel()`` to ``@parallel(ncpus=...)`` on
+      :func:`compute_one_spectral_parameter`.
     - ``use_database`` -- bool (default: True); load/save via MongoDB
       (only effective if database support is available at import time)
 
@@ -524,10 +544,7 @@ def coeff_diff_fun(
             f"Unknown locator '{locator}'. Expected one of "
             f"{GENERAL_LOCATORS + ARITHMETIC_LOCATORS}."
         )
-    if not use_database_global:
-        raise RuntimeError(
-            f"Locator '{locator}' requires database support (comp_manager + mongoengine)."
-        )
+    _require_db(f"Locator '{locator}'")
     CF = ComplexField(prec)
     spectral_parameter = CF(0.5, r)
     # ``with_m_precision`` orders by ``-max_m`` (highest precision first),
@@ -628,8 +645,7 @@ def check_coefficients_of_computed_object(
         sage: result[0][1] is None
         True
     """
-    if not use_database_global:
-        raise RuntimeError("check_coefficients_of_computed_object requires database support.")
+    _require_db("check_coefficients_of_computed_object")
     form_db = (
         KleinianMaassFormDB.objects.space(space)
         .with_m_precision(bound_m)
@@ -674,8 +690,11 @@ def secant_iteration(
     r_max: Real_t = DEFAULT_R_MAX,
 ):
     r"""
-    Single iteration of the secant method for refining a candidate eigenvalue ``r_1`` using a
-    coefficient relation.
+    Refine a candidate eigenvalue ``r_1`` with the secant method, using
+    a coefficient relation as the residual function.
+
+    The iteration runs in a ``while`` loop (no recursion), so deep
+    refinements do not consume Python stack frames.
 
     INPUT:
 
@@ -685,12 +704,18 @@ def secant_iteration(
     - ``bound_m`` -- integer; truncation bound
     - ``y`` -- real or None
     - ``set_coefficients`` -- dict or None
-    - ``count`` -- integer (default: 0); recursion depth
+    - ``count`` -- integer (default: 0); initial iteration counter
+      (advances by 1 per secant step)
     - ``prec`` -- integer (default: 53); precision
     - ``r_0`` -- real or None; previous iterate
     - ``f_1`` -- tuple or None; cached ``coeff_diff_fun`` value at ``r_1``
     - ``f_0`` -- tuple or None; cached ``coeff_diff_fun`` value at ``r_0``
-    - ``tolerance`` -- real (default: 1e-12); convergence tolerance
+    - ``tolerance`` -- real (default: 1e-12); convergence tolerance for
+      this individual refinement. Note that
+      :func:`search_eigenvalues_via_relation` passes a looser default
+      (``1e-10``) when invoking this function — the orchestrator favours
+      faster convergence on many candidates, while a direct caller can
+      ask for tighter precision on a single one.
     - ``max_iter`` -- integer (default: 40); hard iteration cap
     - ``r_max`` -- real (default: :data:`DEFAULT_R_MAX`); upper bound on
       ``r``. Iterates outside ``[0, r_max]`` are abandoned.
@@ -730,43 +755,32 @@ def secant_iteration(
         f_0 = coeff_diff_fun(space, relation, r_0, bound_m, y, set_coefficients, prec)
     if f_1 is None:
         f_1 = coeff_diff_fun(space, relation, r_1, bound_m, y, set_coefficients, prec)
-    delta_r = r_1 - r_0
-    delta_f = f_1[0] - f_0[0]
-    if delta_r == 0 or delta_f == 0:
-        log.debug("Secant slope vanished; aborting.")
-        return None
-    r_new = r_1 - f_1[0] * delta_r / delta_f
-    if r_new < 0 or r_new > r_max:
-        return None
-    q = coeff_diff_fun(space, relation, r_new, bound_m, y, set_coefficients, prec)
-    log.debug("r_new=%s q=%s", r_new, q)
-    if abs(q[0]) < tolerance and abs(q[1]) < tolerance:
-        return r_new
-    if count >= max_iter:
-        return None
-    if count >= DIVERGENCE_GUARD_ITER and abs(q[0]) > DIVERGENCE_GUARD_THRESHOLD:
-        return None
-    if count >= SLOW_CONVERGENCE_GUARD_ITER and (
-        abs(q[0]) > SLOW_CONVERGENCE_GUARD_THRESHOLD
-        or abs(q[1]) > SLOW_CONVERGENCE_GUARD_THRESHOLD
-    ):
-        return None
-    return secant_iteration(
-        space=space,
-        r_1=r_new,
-        relation=relation,
-        bound_m=bound_m,
-        y=y,
-        set_coefficients=set_coefficients,
-        count=count + 1,
-        prec=prec,
-        r_0=r_1,
-        f_1=q,
-        f_0=f_1,
-        tolerance=tolerance,
-        max_iter=max_iter,
-        r_max=r_max,
-    )
+    while True:
+        delta_r = r_1 - r_0
+        delta_f = f_1[0] - f_0[0]
+        if delta_r == 0 or delta_f == 0:
+            log.debug("Secant slope vanished; aborting.")
+            return None
+        r_new = r_1 - f_1[0] * delta_r / delta_f
+        if r_new < 0 or r_new > r_max:
+            return None
+        q = coeff_diff_fun(space, relation, r_new, bound_m, y, set_coefficients, prec)
+        log.debug("r_new=%s q=%s", r_new, q)
+        if abs(q[0]) < tolerance and abs(q[1]) < tolerance:
+            return r_new
+        if count >= max_iter:
+            return None
+        if count >= DIVERGENCE_GUARD_ITER and abs(q[0]) > DIVERGENCE_GUARD_THRESHOLD:
+            return None
+        if count >= SLOW_CONVERGENCE_GUARD_ITER and (
+            abs(q[0]) > SLOW_CONVERGENCE_GUARD_THRESHOLD
+            or abs(q[1]) > SLOW_CONVERGENCE_GUARD_THRESHOLD
+        ):
+            return None
+        # Advance to the next iterate.
+        r_0, f_0 = r_1, f_1
+        r_1, f_1 = r_new, q
+        count += 1
 
 
 def search_eigenvalues_via_relation(
@@ -807,7 +821,10 @@ def search_eigenvalues_via_relation(
     - ``set_coefficients`` -- dict or None (default: None)
     - ``num_threads`` -- integer or None (default: None)
     - ``use_database`` -- bool (default: True)
-    - ``tolerance`` -- real (default: 1e-10); secant convergence tolerance
+    - ``tolerance`` -- real (default: 1e-10); secant convergence
+      tolerance forwarded to :func:`secant_iteration`. Slightly looser
+      than that function's own default (1e-12) because the orchestrator
+      refines many candidates and prefers faster termination.
     - ``prec`` -- integer (default: 53); precision
 
     OUTPUT:
@@ -868,13 +885,15 @@ def search_eigenvalues_via_relation(
             "use {'two_y': ...} or {'unit': ...} for general groups."
         )
     db_required = locator != "two_y"
-    if db_required and not (use_database_global and use_database):
-        raise RuntimeError(
-            f"Locator '{locator}' requires database support; use the "
-            "{'two_y': ...} locator (or "
-            "maass_forms_klein.modform.search.brute_force_search) for "
-            "DB-free two-height search."
-        )
+    if db_required:
+        if not use_database:
+            raise RuntimeError(
+                f"Locator '{locator}' requires database support; use the "
+                "{'two_y': ...} locator (or "
+                "maass_forms_klein.modform.search.brute_force_search) for "
+                "DB-free two-height search."
+            )
+        _require_db(f"Locator '{locator}'")
     # Step 1: populate the database in parallel (only needed for
     # DB-backed locators).
     if db_required:
