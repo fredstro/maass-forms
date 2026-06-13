@@ -15,7 +15,6 @@ from maass_forms_klein.exceptions import InvalidSpaceError, ValidationError
 from maass_forms_klein.modform.utils import Complex_t, Integer_t, Real_t, map_tuple_to_int
 
 if TYPE_CHECKING:
-    from maass_forms_klein.modform.kmaass_element import KleinianMaassFormElement
     from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
 
 P = ParamSpec("P")
@@ -350,13 +349,17 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
             eps=max_distance,
         )
 
-    def with_m_precision(self, m_bound: tuple[Integer_t]) -> QuerySet:
+    def with_m_precision(self, m_bound: Integer_t | tuple[Integer_t, Integer_t] | None) -> QuerySet:
         """
-        Find KleinianMaassFormsDB objects with coefficient precision bounded by m_bound.
+        Find KleinianMaassFormsDB objects with coefficient precision at least
+        ``m_bound``.
 
         INPUT:
 
-        - ``m_bound`` -- tuple of integers; bounds for coefficient index M
+        - ``m_bound`` -- integer (the truncation ``M`` for Kleinian Maass
+          forms), a ``(low, high)`` tuple, or ``None`` to skip filtering.
+          When an integer is given, the filter matches forms whose stored
+          ``max_m`` is at least ``m_bound``.
 
         OUTPUT:
 
@@ -369,12 +372,47 @@ class KleinianMaassFormQuerySet(QuerySetCompat):
             sage: from maass_form_core.testing import connect_mockdb  # doctest: +SKIP
             sage: connect_mockdb()  # doctest: +SKIP
             sage: qs = KleinianMaassFormDB.objects  # doctest: +SKIP
-            sage: qs.with_m_precision((5, 10))  # doctest: +SKIP
+            sage: qs.with_m_precision(5)  # doctest: +SKIP
         """
         conditions = {}
-        if m_bound:
-            conditions = {"coefficients.M": {"$lte": int(m_bound[0]), "$gte": int(m_bound[1])}}
+        if m_bound is None:
+            pass
+        elif isinstance(m_bound, (tuple, list)):
+            if len(m_bound) == 2:
+                lo, hi = int(m_bound[0]), int(m_bound[1])
+                if lo > hi:
+                    lo, hi = hi, lo
+                conditions = {"max_m": {"$gte": lo, "$lte": hi}}
+        else:
+            conditions = {"max_m": {"$gte": int(m_bound)}}
         return self(__raw__=conditions).order_by("-max_m")
+
+    def with_set_coefficients(self, set_coefficients: dict | None) -> QuerySet:
+        """
+        Filter KleinianMaassFormsDB objects by the stored ``set_coefficients``
+        normalisation.
+
+        INPUT:
+
+        - ``set_coefficients`` -- dict mapping coefficient indices to their
+          fixed values, or ``None`` to skip filtering.
+
+        OUTPUT:
+
+        - QuerySet filtered by ``set_coefficients`` equality.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import (  # doctest: +SKIP
+            ....:     KleinianMaassFormDB)
+            sage: from maass_form_core.testing import connect_mockdb  # doctest: +SKIP
+            sage: connect_mockdb()  # doctest: +SKIP
+            sage: qs = KleinianMaassFormDB.objects  # doctest: +SKIP
+            sage: qs.with_set_coefficients({(0, 0): 0, (1, 0): 1})  # doctest: +SKIP
+        """
+        if not set_coefficients:
+            return self
+        return self(set_coefficients=set_coefficients)
 
     def with_y_precision(self, y: tuple[Real_t] | None = None, eps: Real_t = 1e-15) -> QuerySet:
         """
@@ -577,6 +615,11 @@ class KleinianMaassFormDB(DBObjectBaseAbstract):
             .first()
         )
         if not maass_form_db:
+            from maass_forms_klein.modform.kmaass_element import (
+                KleinianMaassFormElement,
+            )
+            from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+
             log.debug(f"Compute for s,m,y={spectral_parameter, bound_m, y}")
             space = KleinianMaassFormSpace.from_json(parent)
             maass_form = KleinianMaassFormElement(space, spectral_parameter)
