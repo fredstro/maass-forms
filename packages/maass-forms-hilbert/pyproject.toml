@@ -49,6 +49,9 @@ dependencies = [
     "hilbert_modular_group >= 0.2.1",
     ]
 [project.optional-dependencies]
+db = [
+    "maass_form_core[db]",
+]
 dev = [
     "tox",
     "mongomock",

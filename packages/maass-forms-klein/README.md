@@ -59,7 +59,25 @@ and uses the local source files (note that the )
 `make docker-examples REMOTE_SRC=0`
 
 # Installation
-Run `make install`
+
+The recommended install pulls in the database extras:
+
+```bash
+pip install 'maass_forms_klein[db]'
+```
+
+Plain `pip install maass_forms_klein` works for the math-only surface, but
+`maass_forms_klein.database` will raise `ModuleNotFoundError` on import until
+`[db]` is added. The `[db]` extras chain to `maass_form_core[db]`, which pulls
+in `mongoengine`, `comp_manager`, and `httpx2`.
+
+From a source checkout, run `make install`.
+
+## Extras
+
+- **`[db]`** — MongoDB/MongoEngine persistence layer (via `maass_form_core[db]`). Required for `maass_forms_klein.database`.
+- **`[dev]`** — Tooling for contributors (`pytest`, `ruff`, `tox`, `pre-commit`, …).
+- **`[notebook]`** — Jupyter notebook server for examples.
 
 # Testing
 Run `make test`

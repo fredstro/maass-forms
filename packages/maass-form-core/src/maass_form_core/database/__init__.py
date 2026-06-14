@@ -4,7 +4,20 @@ Common database patterns and abstractions for Maass forms.
 Provides shared MongoDB/MongoEngine infrastructure:
 - PointDB embedded document for complex number storage
 - MaassFormQuerySet with SageMath Integer coercion
+
+Requires the optional ``[db]`` extras::
+
+    pip install 'maass_form_core[db]'
 """
+
+try:
+    import comp_manager  # noqa: F401
+    import mongoengine  # noqa: F401
+except ImportError as _e:
+    raise ModuleNotFoundError(
+        "maass_form_core.database requires the optional [db] extras. "
+        "Install with: pip install 'maass_form_core[db]'"
+    ) from _e
 
 from maass_form_core.database.models import PointDB
 
