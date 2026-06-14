@@ -25,6 +25,13 @@ Also algorithms for incomplete gamma function.
 
     - Fredrik Strömberg (April 2010)
 
+    .. NOTE::
+
+        Doctest tolerances in this module are sized for libm drift between
+        macOS and Linux glibc (sin/cos/exp/log can differ by a few ULPs);
+        they bound platform variation, not the algorithm's intrinsic
+        precision, which is closer to 1e-15.
+
 
     EXAMPLES::
 
@@ -45,7 +52,7 @@ Also algorithms for incomplete gamma function.
         -0.42308698672506084
         sage: b = besselk_dp_rec(10.0, 3.0, pref=1); b  # tol 2e-14
         -0.42308698672505796
-        sage: abs(a - b) # abs tol 2e-14
+        sage: abs(a - b) # abs tol 4e-14
         0
         sage: besselk_dp_rec(100.0, 3.0, pref=1)  # tol 3e-13
         0.082457701468151401
