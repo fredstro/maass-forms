@@ -10,9 +10,17 @@ Requires the optional ``[db]`` extras::
     pip install 'maass_form_core[db]'
 """
 
+import warnings
+
 try:
-    import comp_manager  # noqa: F401
-    import mongoengine  # noqa: F401
+    with warnings.catch_warnings():
+        # connexion/flask_mongoengine still call jsonschema APIs that
+        # were deprecated in jsonschema 4.18. The warnings are not
+        # actionable from this package and would otherwise break
+        # doctests that import database models.
+        warnings.simplefilter("ignore", DeprecationWarning)
+        import comp_manager  # noqa: F401
+        import mongoengine  # noqa: F401
 except ImportError as e:
     raise ModuleNotFoundError(
         "maass_form_core.database requires the optional [db] extras. "
