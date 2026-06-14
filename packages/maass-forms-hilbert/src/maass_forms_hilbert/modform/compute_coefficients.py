@@ -1012,10 +1012,10 @@ def actual_tail_sum(space, M: Integer_t, Y: Real_t | None = None, Q: Integer_t =
         sage: from maass_forms_hilbert.modform.compute_coefficients import actual_tail_sum
         sage: from maass_forms_hilbert.modform.hilbert_maass_space import HilbertMaassFormSpace
         sage: space = HilbertMaassFormSpace(2)
-        sage: actual_tail_sum(space, 20, 0.55)
+        sage: actual_tail_sum(space, 20, 0.55) # tol 6e-15
         3.44069786315208e-21
         sage: space = HilbertMaassFormSpace(5)
-        sage: actual_tail_sum(space, 30, 0.31)
+        sage: actual_tail_sum(space, 30, 0.31) # tol 3e-15
         9.44541005162014e-11
     """
     n = space.number_field().absolute_degree()
