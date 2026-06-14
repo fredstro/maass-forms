@@ -66,7 +66,7 @@ The recommended install pulls in the database extras:
 pip install 'maass_forms_klein[db]'
 ```
 
-Plain `pip install maass_forms_klein` works for the math-only surface, but
+Plain `pip install maass_forms_klein` works for the math-only modules, but
 `maass_forms_klein.database` will raise `ModuleNotFoundError` on import until
 `[db]` is added. The `[db]` extras chain to `maass_form_core[db]`, which pulls
 in `mongoengine`, `comp_manager`, and `httpx2`.

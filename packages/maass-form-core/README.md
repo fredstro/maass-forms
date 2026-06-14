@@ -14,7 +14,7 @@ The recommended install pulls in the database extras:
 pip install 'maass_form_core[db]'
 ```
 
-Plain `pip install maass_form_core` works for the math-only surface, but `maass_form_core.database` will raise `ModuleNotFoundError` on import until `[db]` is added. The domain packages (`maass-forms-hilbert`, `maass-forms-klein`) use the database layer, so install with `[db]` unless you have a specific reason not to.
+Plain `pip install maass_form_core` works for the math-only modules, but `maass_form_core.database` will raise `ModuleNotFoundError` on import until `[db]` is added.
 
 ### Extras
 

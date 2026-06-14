@@ -9,19 +9,23 @@ The recommended install pulls in the database extras:
 pip install 'maass_forms_hilbert[db]'
 ```
 
-Plain `pip install maass_forms_hilbert` works for the math-only surface, but
+Plain `pip install maass_forms_hilbert` works for the math-only modules, but
 `maass_forms_hilbert.database` will raise `ModuleNotFoundError` on import until
 `[db]` is added. The `[db]` extras chain to `maass_form_core[db]`, which pulls
 in `mongoengine`, `comp_manager`, and `httpx2`.
 
-From a source checkout:
+### From a source checkout
 
-> make install 
+```bash
+make install
+```
 
-ALT
+### Alternative
 
-> make sdist
-> sage -pip install --no-build-isolation dist/*
+```bash
+make sdist
+sage -pip install --no-build-isolation dist/*
+```
 
 ## Extras
 
