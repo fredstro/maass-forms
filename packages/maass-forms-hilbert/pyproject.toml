@@ -49,6 +49,14 @@ dependencies = [
     "hilbert_modular_group >= 0.2.1",
     ]
 [project.optional-dependencies]
+# Declare every package the database submodule imports directly, even though
+# they are also pulled in transitively by maass_form_core[db]. The chain is a
+# convenience; the direct listings are the contract.
+db = [
+    "maass_form_core[db]",
+    "comp_manager>=0.0.3",
+    "mongoengine",
+]
 dev = [
     "tox",
     "mongomock",

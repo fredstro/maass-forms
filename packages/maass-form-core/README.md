@@ -6,9 +6,24 @@ Shared infrastructure library for the Maass forms computation ecosystem.
 
 This package extracts common patterns from `maass-forms-hilbert` and `maass-forms-klein` to eliminate ~70% code duplication while maintaining mathematical domain separation.
 
+## Installation
+
+The recommended install pulls in the database extras:
+
+```bash
+pip install 'maass_form_core[db]'
+```
+
+Plain `pip install maass_form_core` works for the math-only modules, but `maass_form_core.database` will raise `ModuleNotFoundError` on import until `[db]` is added.
+
+### Extras
+
+- **`[db]`** — MongoDB/MongoEngine persistence layer (`mongoengine`, `comp_manager`, `httpx2`). Required for `maass_form_core.database`.
+- **`[dev]`** — Tooling for contributors (`pytest`, `ruff`, `tox`, `pre-commit`, …).
+
 ## Modules
 
-- **database/** - Common MongoDB/MongoEngine patterns, base document classes, QuerySets
+- **database/** - Common MongoDB/MongoEngine patterns, base document classes, QuerySets *(requires `[db]`)*
 - **coefficients/** - Coefficient indexing, storage, and serialization
 - **spaces/** - Abstract mathematical space and form element base classes
 - **functions/** - Shared special functions (Bessel functions, etc.)
