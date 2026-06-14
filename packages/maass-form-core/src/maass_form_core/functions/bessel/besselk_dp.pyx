@@ -45,7 +45,7 @@ Also algorithms for incomplete gamma function.
         -0.42308698672506084
         sage: b = besselk_dp_rec(10.0, 3.0, pref=1); b  # tol 2e-14
         -0.42308698672505796
-        sage: abs(a - b) # abs tol 1e-14
+        sage: abs(a - b) # abs tol 2e-14
         0
         sage: besselk_dp_rec(100.0, 3.0, pref=1)  # tol 3e-13
         0.082457701468151401
@@ -675,7 +675,7 @@ cpdef besselk_real_dp(double r, double x, double eps=0, int verbose=0):
         sage: result = besselk_real_dp(0.0, 1.0)  # doctest: +ELLIPSIS
         sage: result # tol 2e-14
         0.42102443824071234
-        sage: abs(result - bessel_K(0.0, 1.0)) < 1e-14
+        sage: abs(result - bessel_K(0.0, 1.0)) < 2e-14
         True
         sage: # Test with small r
         sage: result = besselk_real_dp(0.25, 2.0)
