@@ -32,20 +32,48 @@ if HAS_SAGE:
 
     INCLUDE_DIRS = []
     LIBRARY_DIRS = []
+
+    def _add_prefix(prefix):
+        inc = os.path.join(prefix, "include")
+        lib = os.path.join(prefix, "lib")
+        if os.path.isdir(inc):
+            INCLUDE_DIRS.append(inc)
+        if os.path.isdir(lib):
+            LIBRARY_DIRS.append(lib)
+
     if shutil.which("brew") is not None:
-        proc = subprocess.Popen(
-            "brew --prefix",
-            shell=True,
-            stdout=subprocess.PIPE,
-            stdin=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            close_fds=True,
-        )
-        HOMEBREW_PREFIX = proc.stdout.readline().decode("utf-8").strip()
-        HOMEBREW_LIB = HOMEBREW_PREFIX + "/lib"
-        LIBRARY_DIRS.append(HOMEBREW_LIB)
-        HOMEBREW_INC = HOMEBREW_PREFIX + "/include"
-        INCLUDE_DIRS.append(HOMEBREW_INC)
+        try:
+            _add_prefix(
+                subprocess.check_output(
+                    ["brew", "--prefix"], text=True, stderr=subprocess.DEVNULL
+                ).strip()
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+
+    if os.environ.get("CONDA_PREFIX"):
+        _add_prefix(os.environ["CONDA_PREFIX"])
+
+    # pkg-config picks up custom installs (e.g. /opt). Distro packages
+    # like libmpc-dev land in /usr/include and are found by gcc directly.
+    if shutil.which("pkg-config") is not None:
+        for _lib in ("mpc", "mpfr", "gmp", "flint"):
+            for _flag, _target in (
+                ("--cflags-only-I", INCLUDE_DIRS),
+                ("--libs-only-L", LIBRARY_DIRS),
+            ):
+                try:
+                    _out = subprocess.check_output(
+                        ["pkg-config", _flag, _lib],
+                        text=True,
+                        stderr=subprocess.DEVNULL,
+                    ).split()
+                except subprocess.CalledProcessError:
+                    continue
+                _target.extend(a[2:] for a in _out if a.startswith(("-I", "-L")))
+
+    INCLUDE_DIRS = list(dict.fromkeys(INCLUDE_DIRS))
+    LIBRARY_DIRS = list(dict.fromkeys(LIBRARY_DIRS))
 
     extra_compile_args = [
         "-Wno-unused-function",
