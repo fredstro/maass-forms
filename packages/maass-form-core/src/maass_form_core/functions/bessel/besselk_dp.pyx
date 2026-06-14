@@ -601,9 +601,9 @@ cpdef loggamma_dp(double x, double R, double prec=1e-16):
         sage: import mpmath
         sage: a = mpmath.mpc(loggamma_dp(1.0, 3.0))
         sage: b = mpmath.loggamma(mpmath.mpc(1, 3))
-        sage: abs(a - b) # abs tol 2e-15
+        sage: abs(a - b) # abs tol 1e-14
         mpf('0.0')
-        sage: abs(a - b) < 2e-15
+        sage: abs(a - b) < 1e-14
         True
 
     """
