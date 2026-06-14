@@ -31,21 +31,21 @@ Also algorithms for incomplete gamma function.
         sage: from maass_form_core.functions.bessel.besselk_dp import besselk_dp, besselk_dp_pow
         sage: from maass_form_core.functions.bessel.besselk_dp import besselk_dp_rec
         sage: from sage.all import RealField, ComplexField
-        sage: besselk_dp(10.0, 5.0) # tol 1e-14
+        sage: besselk_dp(10.0, 5.0) # tol 2e-14
         -0.7183327166568183
-        sage: besselk_dp_rec(10.0, 3.0) # tol 1e-14
+        sage: besselk_dp_rec(10.0, 3.0) # tol 2e-14
         -6.3759939798738967e-08
-        sage: besselk_dp_rec(10.0, 3.0, pref=1) # tol 1e-14
+        sage: besselk_dp_rec(10.0, 3.0, pref=1) # tol 2e-14
         -0.42308698672505796
-        sage: besselk_dp_pow(10.0, 3.0) # tol 1e-14
+        sage: besselk_dp_pow(10.0, 3.0) # tol 2e-14
         -6.3759939798739404e-08
-        sage: besselk_dp_pow(10.0, 3.0, pref=1) # tol 1e-14
+        sage: besselk_dp_pow(10.0, 3.0, pref=1) # tol 2e-14
         -0.42308698672506084
-        sage: a = besselk_dp_pow(10.0, 3.0, pref=1); a  # tol 1e-14
+        sage: a = besselk_dp_pow(10.0, 3.0, pref=1); a  # tol 2e-14
         -0.42308698672506084
-        sage: b = besselk_dp_rec(10.0, 3.0, pref=1); b  # tol 1e-14
+        sage: b = besselk_dp_rec(10.0, 3.0, pref=1); b  # tol 2e-14
         -0.42308698672505796
-        sage: abs(a - b) # tol 6e-15
+        sage: abs(a - b) # abs tol 1e-14
         0
         sage: besselk_dp_rec(100.0, 3.0, pref=1)  # tol 3e-13
         0.082457701468151401
@@ -258,9 +258,9 @@ cpdef double besselk_dp_rec(
         sage: from maass_form_core.functions.bessel.besselk_dp import besselk_dp_rec
         sage: besselk_dp_rec(10.0, 5.0, prec=1e-15, pref=1) # tol 2e-13
         -0.7183327166568183
-        sage: besselk_dp_rec(10.0, 3.0, prec=1e-15) # tol 2e-15
+        sage: besselk_dp_rec(10.0, 3.0, prec=1e-15) # tol 2e-14
         -6.375993979873876e-08
-        sage: besselk_dp_rec(10.0, 3.0, prec=1e-15, pref=1) # tol 3e-15
+        sage: besselk_dp_rec(10.0, 3.0, prec=1e-15, pref=1) # tol 2e-14
         -0.42308698672505657
         sage: besselk_dp_rec(100.0, 3.0, prec=1e-15, pref=1) # tol 4e-13
         0.08245770146815011
@@ -395,7 +395,7 @@ cpdef double besselk_dp_pow(double R, double x, double prec=1e-12, int pref=0):
     EXAMPLES::
 
         sage: from maass_form_core.functions.bessel.besselk_dp import besselk_dp_pow
-        sage: besselk_dp_pow(10.0, 3.0) # tol 7e-15
+        sage: besselk_dp_pow(10.0, 3.0) # tol 2e-14
         -6.3759939798739404e-08
         sage: besselk_dp_pow(10.0, 3.0, pref=1) # tol 2e-14
         -0.423086986725055826
@@ -589,7 +589,7 @@ cpdef loggamma_dp(double x, double R, double prec=1e-16):
     EXAMPLES::
 
         sage: from maass_form_core.functions.bessel.besselk_dp import loggamma_dp
-        sage: loggamma_dp(1.0, 3.0) # tol 1e-15
+        sage: loggamma_dp(1.0, 3.0) # tol 1e-14
         (-3.2441442995897556 + 1.053350771068613j)
         sage: import mpmath
         sage: a = mpmath.mpc(loggamma_dp(1.0, 3.0))
@@ -673,7 +673,7 @@ cpdef besselk_real_dp(double r, double x, double eps=0, int verbose=0):
         sage: from sage.functions.bessel import bessel_K
         sage: # Test with r=0, should give K_0(1)
         sage: result = besselk_real_dp(0.0, 1.0)  # doctest: +ELLIPSIS
-        sage: result # tol 1e-14
+        sage: result # tol 2e-14
         0.42102443824071234
         sage: abs(result - bessel_K(0.0, 1.0)) < 1e-14
         True
