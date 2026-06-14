@@ -26,6 +26,7 @@ class MaassFormQuerySet(QuerySetCompat):
 
         sage: import warnings
         sage: warnings.filterwarnings('ignore', category=DeprecationWarning)
+        sage: warnings.filterwarnings('ignore', category=PendingDeprecationWarning)
         sage: from maass_form_core.database.queryset import MaassFormQuerySet
         sage: MaassFormQuerySet  # class exists
         <class 'maass_form_core.database.queryset.MaassFormQuerySet'>
