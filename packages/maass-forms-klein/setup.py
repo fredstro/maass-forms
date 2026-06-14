@@ -1,9 +1,10 @@
 import os
 import shutil
 import subprocess
-import setuptools
 import sysconfig
 from contextlib import contextmanager
+
+import setuptools
 
 # Detect SageMath/PassageMath. Cython extensions require it, but we allow
 # installation without it so that the pure-Python parts remain usable.
@@ -22,6 +23,7 @@ PACKAGES = [
     "maass_forms_klein.utils",
     "maass_forms_klein.hyperbolic_space",
     "maass_forms_klein.modform",
+    "maass_forms_klein.search",
 ]
 
 if HAS_SAGE:
