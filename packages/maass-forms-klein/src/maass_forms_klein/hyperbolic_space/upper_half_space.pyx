@@ -153,11 +153,11 @@ class UpperHalfSpace(FreeModule_generic):
 
         EXAMPLES::
 
-            sage: from hilbert_modgroup.all import ComplexPlaneProduct
-            sage: ComplexPlaneProduct(degree=2).coerce([1,1])
-            [1.00000000000000, 1.00000000000000]
-            sage: ComplexPlaneProduct(degree=2).coerce([1,1+I])
-            [1.00000000000000, 1.00000000000000 + 1.00000000000000*I]
+            sage: from maass_forms_klein.hyperbolic_space.upper_half_space import UpperHalfSpace
+            sage: UpperHalfSpace(RR, 2).coerce([1, 1])
+            1.00000000000000 + 1.00000000000000i + 0.000000000000000j
+            sage: UpperHalfSpace(RR, 2).coerce([1+I, 1])
+            1.00000000000000 + 1.00000000000000i + 1.00000000000000j
 
         """
         return self._element_constructor_(x)
