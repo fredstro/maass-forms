@@ -37,6 +37,8 @@ except ImportError as e:
 # Database models with optional import (requires MongoDB)
 try:
     from maass_forms_klein.database.models import (
+        FaceDB,
+        FordDomainDB,
         KleinianMaassFormDB,
         KleinianGroupDB,
         Point,
@@ -44,6 +46,8 @@ try:
     )
 except ImportError as e:
     log.warning(f"Cannot import database models (MongoDB not available?): {e}")
+    FaceDB = None
+    FordDomainDB = None
     KleinianMaassFormDB = None
     KleinianGroupDB = None
     Point = None
@@ -74,6 +78,8 @@ except ImportError as e:
 __all__ = [
     "ComputationError",
     "DatabaseError",
+    "FaceDB",
+    "FordDomainDB",
     "Integer_t",
     "InvalidGroupError",
     "InvalidSpaceError",

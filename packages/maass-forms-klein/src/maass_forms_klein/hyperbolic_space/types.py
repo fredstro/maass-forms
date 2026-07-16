@@ -248,6 +248,58 @@ class Circle:
         # return abs(self.center - other.center) < epsilon
 
 
+@dataclass
+class Face:
+    r"""
+    A face of the Ford domain: a visible isometric hemisphere together with its
+    combinatorial data.
+
+    A face is carried by the isometric hemisphere of a group element ``g``; the
+    hemisphere projects to the disc ``circle`` in the boundary plane. ``word`` is
+    a word representing ``g`` in the generators, ``inverse_word`` the word of the
+    paired face (carried by the hemisphere of ``g^{-1}``, i.e. the class matched
+    modulo the translation lattice), ``witness`` a boundary point where the face
+    is visible on the Ford floor, and ``margin`` the strict-visibility margin
+    (positive for a genuine face).
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.types import Face, Circle
+        sage: from sage.modules.free_module_element import vector
+        sage: f = Face(word='b', circle=Circle(center=vector((0, 0)), radius=1),
+        ....:          inverse_word='B')
+        sage: f.word
+        'b'
+        sage: f.inverse_word
+        'B'
+        sage: f.circle.radius
+        1
+    """
+
+    word: str
+    circle: Circle
+    inverse_word: str | None = None
+    witness: Vector | None = None
+    margin: Real_t | None = None
+
+    def __repr__(self) -> str:
+        r"""
+        Concise representation of a face.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.hyperbolic_space.types import Face, Circle
+            sage: from sage.modules.free_module_element import vector
+            sage: Face(word='b', circle=Circle(center=vector((0, 0)), radius=1),
+            ....:      inverse_word='B')
+            Face(word='b', inverse_word='B', radius=1)
+        """
+        return (
+            f"Face(word={self.word!r}, inverse_word={self.inverse_word!r}, "
+            f"radius={self.circle.radius})"
+        )
+
+
 @dataclass(frozen=True, eq=True)
 class Line:
     base: Vector

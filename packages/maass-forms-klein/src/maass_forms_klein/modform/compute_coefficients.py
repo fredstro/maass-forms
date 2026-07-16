@@ -120,6 +120,35 @@ def setup_matrix(
     return matrixV
 
 
+def _certified_starting_y(space: "KleinianMaassFormSpace") -> Real_t | None:
+    r"""
+    Return the certified Ford floor height ``Y0`` of the space's group as a
+    starting height, or ``None`` when it cannot be computed (e.g. the face
+    pairing is unknown or the geometry is unavailable).
+
+    The floor height is computed in the group's own coordinate frame -- the same
+    frame used by :func:`get_pb_pts` and ``group.pullback`` -- so it is exactly
+    the supremum of heights at which pullback strictly raises every lattice
+    point. A small safety factor keeps the start strictly below that boundary.
+
+    EXAMPLES:
+
+    For the Gaussian Bianchi group the Ford floor sits at ``1/sqrt(2)``, so the
+    certified start is just below it::
+
+        sage: from maass_forms_klein.modform.compute_coefficients import _certified_starting_y
+        sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+        sage: y = _certified_starting_y(KleinianMaassFormSpace(-4))
+        sage: bool(abs(y / 0.995 - 1 / sqrt(2)) < 1e-9)
+        True
+    """
+    try:
+        return float(space.group().ford_floor_height()) * 0.995
+    except Exception:
+        # Best-effort: any failure falls back to the historical trial default.
+        return None
+
+
 @cached_method()
 def find_max_y(
     space: KleinianMaassFormSpace,
@@ -131,15 +160,21 @@ def find_max_y(
     r"""
     Find the maximum allowed height Y for pullback computations.
 
-    Starting from ``starting_Y``, repeatedly decreases Y until pullback
-    points can be computed without arithmetic errors.
+    When no ``starting_Y`` is given, start from the certified Ford floor height
+    ``Y0`` of the group (:meth:`KleinianGroup_class.ford_floor_height`) if a face
+    pairing is known -- this is the largest height at which pullback is valid, so
+    it improves the Fourier truncation ``M0`` and conditioning. Otherwise, fall
+    back to the historical default. Either way, ``Y`` is then decreased in 2%
+    steps until pullback points can be computed without arithmetic errors, so an
+    over-large start self-corrects.
 
     INPUT:
 
     - ``space`` -- KleinianMaassFormSpace; the space
     - ``M`` -- integer; truncation parameter
     - ``Q`` -- integer; number of sample points parameter
-    - ``starting_Y`` -- real (default: 0.73); initial Y value to try
+    - ``starting_Y`` -- real (default: certified ``Y0`` if known, else 0.73);
+      initial Y value to try
     - ``max_iterations`` -- integer (default: 100); maximum number of attempts
 
     OUTPUT:
@@ -154,7 +189,7 @@ def find_max_y(
         sage: Y = find_max_y(space, M=1, Q=2)  # doctest: +SKIP
     """
     if not starting_Y:
-        starting_Y = 0.73
+        starting_Y = _certified_starting_y(space) or 0.73
     Y = starting_Y
     for _i in range(max_iterations):
         try:

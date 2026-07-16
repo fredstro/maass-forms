@@ -50,6 +50,57 @@ log = logging.getLogger(__name__)
 P = ParamSpec("P")
 
 
+def _face_to_facedb(face):
+    r"""
+    Convert a runtime :class:`~maass_forms_klein.hyperbolic_space.types.Face`
+    to a persistable ``FaceDB`` embedded document.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.hyperbolic_space.types import Face, Circle
+        sage: from maass_forms_klein.hyperbolic_space.kleinian_group import _face_to_facedb
+        sage: from sage.modules.free_module_element import vector
+        sage: f = Face(word='b', circle=Circle(center=vector((0.5, -0.87)), radius=1.0),
+        ....:          inverse_word='B')
+        sage: fdb = _face_to_facedb(f)
+        sage: (fdb.word, fdb.partner_word, fdb.radius)
+        ('b', 'B', 1.0)
+    """
+    from maass_forms_klein.database.models import FaceDB
+
+    return FaceDB(
+        word=face.word,
+        centre=[float(face.circle.center[0]), float(face.circle.center[1])],
+        radius=float(face.circle.radius),
+        partner_word=face.inverse_word,
+    )
+
+
+def _facedb_to_face(facedb):
+    r"""
+    Reconstruct a runtime :class:`~maass_forms_klein.hyperbolic_space.types.Face`
+    from a persisted ``FaceDB`` embedded document.
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.database.models import FaceDB
+        sage: from maass_forms_klein.hyperbolic_space.kleinian_group import _facedb_to_face
+        sage: face = _facedb_to_face(
+        ....:     FaceDB(word='b', centre=[0.5, -0.87], radius=1.0, partner_word='B'))
+        sage: (face.word, face.inverse_word, face.circle.radius)
+        ('b', 'B', 1.0)
+    """
+    from sage.modules.free_module_element import vector
+
+    from maass_forms_klein.hyperbolic_space.types import Circle, Face
+
+    return Face(
+        word=facedb.word,
+        circle=Circle(center=vector((facedb.centre[0], facedb.centre[1])), radius=facedb.radius),
+        inverse_word=facedb.partner_word,
+    )
+
+
 # noinspection PyArgumentList
 class KleinianGroup_class(LinearMatrixGroup_generic):
     r"""
@@ -454,6 +505,198 @@ class KleinianGroup_class(LinearMatrixGroup_generic):
             )
         self._covering_generators = gens
         return gens
+
+    @cached_method
+    def ford_faces(self, certified: bool = False, c_bound=None, prec: int = 53):
+        r"""
+        Return the faces of the Ford fundamental domain (DB-backed).
+
+        By default reuses a cached :class:`FordDomainDB` document when available;
+        otherwise computes the face pairing via
+        :func:`~maass_forms_klein.hyperbolic_space.face_pairing.visible_faces`
+        and seeds the database. See ``FACE_PAIRING_PLAN.md``.
+
+        INPUT:
+
+        - ``certified`` -- bool (default: ``False``); when ``True`` (or when
+          ``c_bound`` is given) ignore the database and enumerate candidates via
+          SnapPy horoballs (:func:`enumerate_bounded_c`), so face pairs beyond
+          the word-length search (e.g. the last pair of ``7_4``) are found. These
+          faces carry no word and are not persisted.
+        - ``c_bound`` -- real or ``None`` (default: ``None``); explicit ``|c|``
+          bound (meridian-normalised frame) for the horoball enumeration;
+          ``None`` auto-tunes it.
+        - ``prec`` -- integer (default: 53); precision in bits
+
+        OUTPUT:
+
+        - list of :class:`~maass_forms_klein.hyperbolic_space.types.Face`
+
+        EXAMPLES::
+
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')
+            sage: faces = G.ford_faces()
+            sage: len(faces)
+            4
+            sage: {f.inverse_word for f in faces} == {f.word for f in faces}
+            True
+
+        The certified (horoball) path closes ``7_4`` to 16 faces / 8 pairs::
+
+            sage: len(KleinianGroup('7_4').ford_faces(certified=True))
+            16
+        """
+        from maass_forms_klein.hyperbolic_space.face_pairing import (
+            enumerate_bounded_c,
+            visible_faces,
+        )
+
+        if certified or c_bound is not None:
+            candidates = enumerate_bounded_c(self, c_bound, prec=prec)
+            return visible_faces(self, candidates=candidates, prec=prec)
+        doc = self._load_ford_domain()
+        if doc is not None:
+            return [_facedb_to_face(f) for f in doc.faces]
+        faces = visible_faces(self, prec=prec)
+        self._seed_ford_domain(faces)
+        return faces
+
+    @cached_method
+    def ford_floor_height(self, exact: bool = True, prec: int = 53):
+        r"""
+        Floor height ``Y0`` of the Ford domain (exact power-diagram method by
+        default). Supersedes the trial-and-error ``find_max_y`` estimate.
+
+        EXAMPLES::
+
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')
+            sage: y0 = G.ford_floor_height()
+            sage: bool(abs(y0**2 - 2/3) < 1e-10)
+            True
+        """
+        from maass_forms_klein.hyperbolic_space.face_pairing import floor_height
+
+        return floor_height(self, exact=exact, prec=prec)
+
+    @cached_method
+    def ford_volume(self, prec: int = 53):
+        r"""
+        Hyperbolic volume of the Ford domain (equals the manifold volume for a
+        complete face set).
+
+        EXAMPLES::
+
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')
+            sage: bool(abs(G.ford_volume() - float(G.manifold().volume())) < 1e-6)
+            True
+        """
+        from maass_forms_klein.hyperbolic_space.face_pairing import ford_volume as _ford_volume
+
+        return _ford_volume(self, faces=self.ford_faces(prec=prec), prec=prec)
+
+    @cached_method
+    def check_ford_complete(self, certified: bool = False, c_bound=None, prec: int = 53) -> dict:
+        r"""
+        Completeness certificate for the Ford face pairing (volume identity and
+        Epstein--Penner edge count).
+
+        INPUT:
+
+        - ``certified`` -- bool (default: ``False``); when ``True`` (or when
+          ``c_bound`` is given) certify against the horoball enumeration instead
+          of the word-length search -- required for knots whose last pair is out
+          of reach of a breadth-first search (e.g. ``7_4`` and the 8-crossing
+          knots).
+        - ``c_bound`` -- real or ``None`` (default: ``None``); explicit ``|c|``
+          bound (meridian-normalised frame) for the enumeration; ``None``
+          auto-tunes it.
+        - ``prec`` -- integer (default: 53); precision in bits
+
+        EXAMPLES::
+
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')
+            sage: report = G.check_ford_complete()
+            sage: (report['pairs_found'], report['ep_edges'], report['complete'])
+            (2, 2, True)
+
+        The certified (horoball) path closes ``7_4`` (8 pairs, EP edges 8)::
+
+            sage: report = KleinianGroup('7_4').check_ford_complete(certified=True)
+            sage: (report['pairs_found'], report['ep_edges'], report['complete'])
+            (8, 8, True)
+        """
+        from maass_forms_klein.hyperbolic_space.face_pairing import (
+            check_face_completeness,
+            enumerate_bounded_c,
+        )
+
+        candidates = None
+        if certified or c_bound is not None:
+            candidates = enumerate_bounded_c(self, c_bound, prec=prec)
+        return check_face_completeness(self, candidates=candidates, prec=prec)
+
+    def _load_ford_domain(self):
+        r"""
+        Return the cached :class:`FordDomainDB` document for this manifold, or
+        ``None`` if the database is unavailable or has no entry.
+
+        EXAMPLES::
+
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')
+            sage: _ = G.ford_faces()                     # computes and seeds the DB
+            sage: G._load_ford_domain() is not None      # round-trips from the DB
+            True
+        """
+        try:
+            from maass_forms_klein.database.models import FordDomainDB
+        except ImportError:
+            return None
+        if self._manifold and FordDomainDB.objects(label=self._manifold):
+            return FordDomainDB.objects(label=self._manifold).first()
+        return None
+
+    def _seed_ford_domain(self, faces, report: dict | None = None) -> None:
+        r"""
+        Persist the face pairing to a :class:`FordDomainDB` document (best
+        effort; a no-op when the database is unavailable or already seeded).
+
+        EXAMPLES::
+
+            sage: from maass_form_core.testing import connect_mockdb
+            sage: connect_mockdb()
+            sage: from maass_forms_klein.hyperbolic_space.kleinian_group import KleinianGroup
+            sage: G = KleinianGroup('4_1')
+            sage: G._seed_ford_domain(G.ford_faces())
+            sage: G._load_ford_domain() is not None
+            True
+        """
+        try:
+            from maass_forms_klein.database.models import FordDomainDB
+        except ImportError:
+            return
+        if not self._manifold or FordDomainDB.objects(label=self._manifold):
+            return
+        doc = FordDomainDB(label=self._manifold, faces=[_face_to_facedb(f) for f in faces])
+        if report is not None:
+            doc.volume_residual = report.get("volume_residual")
+            doc.ep_edges = report.get("ep_edges")
+            doc.complete = bool(report.get("complete"))
+        doc.save()
 
     def generators_parabolic(self):
         """
