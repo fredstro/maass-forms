@@ -101,6 +101,7 @@ ignore = [
 "**/utils.py" = ["C901"]
 "**/compute_coefficients.py" = ["C901"]
 "**/kleinian_group.py" = ["C901"]
+"**/hejhal.py" = ["C901"]
 "all.py" = [
     "F401", # Unused import - these files are by definition collections of imports.
 ]
