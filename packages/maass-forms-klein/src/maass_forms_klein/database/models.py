@@ -142,6 +142,99 @@ class Word(DBObjectBase):
         return f"Words({self.label}, {self.max_length}, {self.reduced_to_fd}, {self.fd})"
 
 
+class FaceDB(me.EmbeddedDocument):
+    """Embedded document representing one face of a Ford fundamental domain.
+
+    ATTRIBUTES:
+
+    - ``word`` -- str; a word representing the group element carrying the face
+    - ``centre`` -- List[Real]; centre of the isometric circle, ``[x, y]``
+    - ``radius`` -- Real; radius of the isometric circle
+    - ``partner_word`` -- str; word of the paired (inverse) face
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.database.models import FaceDB
+        sage: f = FaceDB(word='b', centre=[0.5, -0.87], radius=1.0, partner_word='B')
+        sage: f.word
+        'b'
+        sage: f.partner_word
+        'B'
+    """
+
+    word = me.StringField(required=True, help_text="Word carrying the face")
+    centre = me.ListField(
+        me.FloatField(), max_length=2, min_length=2, help_text="Isometric-circle centre [x, y]"
+    )
+    radius = me.FloatField(help_text="Isometric-circle radius")
+    partner_word = me.StringField(help_text="Word of the paired (inverse) face")
+
+
+class FordDomainDB(DBObjectBase):
+    """Persisted Ford-domain face-pairing structure of a Kleinian group.
+
+    Mirrors :class:`Word` / :class:`KleinianGroupDB`: one document per manifold,
+    caching the visible faces, floor height, and completeness certificates so
+    they can be recertified cheaply rather than recomputed. See
+    :mod:`maass_forms_klein.hyperbolic_space.face_pairing`.
+
+    ATTRIBUTES:
+
+    - ``label`` -- str; the manifold label (e.g. ``'4_1'``)
+    - ``faces`` -- list of :class:`FaceDB`; the face pairing
+    - ``y0`` -- Real; floor height ``Y0``
+    - ``y0_exact`` -- bool; whether ``y0`` came from the exact power-diagram method
+    - ``volume_residual`` -- Real; floor volume minus the manifold volume
+    - ``ep_edges`` -- int; Epstein--Penner edge count (``None`` if non-simplicial)
+    - ``complete`` -- bool; whether the completeness tests passed
+    - ``c_bound_enumerated`` -- Real; how far the ``|c|`` enumeration was pushed
+    - ``package_version`` -- str; provenance: package version
+    - ``precision`` -- int; provenance: working precision in bits
+    - ``date`` -- datetime; provenance: computation timestamp
+
+    EXAMPLES::
+
+        sage: from maass_forms_klein.database.models import FordDomainDB, FaceDB
+        sage: fdb = FordDomainDB(
+        ....:     label='4_1', y0=0.816496580928, y0_exact=True,
+        ....:     volume_residual=-5.0e-7, ep_edges=2, complete=True,
+        ....:     faces=[FaceDB(word='b', centre=[0.5, -0.87], radius=1.0, partner_word='B')])
+        sage: fdb.label
+        '4_1'
+        sage: fdb.faces[0].radius
+        1.0
+        sage: (fdb.y0_exact, fdb.ep_edges, fdb.complete)
+        (True, 2, True)
+    """
+
+    label = me.StringField()
+    faces = me.ListField(me.EmbeddedDocumentField(FaceDB))
+    y0 = me.FloatField()
+    y0_exact = me.BooleanField(default=False)
+    volume_residual = me.FloatField()
+    ep_edges = me.IntField()
+    complete = me.BooleanField(default=False)
+    c_bound_enumerated = me.FloatField()
+    package_version = me.StringField()
+    precision = me.IntField(default=53)
+    date = me.DateTimeField()
+    meta: ClassVar[dict] = {
+        "indexes": [{"fields": ("label",), "unique": True}],
+    }
+
+    def __repr__(self) -> str:
+        r"""
+        Return a string representation of this Ford domain document.
+
+        EXAMPLES::
+
+            sage: from maass_forms_klein.database.models import FordDomainDB
+            sage: repr(FordDomainDB(label='4_1', faces=[], complete=True))
+            'FordDomain(4_1, 0 faces, complete=True)'
+        """
+        return f"FordDomain({self.label}, {len(self.faces)} faces, complete={self.complete})"
+
+
 class KleinianMaassFormQuerySet(QuerySetCompat):
     """Enhanced QuerySet for KleinianMaassFormsDB with comprehensive validation.
 
