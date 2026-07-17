@@ -1030,7 +1030,9 @@ def _inversion_closed(faces: list) -> bool:
     When every face carries a word, pair by inverse word. For word-less faces
     (from the horoball enumeration) fall back to the necessary geometric
     condition that every radius occurs an even number of times, so the faces can
-    be partitioned into equal-radius inverse pairs.
+    be partitioned into equal-radius inverse pairs. That fallback is *necessary
+    but not sufficient*; it is only used inside :func:`check_face_completeness`,
+    where the independent Epstein--Penner and volume tests provide the backstop.
 
     EXAMPLES::
 
@@ -1296,6 +1298,8 @@ def enumerate_bounded_c(group, c_bound=None, prec: int = 53) -> list:
         sage: report['complete']
         True
     """
+    if c_bound is not None and c_bound <= 0:
+        raise ValueError(f"c_bound must be positive, got {c_bound}.")
     _, radius_const, _ = _cusp_frame_map(group, prec=prec)
     v1, v2, base = _lattice_vectors(group, prec=prec)
     if c_bound is not None:
@@ -1308,7 +1312,17 @@ def enumerate_bounded_c(group, c_bound=None, prec: int = 53) -> list:
         # if the estimate falls below the first pass.
         cutoff = 0.3**2 / 2.0
         circles = _horoball_circles(group, cutoff, prec=prec)
-        rmin = 0.9 * _horoball_floor_height(circles, v1, v2, base)
+        y0 = _horoball_floor_height(circles, v1, v2, base)
+        if y0 <= 0:
+            # The generous pass already fails to cover the cusp cell: its largest
+            # spheres do not reach a floor, so there is nothing sensible to
+            # auto-tune against. Guard against re-enumerating with cutoff 0
+            # (which would ask SnapPy for *every* horoball).
+            raise ValueError(
+                "Could not estimate a floor height for the auto-tuned bound; "
+                "pass an explicit c_bound."
+            )
+        rmin = 0.9 * y0
         needed = (rmin / radius_const) ** 2 / 2.0
         if needed < cutoff:
             circles = _horoball_circles(group, needed, prec=prec)

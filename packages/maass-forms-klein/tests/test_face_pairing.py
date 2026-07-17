@@ -164,6 +164,24 @@ def test_group_ford_methods():
     assert (report["pairs_found"], report["ep_edges"], report["complete"]) == (2, 2, True)
 
 
+@pytest.mark.slow
+def test_find_max_y_uses_certified_floor_height():
+    """find_max_y starts from the certified Ford floor height for a knot space."""
+    from maass_forms_klein.modform.compute_coefficients import _certified_starting_y, find_max_y
+    from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+
+    space = KleinianMaassFormSpace("4_1")
+    y0 = float(space.group().ford_floor_height())
+
+    # the certified start is just below the exact floor height
+    assert abs(_certified_starting_y(space) - 0.995 * y0) < 1e-9
+
+    # with no explicit Y, find_max_y uses it: a valid height (pullback raises
+    # every point) that beats the historical 0.73 default for this knot.
+    max_y = float(find_max_y(space, M=1, Q=2))
+    assert 0.73 < max_y <= y0 + 1e-9
+
+
 def test_face_facedb_roundtrip():
     """A face survives conversion to a FaceDB document and back."""
     face = visible_faces(KleinianGroup("4_1"))[0]
@@ -287,6 +305,13 @@ def test_group_ford_faces_certified_closes_seven_four():
     assert len(faces) == 16
     report = group.check_ford_complete(certified=True)
     assert (report["pairs_found"], report["ep_edges"], report["complete"]) == (8, 8, True)
+
+
+@pytest.mark.parametrize("bad", [0, -1.0])
+def test_enumerate_bounded_c_rejects_nonpositive_bound(bad):
+    """A non-positive c_bound is rejected (would divide by zero / keep all)."""
+    with pytest.raises(ValueError, match="c_bound must be positive"):
+        enumerate_bounded_c(KleinianGroup("4_1"), c_bound=bad)
 
 
 # 8-crossing knots: EP edge count and completeness via the horoball pipeline.
