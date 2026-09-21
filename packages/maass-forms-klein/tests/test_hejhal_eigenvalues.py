@@ -28,7 +28,7 @@ STRICT_SPREAD = 1e-3
 STRICT_RESID = 1e-3
 # Agreement tolerance for values reproduced from the reference runner with the
 # SAME parameters as ``search_eigenvalues`` defaults (§8 acceptance: 1e-6).
-MATCH_TOL_REF = 1e-5
+MATCH_TOL_REF = 1e-6
 # Agreement tolerance for values quoted in the survey paper (§6): these were
 # produced across campaigns with different truncation sizing, so double
 # precision only pins them to the strict validation spread (~1e-3).  The strong
@@ -41,6 +41,8 @@ FIG8_FIRST_FOUR = [4.90008537, 5.91291796, 7.07200419, 7.40661560]
 FIG8_SPURIOUS = 6.62211934
 # 8_8: four low-window strict eigenvalues (survey §6).
 K8_8_LOW = [2.183147, 2.452085, 3.115460, 3.460401]
+# 6_1: lowest strict eigenvalue from the reference runner with the same window.
+K6_1_FIRST = 3.46693579
 
 
 def _strict(results):
@@ -79,6 +81,18 @@ def test_fig8_spurious_6_6221_does_not_validate():
     results = search_eigenvalues("4_1", FIG8_SPURIOUS - 0.15, FIG8_SPURIOUS + 0.15, step=0.05)
     near = [r for r in _strict(results) if abs(r - FIG8_SPURIOUS) < 0.1]
     assert near == [], f"spurious value validated strictly: {near}"
+
+
+@pytest.mark.slow
+def test_6_1_first_strict_eigenvalue_matches_reference():
+    """The package and reference runner agree on 6_1 to the required 1e-6."""
+    from maass_forms_klein.modform.hejhal import search_eigenvalues
+
+    results = search_eigenvalues("6_1", 3.30, 3.65, step=0.05)
+    strict = _strict(results)
+    match = _closest(strict, K6_1_FIRST)
+    assert match is not None, "no strict confirmation near the first 6_1 eigenvalue"
+    assert abs(match - K6_1_FIRST) < MATCH_TOL_REF, (match, K6_1_FIRST)
 
 
 @pytest.mark.slow
