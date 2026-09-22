@@ -1,5 +1,5 @@
 r"""
-Hejhal two-height eigenvalue search via the stacked scaled-SVD indicator.
+Hejhal two-height eigenvalue search via aligned SVD null vectors.
 
 This module folds the eigenvalue-location machinery of the 2026 survey
 (``LESSONS_LEARNED_EIGENVALUE_SURVEY.md`` §1) into the package.  It is lifted
@@ -15,13 +15,15 @@ Why this replaces the ``modform/search.py`` sign-change locator (§1.1):
   For Kleinian groups this is fragile: which coefficient is reliably nonzero
   varies by knot and eigenvalue, sign changes are lost when the indicator dips
   without crossing, and symmetric forms with ``c(1) = 0`` are missed entirely.
-* The new path builds the rectangular system at two heights ``Y1 > Y2`` and
-  **stacks** them, row-equilibrates then column-normalises, and takes the SVD.
-  The indicator is the aligned two-height distance of the smallest right
-  singular vectors, which dips to truncation level at a genuine eigenvalue; the
-  null vector *is* the coefficient vector, with no normalisation chosen up
-  front.  Dips are located by golden-section refinement (no bracketing sign
-  change, no Newton walk-out).
+* The reference-tested path builds a matrix at each height ``Y1 > Y2``, then
+  row-equilibrates and column-normalises each before taking its SVD. The
+  indicator is the aligned distance of the two smallest right singular
+  vectors; the null vectors provide coefficient vectors without pinning
+  ``c(1)``. Dips are located by golden-section refinement.
+
+The survey prose requests bare ``sigma_min`` of a stacked system, but the
+named reference runner does not use it. A literal stacked implementation
+failed the 4_1 negative control; see ``dev/EIGENVALUE_SURVEY_INTEGRATION_NOTES.md``.
 
 Every dip is re-computed with independent parameters (``digits + 0.75``,
 different height factors) and triaged by first-pass residual (§1.3):
@@ -36,11 +38,11 @@ threaded straight into :class:`maass_forms_klein.functions.besselk_quad.KBessel`
 
 .. NOTE::
 
-    The covering-set and pull-back geometry here is lifted verbatim from the
-    reference (self-contained numpy).  Survey §8 step 3 replaces it with the
-    package's certified exact-``Y0`` floor and centred-cell reduction in
-    ``hyperbolic_space/``; until then this module carries its own copy so the
-    new indicator can be validated against the reference in isolation.
+    Covering matrices remain lifted from the self-contained NumPy reference.
+    Sampling heights now use the package's power-vertex Ford floor when the
+    horoball-face path succeeds, or the exact floor of the certified emitted
+    cover otherwise. The origin offset between frames prevents mixing sphere
+    centres without an explicit alignment.
 """
 
 import logging
@@ -48,6 +50,7 @@ import logging
 import numpy as np
 
 from maass_forms_klein.functions.besselk_quad import KBessel
+from maass_forms_klein.modform.survey_floor import certified_floor_height, exact_cover_floor
 
 log = logging.getLogger(__name__)
 
@@ -187,15 +190,14 @@ def _covered(base, v1, v2, circles, scale=0.999, min_frac=1 / 512):
 
 def covering_data(gens, tau, maxlen=14, verbose=False, extra_levels=3):
     r"""
-    Certified covering matrices and Ford-floor height ``Y0`` for the cusp cell.
+    Certified covering matrices and a sampled floor estimate for the cusp cell.
 
-    Returns ``(cover_mats, Y0)``: matrices whose isometric hemispheres (with
-    lattice translations applied) cover the centred cusp cell, and the floor
-    height of the *selected* subset (the quantity in the termination lemma).
+    Returns ``(cover_mats, floor_estimate)``: matrices whose isometric
+    hemispheres (with lattice translations applied) cover the centred cusp
+    cell, and a grid estimate of the floor of the *selected* subset.
 
-    See the reference runner for the deepening/greedy-reduction rationale.  This
-    is the interim geometry; survey §8 step 3 replaces it with the package's
-    exact ``Y0`` via power vertices.
+    See the reference runner for the deepening/greedy-reduction rationale.
+    HejhalContext does not use the grid estimate for sampling heights.
     """
     v1, v2 = reduced_basis(tau)
     best = None
@@ -352,7 +354,7 @@ def pullback_points(xs, Y, cover, tau, max_iter=200):
         x, y = complex(x0), float(Y)
         for _ in range(max_iter):
             co = Binv @ np.array([x.real, x.imag])
-            co -= np.round(co)
+            co -= np.floor(co + 0.5)
             x = co[0] * v1 + co[1] * v2
             moved = False
             for m in cover:
@@ -377,10 +379,22 @@ def pullback_points(xs, Y, cover, tau, max_iter=200):
 # ---------------------------------------------------------------------------
 # linear system, indicator and scan
 # ---------------------------------------------------------------------------
+def _require_pullback_above_floor(heights, floor_height):
+    """Reject incomplete or misplaced covers before building the linear system."""
+    heights = np.asarray(heights, dtype=float)
+    if heights.size == 0 or not np.all(np.isfinite(heights)):
+        raise RuntimeError("pull-back produced empty or non-finite heights")
+    if float(np.min(heights)) < 0.98 * floor_height:
+        raise RuntimeError(
+            f"pull-back minimum height {float(np.min(heights)):.6g} is below 0.98 "
+            f"times the exact floor {floor_height:.6g}; covering set or frame misplaced"
+        )
+
+
 class HejhalContext:
     r"""
-    Two-height Hejhal system for a knot complement, with the ``sigma_min``
-    indicator.
+    Two-height Hejhal system for a knot complement, with the aligned-null-vector
+    indicator from the validated reference runner.
 
     INPUT:
 
@@ -447,14 +461,25 @@ class HejhalContext:
         self.name = name
         gens, tau, vol = normalise_group(name)
         self.tau, self.vol = tau, vol
-        cover, Y0 = self._compute_cover(name, gens, tau, verbose)
-        self.cover, self.Y0 = cover, Y0
+        cover, cover_floor_estimate = self._compute_cover(name, gens, tau, verbose)
+        self.cover, self.cover_floor_estimate = cover, cover_floor_estimate
         v1, v2 = reduced_basis(tau)
+        try:
+            self.Y0 = certified_floor_height(name)
+            self.floor_source = "full_ford"
+        except ValueError as exc:
+            # A horoball-frame origin offset can make the package's face
+            # auto-bound fail even when this centred-cell cover is certified.
+            # Do not mix its centres with holonomy matrices: take only the
+            # scalar power-vertex floor of the emitted cover instead.
+            self.Y0 = exact_cover_floor(cover, v1, v2)
+            self.floor_source = "certified_cover"
+            log.warning("%s: full Ford floor unavailable (%s); using exact cover floor", name, exc)
         B = np.array([[v1.real, v1.imag], [v2.real, v2.imag]])
         Wd = np.linalg.inv(B)
         self.w1 = complex(Wd[0, 0], Wd[1, 0])
         self.w2 = complex(Wd[0, 1], Wd[1, 1])
-        self.Y1, self.Y2 = yfacs[0] * Y0, yfacs[1] * Y0
+        self.Y1, self.Y2 = yfacs[0] * self.Y0, yfacs[1] * self.Y0
         # truncation from the true K-Bessel decay exponent eta (survey §2.3)
         R = rmax
         target = digits * np.log(10)
@@ -516,6 +541,7 @@ class HejhalContext:
         self.pre = {}
         for Y in (self.Y1, self.Y2):
             xstar, ystar = pullback_points(self.xs, Y, cover, tau)
+            _require_pullback_above_floor(ystar, self.Y0)
             unmoved = int(np.sum(np.abs(ystar - Y) < 1e-12))
             if unmoved > max(2, 0.01 * len(ystar)):
                 raise RuntimeError(
@@ -681,8 +707,8 @@ def search_eigenvalues(
     verbose=False,
 ):
     r"""
-    Locate Maass-form eigenvalues of a knot complement by the stacked two-height
-    ``sigma_min`` indicator, with independent-parameter validation and triage.
+    Locate Maass-form eigenvalues with the reference-tested two-height
+    aligned-null-vector indicator, independent-parameter validation and triage.
 
     INPUT:
 
