@@ -681,12 +681,18 @@ def _validate(ctx2, cands, step, order="imaginary"):
             match = [x for x in c2 if abs(x[0] - r0) < 5 * step]
             if match:
                 r1, res1 = min(match, key=lambda t: abs(t[0] - r0))
+                spread = abs(r1 - r0)
+                combined_resid = max(resid, res1)
                 out.append(
                     {
                         "r": 0.5 * (r0 + r1),
-                        "spread": abs(r1 - r0),
-                        "resid": max(resid, res1),
-                        "status": "confirmed",
+                        "spread": spread,
+                        "resid": combined_resid,
+                        "status": (
+                            "confirmed"
+                            if spread < 1e-3 and combined_resid < 1e-3
+                            else "unconfirmed"
+                        ),
                     }
                 )
             else:

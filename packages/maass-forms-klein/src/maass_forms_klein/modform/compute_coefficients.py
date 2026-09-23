@@ -251,6 +251,64 @@ def compute_coefficients(
         sage: C[(-1,0)] # abs tol 1e-2
         1.0
     """
+    manifold = getattr(space.group(), "_manifold", "")
+    if manifold and not return_mat:
+        from maass_forms_klein.modform.hejhal import HejhalContext
+
+        spectral_value = complex(spectral_parameter)
+        parameter = abs(spectral_value.imag) if spectral_value.imag else abs(spectral_value.real)
+        context = HejhalContext(manifold, rmax=max(parameter, 1e-3))
+        values = context.coefficients(parameter, context.Y1)
+
+        if isinstance(set_coefficients, str):
+            set_coefficients = dict_from_json(set_coefficients)
+        if set_coefficients:
+            scale = None
+            for coefficient_index, target in set_coefficients.items():
+                if isinstance(coefficient_index, Integer_t):
+                    coefficient_index = context.index[int(coefficient_index)]
+                else:
+                    coefficient_index = tuple(coefficient_index)
+                if coefficient_index not in context.index:
+                    raise ValueError(
+                        f"set_coefficients[{coefficient_index}]={target} is outside "
+                        "the Hejhal truncation"
+                    )
+                current = values[context.index.index(coefficient_index)]
+                if target == 0:
+                    if abs(current) > 1e-8:
+                        raise ValueError(
+                            f"Hejhal null vector does not satisfy c{coefficient_index}=0"
+                        )
+                    continue
+                if abs(current) <= 1e-14:
+                    raise ValueError(
+                        f"cannot pin vanishing Hejhal coefficient c{coefficient_index} "
+                        f"to {target}"
+                    )
+                candidate_scale = complex(target) / current
+                if scale is None:
+                    scale = candidate_scale
+                elif abs(candidate_scale - scale) > 1e-8 * max(1.0, abs(scale)):
+                    raise ValueError(
+                        "set_coefficients are inconsistent with the Hejhal null vector"
+                    )
+            if scale is not None:
+                values = values * scale
+
+        coordinate_values = [vector((float(v.real), float(v.imag))) for v in context.vecs]
+        return KleinianMaassFormCoefficients(
+            [[CC(value)] for value in values],
+            max(context.M1, context.M2),
+            context.N,
+            spectral_parameter,
+            space,
+            context.Y1,
+            coordinate_indices=context.index,
+            coordinate_values=coordinate_values,
+            set_coefficients=set_coefficients,
+        )
+
     if not M:
         M = ceil((abs(spectral_parameter) + 12) / (6.28318530717959))
     zpb, zm, Q, M, Y = get_pb_pts_set_params(space, spectral_parameter, M=M, Y=Y, Q_set=Q)

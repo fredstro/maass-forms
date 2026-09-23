@@ -60,6 +60,84 @@ def _closest(values, target):
     return min((abs(v - target), v) for v in values)[1] if values else None
 
 
+@pytest.mark.parametrize(
+    "spread, residual, expected_status",
+    [
+        (9.9e-4, 9.9e-4, "confirmed"),
+        (1.0e-3, 9.9e-4, "unconfirmed"),
+        (9.9e-4, 1.0e-3, "unconfirmed"),
+    ],
+)
+def test_validation_status_enforces_both_strict_thresholds(
+    monkeypatch, spread, residual, expected_status
+):
+    """A second-pass match alone must never be labelled strictly confirmed."""
+    from maass_forms_klein.modform import hejhal
+
+    class ValidationContext:
+        def set_order(self, order):
+            self.order = order
+
+    first_r = 4.0
+    monkeypatch.setattr(
+        hejhal,
+        "scan_and_refine",
+        lambda *args, **kwargs: ([], [], [(first_r + spread, residual)]),
+    )
+    result = hejhal._validate(ValidationContext(), [(first_r, residual)], step=0.05)
+    assert result[0]["status"] == expected_status
+
+
+def test_established_search_api_routes_knot_spaces_to_hejhal(monkeypatch):
+    """The documented import path must not fall back to sign-change search."""
+    from maass_forms_klein.modform import hejhal
+    from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+    from maass_forms_klein.modform.search import search_eigenvalues
+
+    expected = [{"r": 4.90008537, "spread": 1e-7, "resid": 2e-6, "status": "confirmed"}]
+    monkeypatch.setattr(hejhal, "search_eigenvalues", lambda *args, **kwargs: expected)
+
+    result = search_eigenvalues(
+        KleinianMaassFormSpace("4_1"), 4.75, 5.05, step_size=0.05
+    )
+    assert result == expected
+
+
+def test_established_coefficient_api_routes_knot_spaces_to_hejhal(monkeypatch):
+    """Knot coefficient calls must use the normalization-free SVD vector."""
+    import numpy as np
+    from sage.all import CC
+
+    from maass_forms_klein.modform import hejhal
+    from maass_forms_klein.modform.compute_coefficients import compute_coefficients
+    from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+
+    class CoefficientContext:
+        M1 = 1
+        M2 = 0
+        N = 8
+        Y1 = 0.7
+
+        def __init__(self, *args, **kwargs):
+            self.index = [(0, 0), (1, 0), (-1, 0)]
+            self.vecs = np.array([0j, 1 + 0j, -1 + 0j])
+
+        def coefficients(self, parameter, height):
+            assert abs(parameter - 4.9) < 1e-12
+            assert height == self.Y1
+            return np.array([0j, 2 + 0j, 1j])
+
+    monkeypatch.setattr(hejhal, "HejhalContext", CoefficientContext)
+    coefficients = compute_coefficients(
+        KleinianMaassFormSpace("4_1"),
+        CC(1, 4.9),
+        set_coefficients={(1, 0): 1},
+    )
+
+    assert coefficients[(1, 0)] == 1
+    assert coefficients[(-1, 0)] == 0.5j
+
+
 @pytest.mark.slow
 @pytest.mark.parametrize("r_expected", FIG8_FIRST_FOUR)
 def test_fig8_strict_eigenvalue(r_expected):
