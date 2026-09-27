@@ -251,6 +251,90 @@ def compute_coefficients(
         sage: C[(-1,0)] # abs tol 1e-2
         1.0
     """
+    manifold = getattr(space.group(), "_manifold", "")
+    if manifold and Q is None and Y is None and M is None and not return_mat:
+        from maass_forms_klein.modform.hejhal import HejhalContext, reduced_basis
+
+        spectral_value = complex(spectral_parameter)
+        parameter = abs(spectral_value.imag) if spectral_value.imag else abs(spectral_value.real)
+        context = HejhalContext(manifold, rmax=max(parameter, 1e-3))
+        values = context.coefficients(parameter, context.Y1)
+
+        _v1, _v2, transform = reduced_basis(context.tau, return_transform=True)
+        a, b = transform[0]
+        c, d = transform[1]
+        determinant = a * d - b * c
+        inverse_transform = (
+            (determinant * d, -determinant * b),
+            (-determinant * c, determinant * a),
+        )
+        original_indices = [
+            (
+                inverse_transform[0][0] * k1 + inverse_transform[0][1] * k2,
+                inverse_transform[1][0] * k1 + inverse_transform[1][1] * k2,
+            )
+            for k1, k2 in context.index
+        ]
+
+        if isinstance(set_coefficients, str):
+            set_coefficients = dict_from_json(set_coefficients)
+        if set_coefficients:
+            scale = None
+            for coefficient_index, target in set_coefficients.items():
+                if isinstance(coefficient_index, Integer_t):
+                    position = int(coefficient_index)
+                    coefficient_index = original_indices[position]
+                else:
+                    coefficient_index = tuple(coefficient_index)
+                    if coefficient_index not in original_indices:
+                        raise ValueError(
+                            f"set_coefficients[{coefficient_index}]={target} is outside "
+                            "the Hejhal truncation"
+                        )
+                    position = original_indices.index(coefficient_index)
+                current = values[position]
+                if target == 0:
+                    if abs(current) > 1e-8:
+                        raise ValueError(
+                            f"Hejhal null vector does not satisfy c{coefficient_index}=0"
+                        )
+                    continue
+                if abs(current) <= 1e-14:
+                    raise ValueError(
+                        f"cannot pin vanishing Hejhal coefficient c{coefficient_index} "
+                        f"to {target}"
+                    )
+                candidate_scale = complex(target) / current
+                if scale is None:
+                    scale = candidate_scale
+                elif abs(candidate_scale - scale) > 1e-8 * max(1.0, abs(scale)):
+                    raise ValueError(
+                        "set_coefficients are inconsistent with the Hejhal null vector"
+                    )
+            if scale is not None:
+                values = values * scale
+
+        public_M = max(abs(k) for index in original_indices for k in index)
+        lattice_values, lattice_indices = space.group().dual_translation_lattice_vectors(
+            public_M, return_indices=True
+        )
+        values_by_index = {
+            tuple(int(k) for k in index): value
+            for value, index in zip(lattice_values, lattice_indices, strict=True)
+        }
+        coordinate_values = [values_by_index[index] for index in original_indices]
+        return KleinianMaassFormCoefficients(
+            [[CC(value)] for value in values],
+            public_M,
+            context.N,
+            spectral_parameter,
+            space,
+            context.Y1,
+            coordinate_indices=original_indices,
+            coordinate_values=coordinate_values,
+            set_coefficients=set_coefficients,
+        )
+
     if not M:
         M = ceil((abs(spectral_parameter) + 12) / (6.28318530717959))
     zpb, zm, Q, M, Y = get_pb_pts_set_params(space, spectral_parameter, M=M, Y=Y, Q_set=Q)

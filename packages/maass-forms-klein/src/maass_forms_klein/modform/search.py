@@ -86,6 +86,9 @@ def search_eigenvalues(
     r"""
     Search for eigenvalues of Maass forms for the space.
 
+    Manifold-backed knot spaces use the validated Hejhal dip search. Other
+    Kleinian spaces retain the legacy coefficient sign-change implementation.
+
     EXAMPLES:
 
         sage: from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
@@ -109,6 +112,32 @@ def search_eigenvalues(
         ArithmeticError:...
 
     """
+    manifold = getattr(space.group(), "_manifold", "")
+    if manifold:
+        from maass_forms_klein.modform.hejhal import search_eigenvalues as hejhal_search
+
+        if "step_size" in kwargs:
+            step = float(kwargs["step_size"])
+        elif "num_steps" in kwargs:
+            num_steps = int(kwargs["num_steps"])
+            if num_steps < 2:
+                raise ValueError("num_steps must be at least 2")
+            step = float(R2 - R1) / (num_steps - 1)
+        else:
+            raise ValueError("Need either step size or number of steps.")
+        return hejhal_search(
+            manifold,
+            float(R1),
+            float(R2),
+            step=step,
+            digits=kwargs.get("digits", 2.5),
+            order=kwargs.get("order", "imaginary"),
+            yfacs=kwargs.get("yfacs", (0.95, 0.88)),
+            rmax_ctx=kwargs.get("rmax_ctx"),
+            validate=kwargs.get("validate", True),
+            verbose=kwargs.get("verbose", False),
+        )
+
     if "step_size" in kwargs:
         step_size = kwargs.get("step_size", 0.05)
         num_steps = ceil((R2 - R1) / step_size + 1)
