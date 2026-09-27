@@ -119,7 +119,7 @@ def normalise_group(name, simplify=True):
     return ngens, tau, float(M.volume())
 
 
-def reduced_basis(tau):
+def reduced_basis(tau, return_transform=False):
     r"""
     Lagrange--Gauss reduced basis of the cusp lattice ``Z*tau + Z``.
 
@@ -135,14 +135,20 @@ def reduced_basis(tau):
         True
     """
     v1, v2 = complex(tau), 1.0 + 0j
+    r1, r2 = [1, 0], [0, 1]
     for _ in range(100):
         if abs(v2) < abs(v1):
             v1, v2 = v2, v1
+            r1, r2 = r2, r1
         mu = round((v2.real * v1.real + v2.imag * v1.imag) / abs(v1) ** 2)
         if mu == 0:
             break
         v2 = v2 - mu * v1
-    return v2, v1  # longer vector first, matching (tau, 1) ordering
+        r2 = [r2[i] - mu * r1[i] for i in range(2)]
+    basis = (v2, v1)  # longer vector first, matching (tau, 1) ordering
+    if return_transform:
+        return basis[0], basis[1], (tuple(r2), tuple(r1))
+    return basis
 
 
 # ---------------------------------------------------------------------------

@@ -114,12 +114,13 @@ def test_established_coefficient_api_routes_knot_spaces_to_hejhal(monkeypatch):
 
     class CoefficientContext:
         M1 = 1
-        M2 = 0
+        M2 = 1
         N = 8
         Y1 = 0.7
+        tau = -2.490244667506673 - 2.9794470664789454j
 
         def __init__(self, *args, **kwargs):
-            self.index = [(0, 0), (1, 0), (-1, 0)]
+            self.index = [(0, 0), (0, 1), (1, -1)]
             self.vecs = np.array([0j, 1 + 0j, -1 + 0j])
 
         def coefficients(self, parameter, height):
@@ -128,14 +129,59 @@ def test_established_coefficient_api_routes_knot_spaces_to_hejhal(monkeypatch):
             return np.array([0j, 2 + 0j, 1j])
 
     monkeypatch.setattr(hejhal, "HejhalContext", CoefficientContext)
+    space = KleinianMaassFormSpace("5_2")
     coefficients = compute_coefficients(
-        KleinianMaassFormSpace("4_1"),
+        space,
         CC(1, 4.9),
-        set_coefficients={(1, 0): 1},
+        set_coefficients={(-2, 1): 1},
     )
 
-    assert coefficients[(1, 0)] == 1
-    assert coefficients[(-1, 0)] == 0.5j
+    assert [tuple(index) for index in coefficients.coordinate_indices()] == [
+        (0, 0),
+        (-2, 1),
+        (3, -1),
+    ]
+    assert coefficients[(-2, 1)] == 1
+    assert coefficients[(3, -1)] == 0.5j
+    lattice_values, lattice_indices = space.group().dual_translation_lattice_vectors(
+        3, return_indices=True
+    )
+    package_values = {
+        tuple(int(k) for k in index): value
+        for value, index in zip(lattice_values, lattice_indices, strict=True)
+    }
+    for index, value in zip(
+        coefficients.coordinate_indices(), coefficients.coordinate_values(), strict=True
+    ):
+        assert value == package_values[tuple(index)]
+
+
+def test_explicit_coefficient_parameters_preserve_legacy_height_solver(monkeypatch):
+    """A requested Y must not be discarded by the Hejhal convenience path."""
+    from sage.all import CC
+
+    from maass_forms_klein.modform import compute_coefficients as coefficient_module
+    from maass_forms_klein.modform import hejhal
+    from maass_forms_klein.modform.kmaass_space import KleinianMaassFormSpace
+
+    class LegacyPathReachedError(Exception):
+        pass
+
+    class WrongHejhalPath:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("explicit Y was incorrectly routed through Hejhal")
+
+    monkeypatch.setattr(hejhal, "HejhalContext", WrongHejhalPath)
+    monkeypatch.setattr(
+        coefficient_module,
+        "get_pb_pts_set_params",
+        lambda *args, **kwargs: (_ for _ in ()).throw(LegacyPathReachedError),
+    )
+
+    with pytest.raises(LegacyPathReachedError):
+        coefficient_module.compute_coefficients(
+            KleinianMaassFormSpace("4_1"), CC(1, 4.9), M=3, Q=4, Y=0.5
+        )
 
 
 @pytest.mark.slow
